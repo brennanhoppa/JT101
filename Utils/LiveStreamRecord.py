@@ -304,10 +304,23 @@ def main():
                     pygame.draw.circle(window, (0, 255, 0), flashlight_pos, 10)
             except queue.Empty:
                 pass
-                    
-            status_text = f"{'Recording' if recording else 'Not Recording'} | {'Tracking' if tracking else 'Not Tracking'}"
-            text_surface = font.render(status_text, True, (255, 0, 0) if recording else (0, 255, 0))
-            window.blit(text_surface, (10, 10))
+
+            # for x, y, t in step_tracking_data:
+            # f.write(f"{x},{y},{t}\n")
+
+            current_time = datetime.now().strftime("%H:%M:%S") 
+            status_text = (
+                    f"{'Recording' if recording else 'Not Recording'} | "
+                    f"{'Tracking' if tracking else 'Not Tracking'}\n"
+                    f"Time: {current_time}"
+                )
+
+            lines = status_text.split('\n')
+            y_offset = 10
+            for line in lines:
+                line_surface = font.render(line, True, (255, 0, 0) if recording else (0, 255, 0))
+                window.blit(line_surface, (10, y_offset))
+                y_offset += font.get_linesize()  # Move to next line
             
             if recording and tracking:
                 steps_text = f"Steps: X={cumulative_steps['x']}, Y={cumulative_steps['y']}"
