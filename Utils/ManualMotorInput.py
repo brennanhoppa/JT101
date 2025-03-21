@@ -15,8 +15,8 @@ def move(ser, x_pos, y_pos, x_direction, y_direction):
         Y_MAX = 210900
 
         # Calculate new positions
-        new_x = x_pos + x_direction
-        new_y = y_pos + y_direction
+        new_x = x_pos.value + x_direction
+        new_y = y_pos.value + y_direction
         
         # Validate that the new positions are within the valid range
         x_valid = 0 <= new_x <= X_MAX
@@ -24,21 +24,21 @@ def move(ser, x_pos, y_pos, x_direction, y_direction):
         
         # Update positions and send movement commands
         if x_valid and x_direction != 0:
-            x_pos = new_x
+            x_pos.value = new_x
             send_command(ser, f'{"R" if x_direction > 0 else "L"}{abs(x_direction)}')
         if y_valid and y_direction != 0:
-            y_pos = new_y
+            y_pos.value = new_y
             send_command(ser, f'{"U" if y_direction > 0 else "D"}{abs(y_direction)}')
         
         # Print current position or axis limit warnings
         if x_valid and y_valid:
             # print(f"Current position: X={JellyTrackingFunctions.steps_to_mm(x_pos,y_pos)}, Y={JellyTrackingFunctions.steps_to_mm(x_pos,y_pos)}")
-            print(f"Position: X={x_pos}, Y={y_pos}")
+            print(f"Position: X={x_pos.value}, Y={y_pos.value}")
         else:
             if not x_valid:
-                print(f"X axis limit reached. Current position: X={x_pos}, Y={y_pos}")
+                print(f"X axis limit reached. Current position: X={x_pos.value}, Y={y_pos.value}")
             if not y_valid:
-                print(f"Y axis limit reached. Current position: X={x_pos}, Y={y_pos}")
+                print(f"Y axis limit reached. Current position: X={x_pos.value}, Y={y_pos.value}")
         return x_pos, y_pos
 
 # Function to wait for the Arduino to confirm that homing is complete
@@ -76,8 +76,8 @@ def wait_for_errorcheck_completion(ser):
 def save_position(x_pos, y_pos, file_path):
     try:
         with open(file_path, "w") as file:
-            file.write(f"{x_pos}, {y_pos}")
-        print(f"Updated location saved: {x_pos}, {y_pos}")
+            file.write(f"{x_pos.value}, {y_pos.value}")
+        print(f"Updated location saved: {x_pos.value}, {y_pos.value}")
     except Exception as e:
         print(f"Error writing to {file_path}: {e}")
 
@@ -108,32 +108,11 @@ def save_position(x_pos, y_pos, file_path):
 
     #     print(f"Reached Z position: X={x_pos}, Y={y_pos}")
 
-def run_motor_input():
+def run_motor_input(x_pos,y_pos,file_path):
     
     # Set up the serial connection to the Arduino
     ser = serial.Serial('COM5', 500000, timeout=5)  
     time.sleep(.5)  # Give the connection a moment to set up
-
-    x_pos, y_pos = None, None
-    # File containing the position data
-    script_dir = os.path.dirname(os.path.abspath(__file__))  # Directory of ManualMotorInput.py
-    file_path = os.path.join(script_dir, "motor_location.txt")
-    print('trying to open:', file_path)
-    try:
-        with open(file_path, "r") as file:
-            content = file.read().strip()
-            parts = content.split(",")
-            
-            if len(parts) == 2:
-                x_pos, y_pos = map(str.strip, parts)  # Remove any extra spaces
-                x_pos, y_pos = int(x_pos), int(y_pos)  # Convert to integers
-            else:
-                raise ValueError("Incorrect formatting")
-
-    except (FileNotFoundError, ValueError) as e:
-        print(f"Error reading {file_path}: {e}")
-        x_pos, y_pos = None, None
-    print(f"x_pos: {x_pos}, y_pos: {y_pos}")
 
     # Flag to check if home has been set
     home_set = False
@@ -173,14 +152,14 @@ def run_motor_input():
                 print("Homing process started...")
                 wait_for_homing_completion(ser)  # Wait for the homing to complete
                 home_set = True  # Home is set after homing process
-                x_pos, y_pos = 0, 0
+                x_pos.value, y_pos.value = 0, 0
                 print("Set Tank Home by moving camera to bottom left of tank, then press 'g'.")
             if keyboard.is_pressed('e'): # error checking process
                 send_command(ser, f'ERRORCHECK_{x_pos}_{y_pos}')
                 print("Error process starting...")
                 wait_for_errorcheck_completion(ser)
                 home_set = True  # Home is set after error checking process too
-                x_pos, y_pos = 0, 0
+                x_pos.value, y_pos.value = 0, 0
                 print("Error Check Completed.")
 
             # elif keyboard.is_pressed('g') and home_set:

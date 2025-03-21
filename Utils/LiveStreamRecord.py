@@ -38,8 +38,8 @@ class AviType:
 
 chosenAviType = AviType.MJPG
 
-def run_live_stream_record():
-    if main():
+def run_live_stream_record(x_pos,y_pos):
+    if main(x_pos,y_pos):
         sys.exit(0)
     else:
         sys.exit(1)
@@ -180,7 +180,7 @@ def active_tracking_thread(center_x, center_y):
 
 
 
-def main():
+def main(x_pos,y_pos):
     global running, shared_image, recording, tracking, ser, avi_recorder, step_tracking_data, cumulative_steps
     
     system = PySpin.System.GetInstance()
