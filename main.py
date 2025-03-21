@@ -1,13 +1,8 @@
 import subprocess
 import threading
 
-# Function to run ManualMotorInput.py
-def run_motor_input():
-    subprocess.run(["python", "Utils/ManualMotorInput.py"])
-
-# Function to run LiveStreamRecord.py
-def run_live_stream_record():
-    subprocess.run(["python", "Utils/LiveStreamRecord.py"])
+from Utils.ManualMotorInput import run_motor_input
+from Utils.LiveStreamRecord import run_live_stream_record
 
 if __name__ == "__main__":
     # Create threads to run both scripts simultaneously

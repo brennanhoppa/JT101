@@ -7,9 +7,10 @@ import os
 from datetime import datetime
 import serial # type: ignore
 import time
-from JellyTrackingFunctions import detect_jellyfish,calculate_movement
+from Utils.JellyTrackingFunctions import detect_jellyfish,calculate_movement
 import PySpin # type: ignore
 import cv2 #type: ignore
+
 NUM_IMAGES = 300
 name = 'TESTBINNING2'
 running = True
@@ -36,6 +37,12 @@ class AviType:
     H264 = 2
 
 chosenAviType = AviType.MJPG
+
+def run_live_stream_record():
+    if main():
+        sys.exit(0)
+    else:
+        sys.exit(1)
 
 def ensure_dir(directory):
     if not os.path.exists(directory):
@@ -351,9 +358,3 @@ def main():
     system.ReleaseInstance()
     print("Done")
     return True
-
-if __name__ == '__main__':
-    if main():
-        sys.exit(0)
-    else:
-        sys.exit(1)
