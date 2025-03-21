@@ -1,9 +1,10 @@
 import sys
 import numpy as np
+import os
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame # type: ignore
 import threading
 import queue
-import os
 from datetime import datetime
 import serial # type: ignore
 import time

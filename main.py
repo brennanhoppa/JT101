@@ -4,6 +4,8 @@ import multiprocessing
 import time
 import os
 
+import logging
+logging.getLogger('matplotlib').setLevel(logging.ERROR)
 from Utils.ManualMotorInput import run_motor_input
 from Utils.LiveStreamRecord import run_live_stream_record
 
@@ -12,7 +14,6 @@ def get_x_y():
     # File containing the position data
     script_dir = os.path.dirname(os.path.abspath(__file__))  # Directory of ManualMotorInput.py
     file_path = os.path.join(script_dir, "Utils","motor_location.txt")
-    print('trying to open:', file_path)
     try:
         with open(file_path, "r") as file:
             content = file.read().strip()
