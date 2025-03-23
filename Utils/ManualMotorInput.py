@@ -85,7 +85,7 @@ def run_motor_input(x_pos,y_pos,file_path,command_queue,homing_flag):
                     time.sleep(0.1)
                 home_set = True  # Home is set after homing process
                 x_pos.value, y_pos.value = 0, 0
-                print("Set Tank Home by moving camera to bottom left of tank, then press 'g'.")
+                # print("Set Tank Home by moving camera to bottom left of tank, then press 'g'.")
             if keyboard.is_pressed('e'): # error checking process
                 command_queue.put(f'ERRORCHECK_{x_pos.value}_{y_pos.value}\n')
                 homing_flag.value = True

@@ -52,12 +52,30 @@ def detect_jellyfish(frame, detect_light):
         return None
 
     if detect_light:
+        brightness_threshold=200
         gray = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2GRAY)
-        # Find the brightest spot
-        (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(gray)
-        print(f"Brightest spot at: {maxLoc} with brightness value: {maxVal}")
-        return None
-        return maxLoc  # Return the (x, y) location of the brightest spot
+        _, thresh = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if len(contours) == 0:
+            return None  
+        largest_contour = None
+        max_area = 0
+        largest_center = None
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            if area > max_area:
+                max_area = area
+                largest_contour = contour
+        if max_area < brightness_threshold:
+            return None  
+        M = cv2.moments(largest_contour)
+        if M['m00'] == 0:
+            return None 
+        cx = int(M['m10'] / M['m00'])
+        cy = int(M['m01'] / M['m00'])
+        # print(f'made to the end, cx:{cx}, cy:{cy}')
+        return (cx, cy)
+
 
     # Perform object detection using the YOLO model
     results = model.predict(

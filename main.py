@@ -93,7 +93,7 @@ def serial_process(command_queue,homing_flag):
             print("Closing serial connection.")
             break
         ser.write(command.encode())  # Send command
-        print(f"Sent command: {command}")
+        print(f"Sent command: {command.rstrip()}")
 
     ser.close()
 

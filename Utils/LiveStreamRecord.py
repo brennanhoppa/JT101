@@ -6,7 +6,6 @@ import pygame # type: ignore
 import threading
 import queue
 from datetime import datetime
-import serial # type: ignore
 import time
 from Utils.JellyTrackingFunctions import detect_jellyfish,calculate_movement
 import PySpin # type: ignore
@@ -17,9 +16,9 @@ name = 'TESTBINNING2'
 running = True
 recording = False
 tracking = False
+motors = False
 shared_image = None
 avi_recorder = None
-ser = None
 
 # Tracking settings
 TRACKING_INTERVAL = 1 / 50  # 50Hz tracking rate
@@ -60,24 +59,15 @@ def pyspin_image_to_pygame(image_ptr):
     image_data = np.ascontiguousarray(image_data.astype(np.uint8))
     return pygame.image.frombuffer(image_data.tobytes(), (width, height), "RGB")
 
-def send_movement_command(step_x, step_y):
-    global ser
-    if ser is None or not ser.is_open:
-        print("Serial connection is not available")
-        return
+def send_movement_command(step_x, step_y, command_queue):
+    if step_x != 0:
+        x_direction = 'L' if step_x > 0 else 'R'
+        command_queue.put(f"{x_direction}{abs(step_x)}\n")
+    if step_y != 0:
+        y_direction = 'U' if step_y > 0 else 'D'
+        command_queue.put(f"{y_direction}{abs(step_y)}\n")
 
-    try:
-        if step_x != 0:
-            x_direction = 'L' if step_x > 0 else 'R'
-            command = f"{x_direction}{abs(step_x)}\n"
-            ser.write(command.encode())
 
-        if step_y != 0:
-            y_direction = 'U' if step_y > 0 else 'D'
-            command = f"{y_direction}{abs(step_y)}\n"
-            ser.write(command.encode())
-    except serial.SerialException as e:
-        print(f"Serial communication error: {e}")
 
 def track_cumulative_steps(step_x, step_y):
     global cumulative_steps, step_tracking_data, recording
@@ -133,8 +123,8 @@ def imageacq(cam, processor):
     cam.EndAcquisition()
 
 
-def active_tracking_thread(center_x, center_y):
-    global running, tracking
+def active_tracking_thread(center_x, center_y, command_queue):
+    global running, tracking, motors
     last_tracking_time = time.time()
     
     while running:
@@ -157,6 +147,7 @@ def active_tracking_thread(center_x, center_y):
                         else:
                             continue
                     
+                    # testing feature
                     # detect_light = False # normal setting to track jf
                     detect_light = True # testing mode - returns x,y of brightest spot in frame
 
@@ -165,9 +156,10 @@ def active_tracking_thread(center_x, center_y):
                     if flashlight_pos:
                         # Calculate required movement to keep the jellyfish centered
                         step_x, step_y = calculate_movement(flashlight_pos, center_x, center_y)
-                        if step_x is not None and step_y is not None:
+                        # print(step_x,step_y)
+                        if (step_x is not None and step_y is not None) and motors:
                             # Send movement command and track steps
-                            send_movement_command(step_x*1.3, step_y*1.3)
+                            send_movement_command(round(step_x*1.3,1), round(step_y*1.3,1), command_queue)
                             track_cumulative_steps(step_x, step_y)
                             
                         # Communicate tracking results for display
@@ -185,7 +177,7 @@ def active_tracking_thread(center_x, center_y):
 
 
 def main(x_pos,y_pos,command_queue,homing_flag):
-    global running, shared_image, recording, tracking, ser, avi_recorder, step_tracking_data, cumulative_steps
+    global running, shared_image, recording, tracking, motors, avi_recorder, step_tracking_data, cumulative_steps
     
     system = PySpin.System.GetInstance()
     cam_list = system.GetCameras()
@@ -212,7 +204,7 @@ def main(x_pos,y_pos,command_queue,homing_flag):
     acq_thread = threading.Thread(target=imageacq, args=(cam, processor))
     acq_thread.start()
     
-    tracking_thread = threading.Thread(target=active_tracking_thread, args=(window_width // 2, window_height // 2))
+    tracking_thread = threading.Thread(target=active_tracking_thread, args=(window_width // 2, window_height // 2, command_queue))
     tracking_thread.start()
     
     clock = pygame.time.Clock()
@@ -272,18 +264,9 @@ def main(x_pos,y_pos,command_queue,homing_flag):
                     save_tracking_data(tracking_filename)
                     
                 elif event.key == pygame.K_a:
-                    tracking = not tracking
-                    if tracking:
-                        try:
-                            ser = serial.Serial('COM5', 500000, timeout=0.1)
-                            print("Tracking started and serial connection established")
-                        except serial.SerialException as e:
-                            print(f"Failed to open serial port: {e}")
-                            tracking = False
-                    else:
-                        if ser:
-                            ser.close()
-                        print("Tracking stopped and serial connection closed")
+                    tracking = not tracking # switches tracking on / off
+                elif event.key == pygame.K_m:
+                    motors = not motors # turn the motors on / off for tracking
         
         if shared_image is not None:
             py_image = pyspin_image_to_pygame(shared_image)
@@ -323,6 +306,7 @@ def main(x_pos,y_pos,command_queue,homing_flag):
             status_text = (
                     f"{'Recording' if recording else 'Not Recording'} | "
                     f"{'Tracking' if tracking else 'Not Tracking'}\n"
+                    f"{'Motors on with Tracking' if motors else 'Motors off with Tracking'}\n"
                     f"Time: {current_time}"
                 )
 
@@ -352,8 +336,6 @@ def main(x_pos,y_pos,command_queue,homing_flag):
     
     if recording and avi_recorder:
         avi_recorder.Close()
-    if ser:
-        ser.close()
     acq_thread.join()
     tracking_thread.join()
     cam.DeInit()
