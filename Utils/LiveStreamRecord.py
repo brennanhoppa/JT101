@@ -39,8 +39,8 @@ class AviType:
 
 chosenAviType = AviType.MJPG
 
-def run_live_stream_record(x_pos,y_pos):
-    if main(x_pos,y_pos):
+def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag):
+    if main(x_pos,y_pos,command_queue,homing_flag):
         sys.exit(0)
     else:
         sys.exit(1)
@@ -157,8 +157,11 @@ def active_tracking_thread(center_x, center_y):
                         else:
                             continue
                     
+                    # detect_light = False # normal setting to track jf
+                    detect_light = True # testing mode - returns x,y of brightest spot in frame
+
                     # Use YOLO to detect jellyfish position
-                    flashlight_pos = detect_jellyfish(image)
+                    flashlight_pos = detect_jellyfish(image, detect_light)
                     if flashlight_pos:
                         # Calculate required movement to keep the jellyfish centered
                         step_x, step_y = calculate_movement(flashlight_pos, center_x, center_y)
@@ -181,7 +184,7 @@ def active_tracking_thread(center_x, center_y):
 
 
 
-def main(x_pos,y_pos):
+def main(x_pos,y_pos,command_queue,homing_flag):
     global running, shared_image, recording, tracking, ser, avi_recorder, step_tracking_data, cumulative_steps
     
     system = PySpin.System.GetInstance()
@@ -268,7 +271,7 @@ def main(x_pos,y_pos):
                     tracking_filename = f'saved_tracking_csvs/JellyTracking_{timestamp}_tracking.csv'
                     save_tracking_data(tracking_filename)
                     
-                elif event.key == pygame.K_t:
+                elif event.key == pygame.K_a:
                     tracking = not tracking
                     if tracking:
                         try:

@@ -27,7 +27,7 @@ HALF_PRECISION = True  # Enable FP16 inference if supported
 # Load the trained YOLO model
 model = YOLO(MODEL_PATH)
 
-def detect_jellyfish(frame):
+def detect_jellyfish(frame, detect_light):
     """
     Uses the YOLO model to detect jellyfish in a given frame.
     
@@ -50,6 +50,14 @@ def detect_jellyfish(frame):
     except cv2.error as e:
         print(f"Error during resize: {e}")
         return None
+
+    if detect_light:
+        gray = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2GRAY)
+        # Find the brightest spot
+        (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(gray)
+        print(f"Brightest spot at: {maxLoc} with brightness value: {maxVal}")
+        return None
+        return maxLoc  # Return the (x, y) location of the brightest spot
 
     # Perform object detection using the YOLO model
     results = model.predict(
