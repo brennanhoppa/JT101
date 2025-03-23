@@ -148,8 +148,8 @@ def active_tracking_thread(center_x, center_y, command_queue):
                             continue
                     
                     # testing feature
-                    # detect_light = False # normal setting to track jf
-                    detect_light = True # testing mode - returns x,y of brightest spot in frame
+                    detect_light = False # normal setting to track jf
+                    # detect_light = True # testing mode - returns x,y of brightest spot in frame
 
                     # Use YOLO to detect jellyfish position
                     flashlight_pos = detect_jellyfish(image, detect_light)
