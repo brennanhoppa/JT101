@@ -5,6 +5,7 @@ import time
 import os
 import serial # type: ignore
 import time
+import sys
 import logging
 logging.getLogger('matplotlib').setLevel(logging.ERROR)
 import Utils.JellyTrackingFunctions as JellyTrackingFunctions
@@ -69,10 +70,15 @@ def wait_for_errorcheck_completion(ser):
         else:
             time.sleep(0.1)
 
-def serial_process(command_queue,homing_flag):
-    ser = serial.Serial('COM5', 500000, timeout=5)  
-    time.sleep(0.5)
-    print("Serial connection established.")
+def serial_process(command_queue,homing_flag,terminate_event):
+    try:
+        ser = serial.Serial('COM5', 500000, timeout=5)
+        time.sleep(0.5)
+        print("Serial connection established.")
+    except Exception as e:
+        print(f"Serial connection failed: {e}")
+        terminate_event.set()  # Signal other processes to terminate
+        return  # Exit this process
 
     while True:    
         command = command_queue.get()
@@ -104,12 +110,16 @@ if __name__ == "__main__":
     y_pos = multiprocessing.Value('i', y_pos)
     command_queue = multiprocessing.Queue()
     homing_flag = multiprocessing.Value('b', False)  # 'b' for boolean type
-
-    serial_proc = multiprocessing.Process(target=serial_process,args=(command_queue,homing_flag))
+    terminate_event = multiprocessing.Event()
+    serial_proc = multiprocessing.Process(target=serial_process,args=(command_queue,homing_flag,terminate_event))
     serial_proc.start()
 
     motor_process = multiprocessing.Process(target=run_motor_input, args=(x_pos, y_pos, file_path, command_queue,homing_flag))
     live_stream_process = multiprocessing.Process(target=run_live_stream_record, args=(x_pos, y_pos, command_queue,homing_flag))
+    
+    time.sleep(3) # wait for serial connection happen
+    if terminate_event.is_set():
+        sys.exit(0)  
     motor_process.start()
     live_stream_process.start()
     motor_process.join()
