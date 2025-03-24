@@ -113,8 +113,16 @@ def detect_jellyfish(frame, detect_light):
     # No jellyfish detected
     return None
 
+def calculate_delta_Pixels(jellyfish_pos, center_x, center_y):
+    """
+    Calculates the pixel difference in x and y from the center of the frame to the center of the jellyfish box
+    """
+    jx, jy = jellyfish_pos
+    dx = jx - center_x
+    dy = center_y - jy  # Invert y-axis to match Cartesian coordinates
+    return dx,dy
 
-def calculate_movement(jellyfish_pos, center_x, center_y):
+def calculate_movement(dx,dy):
     """
     Calculates the movement needed to center the camera on the jellyfish.
     
@@ -123,17 +131,6 @@ def calculate_movement(jellyfish_pos, center_x, center_y):
     :param center_y: Center y-coordinate of the camera's frame
     :return: Tuple of steps (step_x, step_y) needed to center the jellyfish
     """
-    if not jellyfish_pos:
-        return None, None
-    
-    jx, jy = jellyfish_pos
-    dx = jx - center_x
-    dy = center_y - jy  # Invert y-axis to match Cartesian coordinates
-    
-    # Ignore small movements within a dead zone
-    if abs(dx) < DEAD_ZONE and abs(dy) < DEAD_ZONE:
-        return None, None
-
     # Calculate step sizes with adjusted sensitivity
     step_x = int(np.clip(dx * MOVE_MULTIPLIER, -MAX_STEP_SIZE, MAX_STEP_SIZE))
     step_y = int(np.clip(dy * MOVE_MULTIPLIER, -MAX_STEP_SIZE, MAX_STEP_SIZE))
@@ -143,6 +140,12 @@ def calculate_movement(jellyfish_pos, center_x, center_y):
         step_x = MIN_STEP_SIZE if step_x > 0 else -MIN_STEP_SIZE
     if 0 < abs(step_y) < MIN_STEP_SIZE:
         step_y = MIN_STEP_SIZE if step_y > 0 else -MIN_STEP_SIZE
+
+    # Ignore small movements within a dead zone
+    if abs(dx) < DEAD_ZONE:
+        step_x = 0
+    if abs(dy) < DEAD_ZONE:
+        step_y = 0
 
     return step_x, step_y
 

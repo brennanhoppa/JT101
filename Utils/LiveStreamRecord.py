@@ -7,7 +7,8 @@ import threading
 import queue
 from datetime import datetime
 import time
-from Utils.JellyTrackingFunctions import detect_jellyfish,calculate_movement
+from Utils.JellyTrackingFunctions import detect_jellyfish,calculate_movement, calculate_delta_Pixels, steps_to_mm, pixels_to_mm
+from Utils.ManualMotorInput import move
 import PySpin # type: ignore
 import cv2 #type: ignore
 
@@ -28,7 +29,7 @@ image_queue = queue.Queue(maxsize=5)
 tracking_result_queue = queue.Queue(maxsize=5)
 
 # Step tracking
-cumulative_steps = {'x': 0, 'y': 0}
+# cumulative_steps = {'x': 0, 'y': 0}
 step_tracking_data = []
 
 class AviType:
@@ -59,24 +60,26 @@ def pyspin_image_to_pygame(image_ptr):
     image_data = np.ascontiguousarray(image_data.astype(np.uint8))
     return pygame.image.frombuffer(image_data.tobytes(), (width, height), "RGB")
 
-def send_movement_command(step_x, step_y, command_queue):
-    if step_x != 0:
-        x_direction = 'L' if step_x > 0 else 'R'
-        command_queue.put(f"{x_direction}{abs(step_x)}\n")
-    if step_y != 0:
-        y_direction = 'U' if step_y > 0 else 'D'
-        command_queue.put(f"{y_direction}{abs(step_y)}\n")
+# def send_movement_command(step_x, step_y, command_queue):
+    
+    
+#     if step_x != 0:
+#         x_direction = 'L' if step_x > 0 else 'R'
+#         command_queue.put(f"{x_direction}{abs(step_x)}\n")
+#     if step_y != 0:
+#         y_direction = 'U' if step_y > 0 else 'D'
+#         command_queue.put(f"{y_direction}{abs(step_y)}\n")
 
 
 
-def track_cumulative_steps(step_x, step_y):
-    global cumulative_steps, step_tracking_data, recording
-    if recording:
-        # Note: step_x is positive for 'L' and negative for 'R'
-        cumulative_steps['x'] += step_x
-        cumulative_steps['y'] += step_y
-        timestamp = time.time()
-        step_tracking_data.append((cumulative_steps['x'], cumulative_steps['y'], timestamp))
+# def track_cumulative_steps(step_x, step_y):
+#     global cumulative_steps, step_tracking_data, recording
+#     if recording:
+#         # Note: step_x is positive for 'L' and negative for 'R'
+#         cumulative_steps['x'] += step_x
+#         cumulative_steps['y'] += step_y
+#         timestamp = time.time()
+#         step_tracking_data.append((cumulative_steps['x'], cumulative_steps['y'], timestamp))
 
 def save_tracking_data(filename):
     global step_tracking_data
@@ -123,8 +126,8 @@ def imageacq(cam, processor):
     cam.EndAcquisition()
 
 
-def active_tracking_thread(center_x, center_y, command_queue):
-    global running, tracking, motors
+def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos):
+    global running, tracking, motors, recording, step_tracking_data
     last_tracking_time = time.time()
     
     while running:
@@ -148,23 +151,33 @@ def active_tracking_thread(center_x, center_y, command_queue):
                             continue
                     
                     # testing feature
-                    detect_light = False # normal setting to track jf
-                    # detect_light = True # testing mode - returns x,y of brightest spot in frame
+                    # detect_light = False # normal setting to track jf
+                    detect_light = True # testing mode - returns x,y of brightest spot in frame
 
                     # Use YOLO to detect jellyfish position
                     flashlight_pos = detect_jellyfish(image, detect_light)
+                    timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-2] 
                     if flashlight_pos:
-                        # Calculate required movement to keep the jellyfish centered
-                        step_x, step_y = calculate_movement(flashlight_pos, center_x, center_y)
-                        # print(step_x,step_y)
-                        if (step_x is not None and step_y is not None) and motors:
-                            # Send movement command and track steps
-                            send_movement_command(round(step_x*1.3,1), round(step_y*1.3,1), command_queue)
-                            track_cumulative_steps(step_x, step_y)
+                        # Calculate deltas
+                        dx, dy = calculate_delta_Pixels(flashlight_pos, center_x, center_y)
+                        # print(dx,dy)
+                        if recording:
+                            # x_pos + dx thing and y !!!!!!!!!!!!!!
+                            # mm position of jf in the global coords
+                            x,y = steps_to_mm(x_pos.value,y_pos.value)
+                            x -= dx # matching to the inverting of the x axis with the camera
+                            y += dy # same as above
+                            step_tracking_data.append((x, y, timestamp))                        
+                        if motors:
+                            step_x, step_y = calculate_movement(dx,dy)
+                            # Send movement command
+                            x_pos, y_pos = move(x_pos, y_pos, int(-1*round(step_x*1.3,0)), int(round(step_y*1.3,0)), command_queue)
                             
                         # Communicate tracking results for display
-                        tracking_result_queue.put((flashlight_pos, step_x, step_y), block=False)
-                    
+                        tracking_result_queue.put(flashlight_pos, block=False)
+                    elif recording:    
+                        step_tracking_data.append((None, None, timestamp))
+
                     # Update tracking timestamp
                     last_tracking_time = current_time
             except queue.Empty:
@@ -204,7 +217,7 @@ def main(x_pos,y_pos,command_queue,homing_flag):
     acq_thread = threading.Thread(target=imageacq, args=(cam, processor))
     acq_thread.start()
     
-    tracking_thread = threading.Thread(target=active_tracking_thread, args=(window_width // 2, window_height // 2, command_queue))
+    tracking_thread = threading.Thread(target=active_tracking_thread, args=(window_width // 2, window_height // 2, command_queue, x_pos, y_pos))
     tracking_thread.start()
     
     clock = pygame.time.Clock()
@@ -250,7 +263,7 @@ def main(x_pos,y_pos,command_queue,homing_flag):
                     
                     # Reset step tracking data
                     step_tracking_data = []
-                    cumulative_steps = {'x': 0, 'y': 0}
+                    # cumulative_steps = {'x': 0, 'y': 0}
                     
                 elif event.key == pygame.K_s and recording:
                     recording = False
@@ -293,7 +306,7 @@ def main(x_pos,y_pos,command_queue,homing_flag):
                             line_thickness)
             
             try:
-                flashlight_pos, step_x, step_y = tracking_result_queue.get_nowait()
+                flashlight_pos = tracking_result_queue.get_nowait()
                 if flashlight_pos:
                     pygame.draw.circle(window, (0, 255, 0), flashlight_pos, 10)
             except queue.Empty:
@@ -317,10 +330,10 @@ def main(x_pos,y_pos,command_queue,homing_flag):
                 window.blit(line_surface, (10, y_offset))
                 y_offset += font.get_linesize()  # Move to next line
             
-            if recording and tracking:
-                steps_text = f"Steps: X={cumulative_steps['x']}, Y={cumulative_steps['y']}"
-                steps_surface = font.render(steps_text, True, (255, 255, 0))
-                window.blit(steps_surface, (10, 50))
+            # if recording and tracking:
+            #     steps_text = f"Steps: X={cumulative_steps['x']}, Y={cumulative_steps['y']}"
+            #     steps_surface = font.render(steps_text, True, (255, 255, 0))
+            #     window.blit(steps_surface, (10, 50))
             
             pygame.display.flip()
         
