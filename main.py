@@ -32,7 +32,7 @@ def get_x_y():
         print(f"Error reading {file_path}: {e}")
         x_pos, y_pos = 0,0
         print("Home first, coordinates loaded incorrectly")
-    print(f"x_pos: {x_pos}, y_pos: {y_pos}")
+    print(f"Initial coordinates loaded: x_pos: {x_pos}, y_pos: {y_pos} [steps]")
     return x_pos,y_pos,file_path
 
 # Function to wait for the Arduino to confirm that homing is complete
@@ -99,7 +99,7 @@ def serial_process(command_queue,homing_flag,terminate_event):
             print("Closing serial connection.")
             break
         ser.write(command.encode())  # Send command
-        print(f"Sent command: {command.rstrip()}")
+        # print(f"Sent command: {command.rstrip()}")
 
     ser.close()
 

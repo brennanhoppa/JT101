@@ -22,6 +22,8 @@ motors = False
 boundary_making = False
 shared_image = None
 avi_recorder = None
+boundary = []
+show_boundary = False
 
 # Tracking settings
 TRACKING_INTERVAL = 1 / 50  # 50Hz tracking rate
@@ -192,8 +194,17 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos):
 
 
 def main(x_pos,y_pos,command_queue,homing_flag):
-    global running, shared_image, recording, tracking, motors, boundary_making, avi_recorder, step_tracking_data, cumulative_steps
+    global running, shared_image, recording, tracking, motors, boundary_making, boundary,show_boundary, avi_recorder, step_tracking_data, cumulative_steps
     
+    # commands
+    print('Press "a" to turn on/off tracking')
+    print('Press "m" to turn on/off the motor movement while tracking')
+    print('Press "b" to start making a boundary (and "b" again to save it)')
+    print('Press "x" to stop making the boundary and discard it')
+    print('Press "r" to start recording')
+    print('Press "s" to save the recording')
+    print('Press "v" to visualize the currently loaded boundary')
+
     system = PySpin.System.GetInstance()
     cam_list = system.GetCameras()
     if cam_list.GetSize() != 1:
@@ -286,13 +297,23 @@ def main(x_pos,y_pos,command_queue,homing_flag):
                     if boundary_making:
                         print('Boundary Making Mode turned Off.')
                         file_start = "C:\\Users\\JellyTracker\\Desktop\\JellyFishTrackingPC-main\\saved_boundaries_mm\\"
-                        filename = file_start + "testingbounds123.csv"
+                        filename = file_start + "new_bounds.csv"
                         print(f'Boundary saved at: {filename}')
                         save_boundaries(filename,boundary_to_mm_from_steps(boundary))
+                        boundary_making = False
                     else:
-                        print('Boundary Making Mode turned On. Move to record boundary. Turn off by pressing b again.')
+                        print('Boundary Making Mode turned On. Move to record boundary. Finish and save by pressing b again. Press x to cancel/start over.')
                         boundary_making = True
                         boundary = []
+                elif event.key == pygame.K_x:
+                    if boundary_making:
+                        boundary_making = False
+                        boundary = [] # reset boundary
+                        print('Boundary making turned off, and reset, with nothing saved.')
+                    else: # do nothing
+                        pass
+                elif event.key == pygame.K_v:
+                    show_boundary = not show_boundary
             
         if boundary_making:
             boundary.append((x_pos.value,y_pos.value))
@@ -356,9 +377,9 @@ def main(x_pos,y_pos,command_queue,homing_flag):
         clock.tick(60)  # Keep at 60 FPS for smooth display
         
         frame_count += 1
-        if frame_count == 60:
+        if frame_count == 600:
             current_time = time.time()
-            fps = 60 / (current_time - last_frame_time)
+            fps = 600 / (current_time - last_frame_time)
             print(f"FPS: {fps:.2f}")
             frame_count = 0
             last_frame_time = current_time

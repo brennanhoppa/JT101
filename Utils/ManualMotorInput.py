@@ -4,7 +4,7 @@ import Utils.JellyTrackingFunctions as JellyTrackingFunctions
 import os
 
 def move(x_pos, y_pos, x_direction, y_direction, command_queue):
-        # Maximum range for both X and Y after home is set
+        # Maimum range for both X and Y after home is set
         X_MAX = 214530
         Y_MAX = 210900
 
@@ -28,7 +28,8 @@ def move(x_pos, y_pos, x_direction, y_direction, command_queue):
         # Print current position or axis limit warnings
         if x_valid and y_valid:
             # print(f"Current position: X={JellyTrackingFunctions.steps_to_mm(x_pos,y_pos)}, Y={JellyTrackingFunctions.steps_to_mm(x_pos,y_pos)}")
-            print(f"Position: X={x_pos.value}, Y={y_pos.value}")
+            # print(f"Position: X={x_pos.value}, Y={y_pos.value}")
+            pass
         else:
             if not x_valid:
                 print(f"X axis limit reached. Current position: X={x_pos.value}, Y={y_pos.value}")
