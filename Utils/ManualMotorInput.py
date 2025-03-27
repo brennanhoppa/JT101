@@ -4,7 +4,7 @@ import Utils.JellyTrackingFunctions as JellyTrackingFunctions
 import os
 
 def move(x_pos, y_pos, x_direction, y_direction, command_queue):
-        # Maimum range for both X and Y after home is set
+        # Maximum range for both X and Y after home is set
         X_MAX = 214530
         Y_MAX = 210900
 
