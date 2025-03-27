@@ -5,7 +5,7 @@ import os
 
 def move(x_pos, y_pos, x_direction, y_direction, command_queue):
         # Maximum range for both X and Y after home is set
-        X_MAX = 212230
+        X_MAX = 214530
         Y_MAX = 210900
 
         # Calculate new positions

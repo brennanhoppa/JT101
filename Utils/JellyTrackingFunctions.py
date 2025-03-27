@@ -183,10 +183,18 @@ def pixels_to_mm(pixel_distance):
     """
     return pixel_distance / PIXELS_PER_MM
 
+def mm_to_pixels(mm_distance):
+    return mm_distance * PIXELS_PER_MM
 
+def steps_to_mm_simple(steps, step_angle=1.8, lead=8):
+    spr = 360/step_angle
+    mmps = lead/spr
+    return steps*mmps
 
-
-
+def mm_to_steps(mm, step_angle=1.8, lead=8):
+    spr = 360/step_angle
+    mmps = lead/spr
+    return mm/mmps
 
 
 

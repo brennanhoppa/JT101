@@ -9,6 +9,7 @@ from datetime import datetime
 import time
 from Utils.JellyTrackingFunctions import detect_jellyfish,calculate_movement, calculate_delta_Pixels, steps_to_mm, pixels_to_mm
 from Utils.ManualMotorInput import move
+from Utils.Boundaries import save_boundaries, boundary_to_mm_from_steps
 import PySpin # type: ignore
 import cv2 #type: ignore
 
@@ -18,6 +19,7 @@ running = True
 recording = False
 tracking = False
 motors = False
+boundary_making = False
 shared_image = None
 avi_recorder = None
 
@@ -190,7 +192,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos):
 
 
 def main(x_pos,y_pos,command_queue,homing_flag):
-    global running, shared_image, recording, tracking, motors, avi_recorder, step_tracking_data, cumulative_steps
+    global running, shared_image, recording, tracking, motors, boundary_making, avi_recorder, step_tracking_data, cumulative_steps
     
     system = PySpin.System.GetInstance()
     cam_list = system.GetCameras()
@@ -280,7 +282,21 @@ def main(x_pos,y_pos,command_queue,homing_flag):
                     tracking = not tracking # switches tracking on / off
                 elif event.key == pygame.K_m:
                     motors = not motors # turn the motors on / off for tracking
-        
+                elif event.key == pygame.K_b: # boundary making process
+                    if boundary_making:
+                        print('Boundary Making Mode turned Off.')
+                        file_start = "C:\\Users\\JellyTracker\\Desktop\\JellyFishTrackingPC-main\\saved_boundaries_mm\\"
+                        filename = file_start + "testingbounds123.csv"
+                        print(f'Boundary saved at: {filename}')
+                        save_boundaries(filename,boundary_to_mm_from_steps(boundary))
+                    else:
+                        print('Boundary Making Mode turned On. Move to record boundary. Turn off by pressing b again.')
+                        boundary_making = True
+                        boundary = []
+            
+        if boundary_making:
+            boundary.append((x_pos.value,y_pos.value))
+
         if shared_image is not None:
             py_image = pyspin_image_to_pygame(shared_image)
             py_image_mirror = pygame.transform.flip(py_image, True, False) # mirrored to have live stream make more
