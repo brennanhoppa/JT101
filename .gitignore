@@ -3,3 +3,4 @@
 *.csv
 *.pyc
 __pycache__/
+Utils/__pycache__/JellyTrackingFunctions.cpython-310.pyc
