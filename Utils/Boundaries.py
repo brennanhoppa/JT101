@@ -40,6 +40,9 @@ def boundary_to_steps(boundary):
 def boundary_to_mm_from_steps(boundary):
     return [(steps_to_mm_simple(x), steps_to_mm_simple(y)) for x,y in boundary]
 
+def boundary_to_pixels_from_steps(boundary):
+    return [(mm_to_pixels(steps_to_mm_simple(x)),mm_to_pixels(steps_to_mm_simple(y))) for x,y in boundary]
+
 def plot_boundary(boundary):
     """Plot the boundary points and connect them with lines."""
     if not boundary:
@@ -64,10 +67,8 @@ def plot_boundary(boundary):
     plt.grid(True)
     plt.show()
 
-    
 # Example usage
 # file_path = "C:\\Users\\JellyTracker\\Desktop\\JellyFishTrackingPC-main\\saved_boundaries_mm\\testingbounds123.csv"
 # loaded_boundaries = load_boundaries(file_path)
 
 # plot_boundary(loaded_boundaries)
-
