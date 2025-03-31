@@ -7,9 +7,9 @@ import threading
 import queue
 from datetime import datetime
 import time
-from Utils.JellyTrackingFunctions import detect_jellyfish,calculate_movement, calculate_delta_Pixels, steps_to_mm, pixels_to_mm
+from Utils.JellyTrackingFunctions import detect_jellyfish,calculate_movement, calculate_delta_Pixels, mm_to_pixels, steps_to_mm_simple, pixels_to_mm, mm_to_steps, steps_to_mm
 from Utils.ManualMotorInput import move
-from Utils.Boundaries import save_boundaries, boundary_to_mm_from_steps
+from Utils.Boundaries import save_boundaries, boundary_to_mm_from_steps, boundary_to_pixels_from_steps
 import PySpin # type: ignore
 import cv2 #type: ignore
 
@@ -194,7 +194,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos):
 
 
 def main(x_pos,y_pos,command_queue,homing_flag):
-    global running, shared_image, recording, tracking, motors, boundary_making, boundary,show_boundary, avi_recorder, step_tracking_data, cumulative_steps
+    global running, shared_image, recording, tracking, motors, boundary_making, boundary, show_boundary, avi_recorder, step_tracking_data
     
     # commands
     print('Press "a" to turn on/off tracking')
@@ -349,8 +349,21 @@ def main(x_pos,y_pos,command_queue,homing_flag):
             except queue.Empty:
                 pass
 
-            # for x, y, t in step_tracking_data:
-            # f.write(f"{x},{y},{t}\n")
+            if show_boundary: 
+                if boundary != []: # boundary is currently in steps
+                    xs, ys = x_pos.value, y_pos.value
+                    dx = mm_to_steps(pixels_to_mm(window_width//2))
+                    dy = mm_to_steps(pixels_to_mm(window_height//2))
+                    viewing_window_s = (xs-dx,xs+dx,ys-dy,ys+dy)
+                    x_min_s, x_max_s, y_min_s, y_max_s = viewing_window_s
+                    boundary_within_window = [
+                        (x, y) for x, y in boundary if x_min_s <= x <= x_max_s and y_min_s <= y <= y_max_s
+                    ] # list of pts that are in the window
+                    boundary_shifted = [(dx+xs-x,dy+ys-y) for x,y in boundary_within_window]
+                    boundary_pixels_shifted = [(mm_to_pixels(steps_to_mm_simple(x)),mm_to_pixels(steps_to_mm_simple(y))) for x,y in boundary_shifted]
+                    for b in boundary_pixels_shifted:
+                        pygame.draw.circle(window, (0, 0, 255), (b[0], b[1]), 5)  
+    
 
             current_time = datetime.now().strftime("%H:%M:%S") 
             status_text = (
