@@ -9,9 +9,11 @@ from datetime import datetime
 import time
 from Utils.JellyTrackingFunctions import detect_jellyfish,calculate_movement, calculate_delta_Pixels, mm_to_pixels, steps_to_mm_simple, pixels_to_mm, mm_to_steps, steps_to_mm
 from Utils.ManualMotorInput import move
-from Utils.Boundaries import save_boundaries, boundary_to_mm_from_steps, boundary_to_pixels_from_steps
+from Utils.Boundaries import save_boundaries, boundary_to_steps, boundary_to_mm_from_steps, boundary_to_pixels_from_steps, load_boundaries
 import PySpin # type: ignore
 import cv2 #type: ignore
+import tkinter as tk
+from tkinter import filedialog
 
 NUM_IMAGES = 300
 name = 'TESTBINNING2'
@@ -22,7 +24,14 @@ motors = False
 boundary_making = False
 shared_image = None
 avi_recorder = None
+
 boundary = []
+# or write filename to load in a boundary
+# e.g.
+# boundary_filename = "C:\\Users\\JellyTracker\\Desktop\\JellyFishTrackingPC-main\\saved_boundaries_mm\\new_bounds.csv"
+# boundary_mm = load_boundaries(boundary_filename)
+# boundary = boundary_to_steps(boundary_mm)
+
 show_boundary = False
 
 # Tracking settings
@@ -84,6 +93,21 @@ def pyspin_image_to_pygame(image_ptr):
 #         cumulative_steps['y'] += step_y
 #         timestamp = time.time()
 #         step_tracking_data.append((cumulative_steps['x'], cumulative_steps['y'], timestamp))
+
+def load_boundary():
+    root = tk.Tk()
+    root.withdraw()
+    file_path = filedialog.askopenfilename(title="Select a File", filetypes=[("CSV files", "*.csv"), ("All Files", "*.*")])
+    if file_path:  # If a file was selected
+        print(f"Selected file: {file_path}")
+        try:
+            boundary_mm = load_boundaries(file_path)
+            return boundary_to_steps(boundary_mm)
+        except:
+            print('Incorrect file loaded')
+    else:
+        print("No file selected.")
+        return []
 
 def save_tracking_data(filename):
     global step_tracking_data
@@ -203,6 +227,7 @@ def main(x_pos,y_pos,command_queue,homing_flag):
     print('Press "x" to stop making the boundary and discard it')
     print('Press "r" to start recording')
     print('Press "s" to save the recording')
+    print('Press "l" to load a boundary from file explorer')
     print('Press "v" to visualize the currently loaded boundary')
 
     system = PySpin.System.GetInstance()
@@ -297,7 +322,8 @@ def main(x_pos,y_pos,command_queue,homing_flag):
                     if boundary_making:
                         print('Boundary Making Mode turned Off.')
                         file_start = "C:\\Users\\JellyTracker\\Desktop\\JellyFishTrackingPC-main\\saved_boundaries_mm\\"
-                        filename = file_start + "new_bounds.csv"
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
+                        filename = file_start + f"new_boundary_{timestamp}.csv"
                         print(f'Boundary saved at: {filename}')
                         save_boundaries(filename,boundary_to_mm_from_steps(boundary))
                         boundary_making = False
@@ -314,6 +340,8 @@ def main(x_pos,y_pos,command_queue,homing_flag):
                         pass
                 elif event.key == pygame.K_v:
                     show_boundary = not show_boundary
+                elif event.key == pygame.K_l:
+                    boundary = load_boundary()
             
         if boundary_making:
             boundary.append((x_pos.value,y_pos.value))
@@ -370,6 +398,7 @@ def main(x_pos,y_pos,command_queue,homing_flag):
                     f"{'Recording' if recording else 'Not Recording'} | "
                     f"{'Tracking' if tracking else 'Not Tracking'}\n"
                     f"{'Motors on with Tracking' if motors else 'Motors off with Tracking'}\n"
+                    f"{'Boundary Visualization: On' if show_boundary else 'Boundary Visualization: Off'}\n"
                     f"Time: {current_time}"
                 )
 
