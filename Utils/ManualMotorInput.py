@@ -60,7 +60,7 @@ def run_motor_input(x_pos,y_pos,file_path,command_queue,homing_flag):
     try:
         while True:
             x_dir, y_dir = 0, 0
-            step_size = 95  # Default step size
+            step_size = 95  # Default step size #larvea 35
             
             # Check for arrow key inputs
             if keyboard.is_pressed('up'):

@@ -18,8 +18,8 @@ AccelStepper stepperY(MOTOR_INTERFACE_TYPE, Y_STEP_PIN, Y_DIR_PIN);
 long cumulativeTargetX = 0;
 long cumulativeTargetY = 0;
 
-int motorSpeed = 15000;
-int motorAcceleration = 22000;
+int motorSpeed = 15000; // 5000 for microscope, 15000 for camera
+int motorAcceleration = 22000; // 2000 for microscope, 22000 for camera
 
 bool homeSetX = false;
 bool homeSetY = false;
