@@ -3,6 +3,10 @@ import time
 import Utils.JellyTrackingFunctions as JellyTrackingFunctions
 import os
 
+step_size = 95  # Default step size #larvea 35
+step_to_mm_checking = 0
+start_loc = (0,0)
+
 def move(x_pos, y_pos, x_direction, y_direction, command_queue):
         # Maximum range for both X and Y after home is set
         X_MAX = 214530
@@ -46,6 +50,7 @@ def save_position(x_pos, y_pos, file_path):
         print(f"Error writing to {file_path}: {e}")
 
 def run_motor_input(x_pos,y_pos,file_path,command_queue,homing_flag):
+    global step_size, step_to_mm_checking, start_loc
     # Flag to check if home has been set
     home_set = False
 
@@ -55,12 +60,12 @@ def run_motor_input(x_pos,y_pos,file_path,command_queue,homing_flag):
     # print("Press 'z' to move to Z position")
     print("Press 't' to terminate the program")
     print("Press 'e' to check the current error and home")
+    print("Press 'q' to check the steps to mm conversion.")
 
     # Main loop for reading input and controlling motors
     try:
         while True:
             x_dir, y_dir = 0, 0
-            step_size = 95  # Default step size #larvea 35
             
             # Check for arrow key inputs
             if keyboard.is_pressed('up'):
@@ -97,6 +102,25 @@ def run_motor_input(x_pos,y_pos,file_path,command_queue,homing_flag):
                 x_pos.value, y_pos.value = 0, 0
                 print("Error Check Completed.")
             
+            if keyboard.is_pressed('q'): # check step to mm conversion
+                time.sleep(0.2)  # Short delay to prevent multiple triggers
+                if step_to_mm_checking == 1:
+                    print('Changing to precisiion step size, now move until the end of the piece, and press q again. ')
+                    step_size = 35 # normal is 95, try this / experiment 
+                    start_loc = (x_pos.value, y_pos.value)
+                    step_to_mm_checking = 2
+                elif step_to_mm_checking == 2:
+                    steps_taken = (abs(x_pos.value - start_loc[0]),abs(y_pos.value - start_loc[1]))
+                    distance = 25.4 # mm - right now for testing
+                    print("Steps taken: ", steps_taken)
+                    print("Distance: ", distance)
+                    print("Steps X to D, Steps Y to D: ", steps_taken[0]/distance, ',', steps_taken[1]/distance)
+                    step_to_mm_checking = 0
+                else:
+                    print('Move to location with piece of known dimension. Move camera center to one edge of piece. Press q again when there.')
+                    step_to_mm_checking = 1
+                
+
             # Check for the termination key 't'
             if keyboard.is_pressed('t'):
                 print("Termination key pressed. Stopping the program...")
