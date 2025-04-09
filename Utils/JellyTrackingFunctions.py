@@ -150,7 +150,7 @@ def calculate_movement(dx,dy):
     return step_x, step_y
 
 
-def steps_to_mm(steps_x, steps_y, step_angle=1.8, lead=8):
+def steps_to_mm(steps_x, steps_y, step_angle=.18, lead=8):
     """
     Converts stepper motor steps to millimeters for x and y axes.
     

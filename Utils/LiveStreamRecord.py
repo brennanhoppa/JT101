@@ -356,7 +356,7 @@ def main(x_pos,y_pos,command_queue,homing_flag):
             center_y = window_height // 2
             line_length = 20  # Length of each line segment
             line_color = (255, 0, 0)  # Red color
-            line_thickness = 2
+            line_thickness = 1
             
             # Draw horizontal line
             pygame.draw.line(window, line_color, 
