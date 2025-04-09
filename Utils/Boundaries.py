@@ -1,7 +1,7 @@
 try:
-    from Utils.JellyTrackingFunctions import pixels_to_mm, mm_to_steps, mm_to_pixels, steps_to_mm_simple
+    from Utils.JellyTrackingFunctions import pixels_to_mm, mm_to_steps, mm_to_pixels, steps_to_mm
 except:
-    from JellyTrackingFunctions import pixels_to_mm, mm_to_steps, mm_to_pixels, steps_to_mm_simple
+    from JellyTrackingFunctions import pixels_to_mm, mm_to_steps, mm_to_pixels, steps_to_mm
 import logging
 # Logging setup
 logging.getLogger('matplotlib').setLevel(logging.ERROR)
@@ -38,10 +38,10 @@ def boundary_to_steps(boundary):
     return [(mm_to_steps(x), mm_to_steps(y)) for x, y in boundary]
 
 def boundary_to_mm_from_steps(boundary):
-    return [(steps_to_mm_simple(x), steps_to_mm_simple(y)) for x,y in boundary]
+    return [(steps_to_mm(x), steps_to_mm(y)) for x,y in boundary]
 
 def boundary_to_pixels_from_steps(boundary):
-    return [(mm_to_pixels(steps_to_mm_simple(x)),mm_to_pixels(steps_to_mm_simple(y))) for x,y in boundary]
+    return [(mm_to_pixels(steps_to_mm(x)),mm_to_pixels(steps_to_mm(y))) for x,y in boundary]
 
 def plot_boundary(boundary):
     """Plot the boundary points and connect them with lines."""

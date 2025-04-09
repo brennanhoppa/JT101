@@ -149,33 +149,15 @@ def calculate_movement(dx,dy):
 
     return step_x, step_y
 
-
-def steps_to_mm(steps_x, steps_y, step_angle=.18, lead=8):
-    """
-    Converts stepper motor steps to millimeters for x and y axes.
-    
-    Parameters:
-    - steps_x (int): Number of steps for the x-axis.
-    - steps_y (int): Number of steps for the y-axis.
-    - step_angle (float): Step angle of the motor in degrees (default is 1.8°).
-    - lead (float): Lead of the lead screw in mm (default is 8 mm).
-    
-    Returns:
-    - (float, float): Distance in mm for x and y axes.
-    """
-    steps_per_revolution = 360 / step_angle
-    mm_per_step = lead / steps_per_revolution
-    
-    distance_x = steps_x * mm_per_step
-    distance_y = steps_y * mm_per_step
-    
-    return distance_x, distance_y
-
-
-
-
+STEPS_PER_MM = 250 # default b/c 2000 steps per rev, 8mm lead on the screw, step_angle = 0.18 deg
 PIXELS_PER_CM = 154  # Calibration value: 154 pixels = 1 cm
 PIXELS_PER_MM = PIXELS_PER_CM / 10  # Convert to pixels per mm (15.4 pixels = 1 mm)
+
+def steps_to_mm(steps, steps_p_mm = STEPS_PER_MM):
+    return steps / steps_p_mm
+
+def mm_to_steps(mm, steps_p_mm = STEPS_PER_MM):
+    return mm*steps_p_mm
 
 def pixels_to_mm(pixel_distance):
     """
@@ -185,17 +167,6 @@ def pixels_to_mm(pixel_distance):
 
 def mm_to_pixels(mm_distance):
     return mm_distance * PIXELS_PER_MM
-
-def steps_to_mm_simple(steps, step_angle=.18, lead=8):
-    spr = 360/step_angle
-    mmps = lead/spr
-    return steps*mmps
-
-def mm_to_steps(mm, step_angle=.18, lead=8):
-    spr = 360/step_angle
-    mmps = lead/spr
-    return mm/mmps
-
 
 
 

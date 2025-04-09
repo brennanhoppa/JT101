@@ -7,7 +7,7 @@ import threading
 import queue
 from datetime import datetime
 import time
-from Utils.JellyTrackingFunctions import detect_jellyfish,calculate_movement, calculate_delta_Pixels, mm_to_pixels, steps_to_mm_simple, pixels_to_mm, mm_to_steps, steps_to_mm
+from Utils.JellyTrackingFunctions import detect_jellyfish,calculate_movement, calculate_delta_Pixels, mm_to_pixels, pixels_to_mm, mm_to_steps, steps_to_mm
 from Utils.ManualMotorInput import move
 from Utils.Boundaries import save_boundaries, boundary_to_steps, boundary_to_mm_from_steps, boundary_to_pixels_from_steps, load_boundaries
 import PySpin # type: ignore
@@ -192,7 +192,8 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos):
                         if recording:
                             # x_pos + dx thing and y !!!!!!!!!!!!!!
                             # mm position of jf in the global coords
-                            x,y = steps_to_mm(x_pos.value,y_pos.value)
+                            x = steps_to_mm(x_pos.value)
+                            y = steps_to_mm(y_pos.value)
                             x -= dx # matching to the inverting of the x axis with the camera
                             y += dy # same as above
                             step_tracking_data.append((x, y, timestamp))                        
@@ -388,7 +389,7 @@ def main(x_pos,y_pos,command_queue,homing_flag):
                         (x, y) for x, y in boundary if x_min_s <= x <= x_max_s and y_min_s <= y <= y_max_s
                     ] # list of pts that are in the window
                     boundary_shifted = [(dx+xs-x,dy+ys-y) for x,y in boundary_within_window]
-                    boundary_pixels_shifted = [(mm_to_pixels(steps_to_mm_simple(x)),mm_to_pixels(steps_to_mm_simple(y))) for x,y in boundary_shifted]
+                    boundary_pixels_shifted = [(mm_to_pixels(steps_to_mm(x)),mm_to_pixels(steps_to_mm(y))) for x,y in boundary_shifted]
                     for b in boundary_pixels_shifted:
                         pygame.draw.circle(window, (0, 0, 255), (b[0], b[1]), 5)  
     
