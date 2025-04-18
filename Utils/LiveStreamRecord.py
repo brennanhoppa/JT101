@@ -126,11 +126,7 @@ def imageacq(cam):
                 
                 # Save frame for display
                 shared_image = frame
-                
-                # Handle recording
-                if recording and avi_recorder is not None:
-                    avi_recorder.write(frame)
-                
+
                 # Put in queue for tracking
                 if isinstance(rgb_frame, np.ndarray):
                     try:
@@ -239,7 +235,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag):
     # Get camera properties
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = cap.get(cv2.CAP_PROP_FPS)
+    fps = 60 # change if camera settings change
     
     pygame.init()
     window_width, window_height = 960,540
@@ -342,6 +338,10 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag):
             boundary.append((x_pos.value,y_pos.value))
 
         if shared_image is not None:
+            # Handle recording
+            if recording and avi_recorder is not None:
+                avi_recorder.write(shared_image)
+
             # Convert webcam image for pygame display
             rgb_frame = cv2.cvtColor(shared_image, cv2.COLOR_BGR2RGB)
             height, width, channels = rgb_frame.shape
@@ -421,8 +421,8 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag):
         frame_count += 1
         if frame_count == 600:
             current_time = time.time()
-            fps = 600 / (current_time - last_frame_time)
-            print(f"FPS: {fps:.2f}")
+            frames = 600 / (current_time - last_frame_time)
+            print(f"FPS: {frames:.2f}")
             frame_count = 0
             last_frame_time = current_time
     
