@@ -10,7 +10,7 @@ import time
 from Utils.JellyTrackingFunctions import detect_jellyfish,calculate_movement, calculate_delta_Pixels, mm_to_pixels, pixels_to_mm, mm_to_steps, steps_to_mm
 from Utils.ManualMotorInput import move
 from Utils.Boundaries import save_boundaries, boundary_to_steps, boundary_to_mm_from_steps, boundary_to_pixels_from_steps, load_boundaries
-import PySpin # type: ignore
+# import PySpin # type: ignore
 import cv2 #type: ignore
 import tkinter as tk
 from tkinter import filedialog
@@ -52,8 +52,8 @@ class AviType:
 
 chosenAviType = AviType.MJPG
 
-def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag):
-    if main(x_pos,y_pos,command_queue,homing_flag):
+def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag,keybinds_flag):
+    if main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag):
         sys.exit(0)
     else:
         sys.exit(1)
@@ -62,16 +62,13 @@ def ensure_dir(directory):
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-def pyspin_image_to_pygame(image_ptr):
-    width = image_ptr.GetWidth()
-    height = image_ptr.GetHeight()
-    image_data = image_ptr.GetNDArray()
-    
-    if image_ptr.GetPixelFormat() == PySpin.PixelFormat_Mono8:
-        image_data = np.stack((image_data,) * 3, axis=-1)
-    
-    image_data = np.ascontiguousarray(image_data.astype(np.uint8))
-    return pygame.image.frombuffer(image_data.tobytes(), (width, height), "RGB")
+def webcam_image_to_pygame(frame):
+    # Convert BGR to RGB for pygame
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    # Convert to contiguous array
+    rgb_frame = np.ascontiguousarray(rgb_frame.astype(np.uint8))
+    # Create pygame surface
+    return pygame.surfarray.make_surface(rgb_frame.swapaxes(0, 1))
 
 # def send_movement_command(step_x, step_y, command_queue):
     
@@ -117,41 +114,43 @@ def save_tracking_data(filename):
             f.write(f"{x},{y},{t}\n")
     print(f"Tracking data saved to {filename}")
 
-def imageacq(cam, processor):
+def imageacq(cam):
     global running, shared_image, recording, avi_recorder
-    cam.BeginAcquisition()
+    
     while running:
         try:
-            image_result = cam.GetNextImage(1000)
-            if not image_result.IsIncomplete():
-                processed_image = processor.Convert(image_result, PySpin.PixelFormat_Mono8)
-                frame = processed_image.GetNDArray()  # Convert to a valid NumPy array
+            ret, frame = cam.read()
+            if ret:
+                # Convert for display
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 
-                # Ensure the frame is a 3-channel RGB image
-                if frame.ndim == 2:  # Grayscale image
-                    frame = np.stack((frame,) * 3, axis=-1)
+                # Save frame for display
+                shared_image = frame
                 
-                shared_image = processed_image
-                
+                # Handle recording
                 if recording and avi_recorder is not None:
-                    avi_recorder.Append(processed_image)
+                    avi_recorder.write(frame)
                 
-                # Ensure the frame is a valid NumPy array before putting it in the queue
-                if isinstance(frame, np.ndarray):
+                # Put in queue for tracking
+                if isinstance(rgb_frame, np.ndarray):
                     try:
-                        image_queue.put(frame, block=False)
+                        image_queue.put(rgb_frame, block=False)
                     except queue.Full:
                         try:
                             image_queue.get_nowait()  # Remove the oldest frame if queue is full
-                            image_queue.put(frame, block=False)
+                            image_queue.put(rgb_frame, block=False)
                         except queue.Empty:
                             pass
                 else:
                     print("Warning: Frame conversion failed; not a valid NumPy array.")
-            image_result.Release()
-        except PySpin.SpinnakerException as ex:
+            else:
+                print("Failed to capture frame from webcam")
+        except Exception as ex:
             print(f'Error in image acquisition: {ex}')
-    cam.EndAcquisition()
+    
+    # Clean up video writer if it exists
+    if avi_recorder is not None:
+        avi_recorder.release()
 
 
 def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos):
@@ -179,8 +178,8 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos):
                             continue
                     
                     # testing feature
-                    # detect_light = False # normal setting to track jf
-                    detect_light = True # testing mode - returns x,y of brightest spot in frame
+                    detect_light = False # normal setting to track jf
+                    # detect_light = True # testing mode - returns x,y of brightest spot in frame
 
                     # Use YOLO to detect jellyfish position
                     flashlight_pos = detect_jellyfish(image, detect_light)
@@ -218,42 +217,39 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos):
 
 
 
-def main(x_pos,y_pos,command_queue,homing_flag):
+def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag):
     global running, shared_image, recording, tracking, motors, boundary_making, boundary, show_boundary, avi_recorder, step_tracking_data
     
     # commands
-    print('Press "a" to turn on/off tracking')
+    print('Press "k" to turn on/off tracking')
     print('Press "m" to turn on/off the motor movement while tracking')
-    print('Press "b" to start making a boundary (and "b" again to save it)')
+    print('Press "o" to start making a boundary (and "o" again to save it)')
     print('Press "x" to stop making the boundary and discard it')
     print('Press "r" to start recording')
     print('Press "s" to save the recording')
     print('Press "l" to load a boundary from file explorer')
     print('Press "v" to visualize the currently loaded boundary')
 
-    system = PySpin.System.GetInstance()
-    cam_list = system.GetCameras()
-    if cam_list.GetSize() != 1:
-        print("Incorrect number of cameras (not 1)")
+    # Initialize webcam
+    cap = cv2.VideoCapture(0)  # Use default webcam (index 0)
+    if not cap.isOpened():
+        print("Error: Could not open webcam")
         return False
-    cam = cam_list[0]
-    cam.Init()
     
-    nodemap = cam.GetNodeMap()
-    cam.BinningVertical.SetValue(2)
-    cam.AcquisitionMode.SetValue(PySpin.AcquisitionMode_Continuous)
-    
-    processor = PySpin.ImageProcessor()
-    processor.SetColorProcessing(PySpin.SPINNAKER_COLOR_PROCESSING_ALGORITHM_HQ_LINEAR)
+    # Get camera properties
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
     
     pygame.init()
-    window_width, window_height = 1024, 1024
+    window_width, window_height = 960,540
     window = pygame.display.set_mode((window_width, window_height))
     pygame.display.set_caption("Camera Live View with Flashlight Tracking")
     
     ensure_dir('saved_tracking_videos')
+    ensure_dir('saved_tracking_csvs')
     
-    acq_thread = threading.Thread(target=imageacq, args=(cam, processor))
+    acq_thread = threading.Thread(target=imageacq, args=(cap,))
     acq_thread.start()
     
     tracking_thread = threading.Thread(target=active_tracking_thread, args=(window_width // 2, window_height // 2, command_queue, x_pos, y_pos))
@@ -265,90 +261,93 @@ def main(x_pos,y_pos,command_queue,homing_flag):
     last_frame_time = time.time()
     frame_count = 0
     
+    video_writer = None
+    
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_r and not recording:
-                    recording = True
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    avi_filename = f'saved_tracking_videos/JellyTracking_{timestamp}'
-                    
-                    node_acquisition_framerate = PySpin.CFloatPtr(nodemap.GetNode('AcquisitionFrameRate'))
-                    framerate_to_set = node_acquisition_framerate.GetValue()
-                    if chosenAviType == AviType.MJPG:
-                        avi_filename += '.avi'
-                        option = PySpin.MJPGOption()
-                        option.frameRate = framerate_to_set
-                        option.quality = 75
-                    elif chosenAviType == AviType.UNCOMPRESSED:
-                        avi_filename += '.avi'
-                        option = PySpin.AVIOption()
-                        option.frameRate = framerate_to_set
-                    elif chosenAviType == AviType.H264:
-                        avi_filename += '.mp4'
-                        option = PySpin.H264Option()
-                        option.frameRate = framerate_to_set
-                        option.bitrate = 1000000
-                    
-                    if shared_image:
-                        option.height = shared_image.GetHeight()
-                        option.width = shared_image.GetWidth()
-                    
-                    avi_recorder = PySpin.SpinVideo()
-                    avi_recorder.Open(avi_filename, option)
-                    print(f"Recording started: {avi_filename}")
-                    
-                    # Reset step tracking data
-                    step_tracking_data = []
-                    # cumulative_steps = {'x': 0, 'y': 0}
-                    
-                elif event.key == pygame.K_s and recording:
-                    recording = False
-                    if avi_recorder:
-                        avi_recorder.Close()
-                        avi_recorder = None
-                    print("Recording stopped and saved")
-                    
-                    # Save tracking data
-                    tracking_filename = f'saved_tracking_csvs/JellyTracking_{timestamp}_tracking.csv'
-                    save_tracking_data(tracking_filename)
-                    
-                elif event.key == pygame.K_a:
-                    tracking = not tracking # switches tracking on / off
-                elif event.key == pygame.K_m:
-                    motors = not motors # turn the motors on / off for tracking
-                elif event.key == pygame.K_b: # boundary making process
-                    if boundary_making:
-                        print('Boundary Making Mode turned Off.')
-                        file_start = "C:\\Users\\JellyTracker\\Desktop\\JellyFishTrackingPC-main\\saved_boundaries_mm\\"
-                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
-                        filename = file_start + f"new_boundary_{timestamp}.csv"
-                        print(f'Boundary saved at: {filename}')
-                        save_boundaries(filename,boundary_to_mm_from_steps(boundary))
-                        boundary_making = False
-                    else:
-                        print('Boundary Making Mode turned On. Move to record boundary. Finish and save by pressing b again. Press x to cancel/start over.')
-                        boundary_making = True
-                        boundary = []
-                elif event.key == pygame.K_x:
-                    if boundary_making:
-                        boundary_making = False
-                        boundary = [] # reset boundary
-                        print('Boundary making turned off, and reset, with nothing saved.')
-                    else: # do nothing
-                        pass
-                elif event.key == pygame.K_v:
-                    show_boundary = not show_boundary
-                elif event.key == pygame.K_l:
-                    boundary = load_boundary()
-            
+                if keybinds_flag.value:
+                    if event.key == pygame.K_r and not recording:
+                        recording = True
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        avi_filename = f'saved_tracking_videos/JellyTracking_{timestamp}'
+                        
+                        # Create video writer with more reliable settings
+                        if chosenAviType == AviType.MJPG:
+                            avi_filename += '.avi'
+                            fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
+                        elif chosenAviType == AviType.UNCOMPRESSED:
+                            avi_filename += '.avi'
+                            fourcc = cv2.VideoWriter_fourcc('I', '4', '2', '0')
+                        elif chosenAviType == AviType.H264:
+                            avi_filename += '.mp4'
+                            fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+                        
+                        # Use original frame size from webcam, not the display size
+                        avi_recorder = cv2.VideoWriter(avi_filename, fourcc, fps, (width, height))
+                        
+                        print(f"Recording started: {avi_filename}")
+                        
+                        # Reset step tracking data
+                        step_tracking_data = []
+                        
+                        print(f"Recording started: {avi_filename}")
+                        
+                        # Reset step tracking data
+                        step_tracking_data = []
+                        # cumulative_steps = {'x': 0, 'y': 0}
+                        
+                    elif event.key == pygame.K_s and recording:
+                        recording = False
+                        if avi_recorder:
+                            avi_recorder.release()
+                            avi_recorder = None
+                        print("Recording stopped and saved")
+                        
+                        # Save tracking data
+                        tracking_filename = f'saved_tracking_csvs/JellyTracking_{timestamp}_tracking.csv'
+                        save_tracking_data(tracking_filename)
+                        
+                    elif event.key == pygame.K_k:
+                        tracking = not tracking # switches tracking on / off
+                    elif event.key == pygame.K_m:
+                        motors = not motors # turn the motors on / off for tracking
+                    elif event.key == pygame.K_o: # boundary making process
+                        if boundary_making:
+                            print('Boundary Making Mode turned Off.')
+                            file_start = "C:\\Users\\JellyTracker\\Desktop\\JellyFishTrackingPC-main\\saved_boundaries_mm\\"
+                            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
+                            filename = file_start + f"new_boundary_{timestamp}.csv"
+                            print(f'Boundary saved at: {filename}')
+                            save_boundaries(filename,boundary_to_mm_from_steps(boundary))
+                            boundary_making = False
+                        else:
+                            print('Boundary Making Mode turned On. Move to record boundary. Finish and save by pressing b again. Press x to cancel/start over.')
+                            boundary_making = True
+                            boundary = []
+                    elif event.key == pygame.K_x:
+                        if boundary_making:
+                            boundary_making = False
+                            boundary = [] # reset boundary
+                            print('Boundary making turned off, and reset, with nothing saved.')
+                        else: # do nothing
+                            pass
+                    elif event.key == pygame.K_v:
+                        show_boundary = not show_boundary
+                    elif event.key == pygame.K_l:
+                        boundary = load_boundary()
         if boundary_making:
             boundary.append((x_pos.value,y_pos.value))
 
         if shared_image is not None:
-            py_image = pyspin_image_to_pygame(shared_image)
+            # Convert webcam image for pygame display
+            rgb_frame = cv2.cvtColor(shared_image, cv2.COLOR_BGR2RGB)
+            height, width, channels = rgb_frame.shape
+            # print("Number of Channels:", channels)
+            py_image = pygame.surfarray.make_surface(rgb_frame.swapaxes(0, 1))
+            # py_image = pygame.transform.scale(py_image, (window_width, window_height))
             py_image_mirror = pygame.transform.flip(py_image, True, False) # mirrored to have live stream make more
             window.blit(py_image, (0, 0))   
             
@@ -428,12 +427,12 @@ def main(x_pos,y_pos,command_queue,homing_flag):
             last_frame_time = current_time
     
     if recording and avi_recorder:
-        avi_recorder.Close()
+        avi_recorder.release()
+        avi_recorder = None
+    
     acq_thread.join()
     tracking_thread.join()
-    cam.DeInit()
+    cap.release()
     pygame.quit()
-    cam_list.Clear()
-    system.ReleaseInstance()
     print("Done")
     return True
