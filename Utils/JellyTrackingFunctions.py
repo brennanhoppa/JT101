@@ -18,7 +18,7 @@ from ultralytics import YOLO # type: ignore
 import threading
 
 # Constants
-MODEL_PATH = r"C:\Users\JellyTracker\Desktop\JellyFishTrackingPC-main\best (1).pt"
+MODEL_PATH = r"C:\Users\JellyTracker\Desktop\Train Larvae\runs\detect\larvae_detector3\weights\best.pt"
 IMG_SIZE = 1024  # Set the image size for inference
 CONF_THRESHOLD = 0.25  # Confidence threshold
 IOU_THRESHOLD = 0.7  # IoU threshold for NMS
@@ -159,14 +159,14 @@ def steps_to_mm(steps, steps_p_mm = STEPS_PER_MM):
 def mm_to_steps(mm, steps_p_mm = STEPS_PER_MM):
     return mm*steps_p_mm
 
-def pixels_to_mm(pixel_distance):
+def pixels_to_mm(pixel_distance, pixels_per_mm = PIXELS_PER_MM):
     """
     Convert pixel distance to millimeters
     """
-    return pixel_distance / PIXELS_PER_MM
+    return pixel_distance / pixels_per_mm
 
-def mm_to_pixels(mm_distance):
-    return mm_distance * PIXELS_PER_MM
+def mm_to_pixels(mm_distance, pixels_per_mm = PIXELS_PER_MM):
+    return mm_distance * pixels_per_mm
 
 
 
