@@ -14,6 +14,7 @@ from Utils.Boundaries import save_boundaries, boundary_to_steps, boundary_to_mm_
 import cv2 #type: ignore
 import tkinter as tk
 from tkinter import filedialog
+from Utils.ButtonPresses import recordingStart, AviType, recordingSave, boundaryControl, boundaryCancel
 
 NUM_IMAGES = 300
 name = 'TESTBINNING2'
@@ -45,11 +46,6 @@ tracking_result_queue = queue.Queue(maxsize=5)
 # cumulative_steps = {'x': 0, 'y': 0}
 step_tracking_data = []
 
-class AviType:
-    UNCOMPRESSED = 0
-    MJPG = 1
-    H264 = 2
-
 chosenAviType = AviType.MJPG
 
 def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag,keybinds_flag):
@@ -70,27 +66,6 @@ def webcam_image_to_pygame(frame):
     # Create pygame surface
     return pygame.surfarray.make_surface(rgb_frame.swapaxes(0, 1))
 
-# def send_movement_command(step_x, step_y, command_queue):
-    
-    
-#     if step_x != 0:
-#         x_direction = 'L' if step_x > 0 else 'R'
-#         command_queue.put(f"{x_direction}{abs(step_x)}\n")
-#     if step_y != 0:
-#         y_direction = 'U' if step_y > 0 else 'D'
-#         command_queue.put(f"{y_direction}{abs(step_y)}\n")
-
-
-
-# def track_cumulative_steps(step_x, step_y):
-#     global cumulative_steps, step_tracking_data, recording
-#     if recording:
-#         # Note: step_x is positive for 'L' and negative for 'R'
-#         cumulative_steps['x'] += step_x
-#         cumulative_steps['y'] += step_y
-#         timestamp = time.time()
-#         step_tracking_data.append((cumulative_steps['x'], cumulative_steps['y'], timestamp))
-
 def load_boundary():
     root = tk.Tk()
     root.withdraw()
@@ -105,14 +80,6 @@ def load_boundary():
     else:
         print("No file selected.")
         return []
-
-def save_tracking_data(filename):
-    global step_tracking_data
-    with open(filename, 'w') as f:
-        f.write("x,y,t\n")
-        for x, y, t in step_tracking_data:
-            f.write(f"{x},{y},{t}\n")
-    print(f"Tracking data saved to {filename}")
 
 def imageacq(cam):
     global running, shared_image, recording, avi_recorder
@@ -214,7 +181,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos):
 
 
 def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag):
-    global running, shared_image, recording, tracking, motors, boundary_making, boundary, show_boundary, avi_recorder, step_tracking_data
+    global running, shared_image, chosenAviType, recording, tracking, motors, boundary_making, boundary, show_boundary, avi_recorder, step_tracking_data
     
     # commands
     print('Press "k" to turn on/off tracking')
@@ -266,77 +233,24 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag):
             elif event.type == pygame.KEYDOWN:
                 if keybinds_flag.value:
                     if event.key == pygame.K_r and not recording:
-                        recording = True
-                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        avi_filename = f'saved_tracking_videos/JellyTracking_{timestamp}'
-                        
-                        # Create video writer with more reliable settings
-                        if chosenAviType == AviType.MJPG:
-                            avi_filename += '.avi'
-                            fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
-                        elif chosenAviType == AviType.UNCOMPRESSED:
-                            avi_filename += '.avi'
-                            fourcc = cv2.VideoWriter_fourcc('I', '4', '2', '0')
-                        elif chosenAviType == AviType.H264:
-                            avi_filename += '.mp4'
-                            fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
-                        
-                        # Use original frame size from webcam, not the display size
-                        avi_recorder = cv2.VideoWriter(avi_filename, fourcc, fps, (width, height))
-                        
-                        print(f"Recording started: {avi_filename}")
-                        
-                        # Reset step tracking data
-                        step_tracking_data = []
-                        
-                        print(f"Recording started: {avi_filename}")
-                        
-                        # Reset step tracking data
-                        step_tracking_data = []
-                        # cumulative_steps = {'x': 0, 'y': 0}
-                        
+                        recording,avi_recorder,step_tracking_data,timestamp = recordingStart(recording,chosenAviType,fps,width,height)
                     elif event.key == pygame.K_s and recording:
-                        recording = False
-                        if avi_recorder:
-                            avi_recorder.release()
-                            avi_recorder = None
-                        print("Recording stopped and saved")
-                        
-                        # Save tracking data
-                        tracking_filename = f'saved_tracking_csvs/JellyTracking_{timestamp}_tracking.csv'
-                        save_tracking_data(tracking_filename)
-                        
+                        recording = recordingSave(recording,avi_recorder,timestamp,step_tracking_data)      
                     elif event.key == pygame.K_k:
                         tracking = not tracking # switches tracking on / off
                     elif event.key == pygame.K_m:
                         motors = not motors # turn the motors on / off for tracking
                     elif event.key == pygame.K_o: # boundary making process
-                        if boundary_making:
-                            print('Boundary Making Mode turned Off.')
-                            file_start = "C:\\Users\\JellyTracker\\Desktop\\JellyFishTrackingPC-main\\saved_boundaries_mm\\"
-                            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
-                            filename = file_start + f"new_boundary_{timestamp}.csv"
-                            print(f'Boundary saved at: {filename}')
-                            save_boundaries(filename,boundary_to_mm_from_steps(boundary))
-                            boundary_making = False
-                        else:
-                            print('Boundary Making Mode turned On. Move to record boundary. Finish and save by pressing b again. Press x to cancel/start over.')
-                            boundary_making = True
-                            boundary = []
+                        boundary_making,boundary = boundaryControl(boundary_making,boundary)
                     elif event.key == pygame.K_x:
-                        if boundary_making:
-                            boundary_making = False
-                            boundary = [] # reset boundary
-                            print('Boundary making turned off, and reset, with nothing saved.')
-                        else: # do nothing
-                            pass
+                        boundary_making, boundary = boundaryCancel(boundary_making, boundary)
                     elif event.key == pygame.K_v:
                         show_boundary = not show_boundary
                     elif event.key == pygame.K_l:
                         boundary = load_boundary()
+        
         if boundary_making:
             boundary.append((x_pos.value,y_pos.value))
-
         if shared_image is not None:
             # Handle recording
             if recording and avi_recorder is not None:

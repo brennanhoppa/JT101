@@ -63,7 +63,8 @@ def wait_for_errorcheck_completion(ser):
                 y_error_steps = int(response.split(":")[1].strip())
                 print(f"Y Error stored: {y_error_steps}")
             if response == "Error check complete.":
-                x_error_mm, y_error_mm = JellyTrackingFunctions.steps_to_mm(x_error_steps,y_error_steps)
+                x_error_mm = JellyTrackingFunctions.steps_to_mm(x_error_steps)
+                y_error_mm = JellyTrackingFunctions.steps_to_mm(y_error_steps)
                 print(f"X Error [mm]: {x_error_mm}, Y Error [mm]: {y_error_mm}")
                 print("Error check complete.")
                 break

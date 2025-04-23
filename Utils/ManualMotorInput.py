@@ -2,11 +2,13 @@ import keyboard # type: ignore
 import time
 import Utils.JellyTrackingFunctions as JellyTrackingFunctions
 import os
-from Utils.ButtonPresses import stepsCalibration
+from Utils.ButtonPresses import stepsCalibration, homingSteps, homingStepsWithErrorCheck,keyBindsControl
 
-step_size = 95  # Default step size #larvea 35
+JellyStepSize = 95
+LarveaStepSize = 35
+defaultStepSize = JellyStepSize
+step_size = defaultStepSize
 step_to_mm_checking = 0
-start_loc = (0,0)
 steps_to_mm_ratio = 250 # default b/c 2000 steps per rev, 8mm lead on the screw
 
 
@@ -53,9 +55,7 @@ def save_position(x_pos, y_pos, file_path):
         print(f"Error writing to {file_path}: {e}")
 
 def run_motor_input(x_pos,y_pos,file_path,command_queue,homing_flag,keybinds_flag):
-    global step_size, step_to_mm_checking, start_loc, steps_to_mm_ratio
-    # Flag to check if home has been set
-    home_set = False
+    global step_size, step_to_mm_checking, steps_to_mm_ratio
 
     # Inform user of controls
     print("Arrow keys to move")
@@ -65,8 +65,6 @@ def run_motor_input(x_pos,y_pos,file_path,command_queue,homing_flag,keybinds_fla
     print("Press 'e' to check the current error and home")
     print("Press 'q' to check the steps to mm conversion.")
     print("Press '&' to turn on/off the other keybinds")
-    # print("Press 'a' to extend the linear actuator")
-    # print("Press 'b' to retract the linear actuator")
 
     # Main loop for reading input and controlling motors
     try:
@@ -91,71 +89,20 @@ def run_motor_input(x_pos,y_pos,file_path,command_queue,homing_flag,keybinds_fla
                 
                 # Check for other key presses
                 if keyboard.is_pressed('h'):
-                    command_queue.put('HOMING\n')
-                    homing_flag.value = True
-                    print("Homing process started...")
-                    while homing_flag.value:
-                        time.sleep(0.1)
-                    home_set = True  # Home is set after homing process
-                    x_pos.value, y_pos.value = 0, 0
-                    # print("Set Tank Home by moving camera to bottom left of tank, then press 'g'.")
+                    homingSteps(command_queue,homing_flag,x_pos,y_pos)
                 if keyboard.is_pressed('e'): # error checking process
-                    command_queue.put(f'ERRORCHECK_{x_pos.value}_{y_pos.value}\n')
-                    homing_flag.value = True
-                    print("Error process starting...")
-                    while homing_flag.value:
-                        time.sleep(0.1)
-                    home_set = True  # Home is set after error checking process too
-                    x_pos.value, y_pos.value = 0, 0
-                    print("Error Check Completed.")
-                
+                    homingStepsWithErrorCheck(command_queue,homing_flag,x_pos,y_pos)
                 if keyboard.is_pressed('q'): # check step to mm conversion
-                    time.sleep(0.2)  # Short delay to prevent multiple triggers
-                    # step_size, step_to_mm_checking, = stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos)
-                    if step_to_mm_checking == 1:
-                        print('Changing to precisiion step size, now move until the end of the piece, and press q again. ')
-                        step_size = 20 # normal is 95, try this / experiment 
-                        start_loc = (x_pos.value, y_pos.value)
-                        step_to_mm_checking = 2
-                    elif step_to_mm_checking == 2:
-                        steps_taken = (abs(x_pos.value - start_loc[0]),abs(y_pos.value - start_loc[1]))
-                        distance = 25.4 # mm - right now for testing
-                        print("Steps taken: ", steps_taken)
-                        print("Distance: ", distance)
-                        ratio = (steps_taken[0]**2+steps_taken[1]**2)**(1/2)/distance
-                        print("Using Pythagorean th, measured steps/mm = ", round(ratio,3))
-                        print("Theoretical value: steps/mm = ", steps_to_mm_ratio)
-                        print("Percent Error = ", round(((ratio-steps_to_mm_ratio)/(steps_to_mm_ratio)*100),3),'%')
-                        print("If percent error larger than 1 percent, consider changing theoretical value. ")
-                        step_to_mm_checking = 0
-                    else:
-                        print('Move to location with piece of known dimension. Move camera center to one edge of piece. Press q again when there.')
-                        step_to_mm_checking = 1
-                        step_size = 35 # normal is 95, try this / experiment 
+                    step_size, step_to_mm_checking = stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,steps_to_mm_ratio,defaultStepSize)
                 if keyboard.is_pressed('shift') and keyboard.is_pressed('7'): # turn keybinds on off wiht &
-                    print('Turning keybinds off.')
-                    keybinds_flag.value = False
-                    time.sleep(0.2)
-                # Linear actuator control
-                # if keyboard.is_pressed('a'):
-                #     command_queue.put('A\n')
-                #     time.sleep(0.2)  # Small delay to prevent rapid commands
-                #     print("Linear actuator extended")
-                    
-                # if keyboard.is_pressed('b'):
-                #     command_queue.put('B\n')
-                #     time.sleep(0.2)  # Small delay to prevent rapid commands
-                #     print("Linear actuator retracted")
-
-                # Check for the termination key 't'
-                if keyboard.is_pressed('t'):
+                    keyBindsControl(keybinds_flag)
+                if keyboard.is_pressed('t'): # Check for the termination key 't'
                     print("Termination key pressed. Stopping the program...")
                     break
             else:
                 if keyboard.is_pressed('shift') and keyboard.is_pressed('7'):
-                    print('Turning keybinds on.')
-                    keybinds_flag.value = True
-                    time.sleep(0.2)
+                    keyBindsControl(keybinds_flag)
+
                     
     except KeyboardInterrupt:
         print("Program terminated by user")
