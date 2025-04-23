@@ -54,17 +54,8 @@ def save_position(x_pos, y_pos, file_path):
     except Exception as e:
         print(f"Error writing to {file_path}: {e}")
 
-def run_motor_input(x_pos,y_pos,file_path,command_queue,homing_flag,keybinds_flag):
+def run_motor_input(x_pos,y_pos,file_path,command_queue,homing_flag,keybinds_flag,controls):
     global step_size, step_to_mm_checking, steps_to_mm_ratio
-
-    # Inform user of controls
-    print("Arrow keys to move")
-    print("Press 'h' to start the homing process")
-    # print("Press 'z' to move to Z position")
-    print("Press 't' to terminate the program")
-    print("Press 'e' to check the current error and home")
-    print("Press 'q' to check the steps to mm conversion.")
-    print("Press '&' to turn on/off the other keybinds")
 
     # Main loop for reading input and controlling motors
     try:
@@ -88,19 +79,19 @@ def run_motor_input(x_pos,y_pos,file_path,command_queue,homing_flag,keybinds_fla
                     time.sleep(.013)  # Small delay to prevent rapid commands
                 
                 # Check for other key presses
-                if keyboard.is_pressed('h'):
+                if keyboard.is_pressed(controls["homing"][0]):
                     homingSteps(command_queue,homing_flag,x_pos,y_pos)
-                if keyboard.is_pressed('e'): # error checking process
+                if keyboard.is_pressed(controls["error_check"][0]): # error checking process
                     homingStepsWithErrorCheck(command_queue,homing_flag,x_pos,y_pos)
-                if keyboard.is_pressed('q'): # check step to mm conversion
+                if keyboard.is_pressed(controls["steps_to_mm"][0]): # check step to mm conversion
                     step_size, step_to_mm_checking = stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,steps_to_mm_ratio,defaultStepSize)
-                if keyboard.is_pressed('shift') and keyboard.is_pressed('7'): # turn keybinds on off wiht &
+                if keyboard.is_pressed(controls["toggle_keybinds"][2]) and keyboard.is_pressed(controls["toggle_keybinds"][3]): # turn keybinds on off wiht &
                     keyBindsControl(keybinds_flag)
-                if keyboard.is_pressed('t'): # Check for the termination key 't'
+                if keyboard.is_pressed(controls["terminate"][0]): # Check for the termination key 't'
                     print("Termination key pressed. Stopping the program...")
                     break
             else:
-                if keyboard.is_pressed('shift') and keyboard.is_pressed('7'):
+                if keyboard.is_pressed(controls["toggle_keybinds"][2]) and keyboard.is_pressed(controls["toggle_keybinds"][3]):
                     keyBindsControl(keybinds_flag)
 
                     

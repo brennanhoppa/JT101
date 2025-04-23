@@ -48,8 +48,8 @@ step_tracking_data = []
 
 chosenAviType = AviType.MJPG
 
-def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag,keybinds_flag):
-    if main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag):
+def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,controls):
+    if main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,controls):
         sys.exit(0)
     else:
         sys.exit(1)
@@ -180,19 +180,9 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos):
 
 
 
-def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag):
+def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,controls):
     global running, shared_image, chosenAviType, recording, tracking, motors, boundary_making, boundary, show_boundary, avi_recorder, step_tracking_data
     
-    # commands
-    print('Press "k" to turn on/off tracking')
-    print('Press "m" to turn on/off the motor movement while tracking')
-    print('Press "o" to start making a boundary (and "o" again to save it)')
-    print('Press "x" to stop making the boundary and discard it')
-    print('Press "r" to start recording')
-    print('Press "s" to save the recording')
-    print('Press "l" to load a boundary from file explorer')
-    print('Press "v" to visualize the currently loaded boundary')
-
     # Initialize webcam
     cap = cv2.VideoCapture(0)  # Use default webcam (index 0)
     if not cap.isOpened():
@@ -232,21 +222,21 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag):
                 running = False
             elif event.type == pygame.KEYDOWN:
                 if keybinds_flag.value:
-                    if event.key == pygame.K_r and not recording:
+                    if event.key == ord(controls["start_recording"][0]) and not recording:
                         recording,avi_recorder,step_tracking_data,timestamp = recordingStart(recording,chosenAviType,fps,width,height)
-                    elif event.key == pygame.K_s and recording:
+                    elif event.key == ord(controls["save_recording"][0]) and recording:
                         recording = recordingSave(recording,avi_recorder,timestamp,step_tracking_data)      
-                    elif event.key == pygame.K_k:
+                    elif event.key == ord(controls["tracking"][0]):
                         tracking = not tracking # switches tracking on / off
-                    elif event.key == pygame.K_m:
+                    elif event.key == ord(controls["motor_tracking"][0]):
                         motors = not motors # turn the motors on / off for tracking
-                    elif event.key == pygame.K_o: # boundary making process
+                    elif event.key == ord(controls["start_boundary"][0]): # boundary making process
                         boundary_making,boundary = boundaryControl(boundary_making,boundary)
-                    elif event.key == pygame.K_x:
+                    elif event.key == ord(controls["discard_boundary"][0]):
                         boundary_making, boundary = boundaryCancel(boundary_making, boundary)
-                    elif event.key == pygame.K_v:
+                    elif event.key == ord(controls["visualize_boundary"][0]):
                         show_boundary = not show_boundary
-                    elif event.key == pygame.K_l:
+                    elif event.key == ord(controls["load_boundary"][0]):
                         boundary = load_boundary()
         
         if boundary_making:
@@ -322,11 +312,6 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag):
                 line_surface = font.render(line, True, (255, 0, 0) if recording else (0, 255, 0))
                 window.blit(line_surface, (10, y_offset))
                 y_offset += font.get_linesize()  # Move to next line
-            
-            # if recording and tracking:
-            #     steps_text = f"Steps: X={cumulative_steps['x']}, Y={cumulative_steps['y']}"
-            #     steps_surface = font.render(steps_text, True, (255, 255, 0))
-            #     window.blit(steps_surface, (10, 50))
             
             pygame.display.flip()
         
