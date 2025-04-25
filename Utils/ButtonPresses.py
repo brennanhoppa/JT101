@@ -3,7 +3,8 @@ import time
 from datetime import datetime
 import cv2 #type: ignore
 from Utils.Boundaries import save_boundaries, boundary_to_steps, boundary_to_mm_from_steps, boundary_to_pixels_from_steps, load_boundaries
-
+from Utils.CONTROLS import CONTROLS
+from Utils.CALIBRATIONPIECE_MM import CALIBRATIONPIECE_MM
 
 def homingSteps(command_queue,homing_flag,x_pos,y_pos):
     command_queue.put('HOMING\n')
@@ -29,21 +30,21 @@ def stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,steps_to_mm_ra
     time.sleep(0.2)  # Short delay to prevent multiple triggers
     if step_to_mm_checking == 1:
         if len(steps_per_mm_list)==0:
-            print('Move center camera x to the end of the length of the calibration piece, and press q again. ')
+            print(f'Move center camera x to the end of the length of the calibration piece, and press {CONTROLS["steps_to_mm"][0]} again. ')
         else:
-            print('Move center camera x to the end of the width of the calibration piece, and press q again. ')
+            print(f'Move center camera x to the end of the width of the calibration piece, and press {CONTROLS["steps_to_mm"][0]} again. ')
         step_size = 10 # normal is 95, try this / experiment 
         start_loc = (x_pos.value, y_pos.value)
         step_to_mm_checking = 2
     elif step_to_mm_checking == 2:
         steps_taken = (abs(x_pos.value - start_loc[0]),abs(y_pos.value - start_loc[1]))
         print("Steps taken: ", steps_taken)
-        distance = 29.8196 # mm of the length
+        distance = CALIBRATIONPIECE_MM['Length']
         dim = "Length"
         if len(steps_per_mm_list)>0:
-            distance = 8.8138 # mm of the width
+            distance = CALIBRATIONPIECE_MM['Width']
             dim = "Width"
-        print("Distance of the", dim, "of the calibration piece: ", distance)
+        print("Distance of the", dim, "of the calibration piece [mm]: ", distance)
         ratio = round((steps_taken[0]**2+steps_taken[1]**2)**(1/2)/distance,3)
         print("Using Pythagorean th, measured steps/mm = ", ratio)
         print("Theoretical value: steps/mm = ", steps_to_mm_ratio)
@@ -53,20 +54,20 @@ def stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,steps_to_mm_ra
         if len(steps_per_mm_list) == 2:
             avg_ratio = sum(item[0] for item in steps_per_mm_list) / 2
             avg_error = sum(item[1] for item in steps_per_mm_list) / 2
-            print("Average Ratio:", round(avg_ratio,2))
-            print("Average Error:", round(avg_error,2))
-            print("If average percent error larger than 5 percent, consider changing theoretical value (which is used as the conversion factor for saved data). ")
+            print("Average Ratio of Steps/mm:", round(avg_ratio,2))
+            print("Average Error:", round(avg_error,3),'%')
+            print("If average percent error larger than 5 percent, consider changing theoretical steps/mm ratio (which is used as the conversion factor for saved data). ")
             step_to_mm_checking = 0
             steps_per_mm_list = []
             step_size = defaultStepSize
         else:
             step_to_mm_checking += 1
-            print("Press q again to measure the other dimension")
+            print(f'Press {CONTROLS["steps_to_mm"][0]} again to measure the other dimension')
     else:
         if len(steps_per_mm_list)==0:
-            print('Move center camera x to the corner of calibration piece to measure the length of the piece. Press q again when there.')
+            print(f'Move center camera x to the corner of calibration piece to measure the length of the piece. Press {CONTROLS["steps_to_mm"][0]} again when there.')
         else:
-            print('Move center camera x to the corner of calibration piece to measure the width of the piece. Press q again when there.')
+            print(f'Move center camera x to the corner of calibration piece to measure the width of the piece. Press {CONTROLS["steps_to_mm"][0]} again when there.')
         step_to_mm_checking = 1
         step_size = 10 # normal is 95, try this / experiment 
     return step_size, step_to_mm_checking
