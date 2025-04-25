@@ -11,6 +11,7 @@ logging.getLogger('matplotlib').setLevel(logging.ERROR)
 import Utils.JellyTrackingFunctions as JellyTrackingFunctions
 from Utils.ManualMotorInput import run_motor_input
 from Utils.LiveStreamRecord import run_live_stream_record
+from Utils.CONTROLS import CONTROLS
 
 def get_x_y():
     x_pos, y_pos = None, None
@@ -104,28 +105,13 @@ def serial_process(command_queue,homing_flag,terminate_event):
 
     ser.close()
 
-controls = {
-    "homing": ('h', 'Press "h" to start the homing process'),
-    "terminate": ('t', 'Press "t" to terminate the program'),
-    "error_check": ('e', 'Press "e" to check the current error and home'),
-    "steps_to_mm": ('q', 'Press "q" to check the steps to mm conversion.'),
-    "tracking": ('k', 'Press "k" to turn on/off tracking'),
-    "motor_tracking": ('m', 'Press "m" to turn on/off the motor movement while tracking'),
-    "start_boundary": ('o', 'Press "o" to start making a boundary (and "o" again to save it)'),
-    "discard_boundary": ('x', 'Press "x" to stop making the boundary and discard it'),
-    "start_recording": ('r', 'Press "r" to start recording'),
-    "save_recording": ('s', 'Press "s" to save the recording'),
-    "load_boundary": ('l', 'Press "l" to load a boundary from file explorer'),
-    "visualize_boundary": ('v', 'Press "v" to visualize the currently loaded boundary'),
-    "toggle_keybinds": ('&', 'Press "&" to turn on/off the other keybinds','shift','7'),
-}
-
 def printControls():
     print("Below are the keybind controls:")
     print("Arrow keys to manually move the motors")
-    for action, value in controls.items():
-        key, description, *rest = value
-        print(description)
+    for action, value in CONTROLS.items():
+        key = value[0]
+        description = value[1]
+        print(f'Press "{key}" {description}')
 
 if __name__ == "__main__":
     
@@ -139,8 +125,8 @@ if __name__ == "__main__":
     serial_proc = multiprocessing.Process(target=serial_process,args=(command_queue,homing_flag,terminate_event))
     serial_proc.start()
 
-    motor_process = multiprocessing.Process(target=run_motor_input, args=(x_pos, y_pos, file_path, command_queue,homing_flag,keybinds_flag,controls))
-    live_stream_process = multiprocessing.Process(target=run_live_stream_record, args=(x_pos, y_pos, command_queue,homing_flag,keybinds_flag,controls))
+    motor_process = multiprocessing.Process(target=run_motor_input, args=(x_pos, y_pos, file_path, command_queue,homing_flag,keybinds_flag))
+    live_stream_process = multiprocessing.Process(target=run_live_stream_record, args=(x_pos, y_pos, command_queue,homing_flag,keybinds_flag))
     
     time.sleep(3) # wait for serial connection happen
     if terminate_event.is_set():

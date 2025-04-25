@@ -4,6 +4,7 @@ from datetime import datetime
 import cv2 #type: ignore
 from Utils.Boundaries import save_boundaries, boundary_to_steps, boundary_to_mm_from_steps, boundary_to_pixels_from_steps, load_boundaries
 
+
 def homingSteps(command_queue,homing_flag,x_pos,y_pos):
     command_queue.put('HOMING\n')
     homing_flag.value = True
@@ -22,30 +23,52 @@ def homingStepsWithErrorCheck(command_queue,homing_flag,x_pos,y_pos):
     print("Error Check Completed.")
 
 start_loc = (0,0)
+steps_per_mm_list = []
 def stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,steps_to_mm_ratio,defaultStepSize):
-    global start_loc
+    global start_loc, steps_per_mm_list
     time.sleep(0.2)  # Short delay to prevent multiple triggers
     if step_to_mm_checking == 1:
-        print('Changing to precisiion step size, now move until the end of the piece, and press q again. ')
-        step_size = 20 # normal is 95, try this / experiment 
+        if len(steps_per_mm_list)==0:
+            print('Move center camera x to the end of the length of the calibration piece, and press q again. ')
+        else:
+            print('Move center camera x to the end of the width of the calibration piece, and press q again. ')
+        step_size = 10 # normal is 95, try this / experiment 
         start_loc = (x_pos.value, y_pos.value)
         step_to_mm_checking = 2
     elif step_to_mm_checking == 2:
         steps_taken = (abs(x_pos.value - start_loc[0]),abs(y_pos.value - start_loc[1]))
-        distance = 25.4 # mm - right now for testing
         print("Steps taken: ", steps_taken)
-        print("Distance: ", distance)
-        ratio = (steps_taken[0]**2+steps_taken[1]**2)**(1/2)/distance
-        print("Using Pythagorean th, measured steps/mm = ", round(ratio,3))
+        distance = 29.8196 # mm of the length
+        dim = "Length"
+        if len(steps_per_mm_list)>0:
+            distance = 8.8138 # mm of the width
+            dim = "Width"
+        print("Distance of the", dim, "of the calibration piece: ", distance)
+        ratio = round((steps_taken[0]**2+steps_taken[1]**2)**(1/2)/distance,3)
+        print("Using Pythagorean th, measured steps/mm = ", ratio)
         print("Theoretical value: steps/mm = ", steps_to_mm_ratio)
-        print("Percent Error = ", round(((ratio-steps_to_mm_ratio)/(steps_to_mm_ratio)*100),3),'%')
-        print("If percent error larger than 1 percent, consider changing theoretical value. ")
-        step_to_mm_checking = 0
-        step_size = defaultStepSize
+        error = round(((ratio-steps_to_mm_ratio)/(steps_to_mm_ratio)*100),3)
+        print("Percent Error = ", error,'%')        
+        steps_per_mm_list.append((ratio, error))
+        if len(steps_per_mm_list) == 2:
+            avg_ratio = sum(item[0] for item in steps_per_mm_list) / 2
+            avg_error = sum(item[1] for item in steps_per_mm_list) / 2
+            print("Average Ratio:", round(avg_ratio,2))
+            print("Average Error:", round(avg_error,2))
+            print("If average percent error larger than 5 percent, consider changing theoretical value (which is used as the conversion factor for saved data). ")
+            step_to_mm_checking = 0
+            steps_per_mm_list = []
+            step_size = defaultStepSize
+        else:
+            step_to_mm_checking += 1
+            print("Press q again to measure the other dimension")
     else:
-        print('Move to location with piece of known dimension. Move camera center to one edge of piece. Press q again when there.')
+        if len(steps_per_mm_list)==0:
+            print('Move center camera x to the corner of calibration piece to measure the length of the piece. Press q again when there.')
+        else:
+            print('Move center camera x to the corner of calibration piece to measure the width of the piece. Press q again when there.')
         step_to_mm_checking = 1
-        step_size = 35 # normal is 95, try this / experiment 
+        step_size = 10 # normal is 95, try this / experiment 
     return step_size, step_to_mm_checking
 
 def keyBindsControl(keybinds_flag):

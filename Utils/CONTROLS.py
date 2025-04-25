@@ -1,0 +1,15 @@
+CONTROLS = {
+    "homing": ('h', 'to start the homing process'),
+    "terminate": ('t', 'to terminate the program'),
+    "error_check": ('e', 'to check the current error and home'),
+    "steps_to_mm": ('q', 'to check the steps to mm conversion.'),
+    "tracking": ('k', 'to turn on/off tracking'),
+    "motor_tracking": ('m', 'to turn on/off the motor movement while tracking'),
+    "start_boundary": ('o', 'to start making a boundary (and "o" again to save it)'),
+    "discard_boundary": ('x', 'to stop making the boundary and discard it'),
+    "start_recording": ('r', 'to start recording'),
+    "save_recording": ('s', 'to save the recording'),
+    "load_boundary": ('l', 'to load a boundary from file explorer'),
+    "visualize_boundary": ('v', 'to visualize the currently loaded boundary'),
+    "toggle_keybinds": ('&', 'to turn on/off the other keybinds', 'shift', '7'),
+}

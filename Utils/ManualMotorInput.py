@@ -3,14 +3,15 @@ import time
 import Utils.JellyTrackingFunctions as JellyTrackingFunctions
 import os
 from Utils.ButtonPresses import stepsCalibration, homingSteps, homingStepsWithErrorCheck,keyBindsControl
+from Utils.CONTROLS import CONTROLS
 
 JellyStepSize = 95
 LarveaStepSize = 35
 defaultStepSize = JellyStepSize
 step_size = defaultStepSize
 step_to_mm_checking = 0
-steps_to_mm_ratio = 250 # default b/c 2000 steps per rev, 8mm lead on the screw
 
+steps_to_mm_ratio = JellyTrackingFunctions.STEPS_PER_MM
 
 def move(x_pos, y_pos, x_direction, y_direction, command_queue):
         # Maximum range for both X and Y after home is set
@@ -54,7 +55,7 @@ def save_position(x_pos, y_pos, file_path):
     except Exception as e:
         print(f"Error writing to {file_path}: {e}")
 
-def run_motor_input(x_pos,y_pos,file_path,command_queue,homing_flag,keybinds_flag,controls):
+def run_motor_input(x_pos,y_pos,file_path,command_queue,homing_flag,keybinds_flag):
     global step_size, step_to_mm_checking, steps_to_mm_ratio
 
     # Main loop for reading input and controlling motors
@@ -79,19 +80,19 @@ def run_motor_input(x_pos,y_pos,file_path,command_queue,homing_flag,keybinds_fla
                     time.sleep(.013)  # Small delay to prevent rapid commands
                 
                 # Check for other key presses
-                if keyboard.is_pressed(controls["homing"][0]):
+                if keyboard.is_pressed(CONTROLS["homing"][0]):
                     homingSteps(command_queue,homing_flag,x_pos,y_pos)
-                if keyboard.is_pressed(controls["error_check"][0]): # error checking process
+                if keyboard.is_pressed(CONTROLS["error_check"][0]): # error checking process
                     homingStepsWithErrorCheck(command_queue,homing_flag,x_pos,y_pos)
-                if keyboard.is_pressed(controls["steps_to_mm"][0]): # check step to mm conversion
+                if keyboard.is_pressed(CONTROLS["steps_to_mm"][0]): # check step to mm conversion
                     step_size, step_to_mm_checking = stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,steps_to_mm_ratio,defaultStepSize)
-                if keyboard.is_pressed(controls["toggle_keybinds"][2]) and keyboard.is_pressed(controls["toggle_keybinds"][3]): # turn keybinds on off wiht &
+                if keyboard.is_pressed(CONTROLS["toggle_keybinds"][2]) and keyboard.is_pressed(CONTROLS["toggle_keybinds"][3]): # turn keybinds on off wiht &
                     keyBindsControl(keybinds_flag)
-                if keyboard.is_pressed(controls["terminate"][0]): # Check for the termination key 't'
+                if keyboard.is_pressed(CONTROLS["terminate"][0]): # Check for the termination key 't'
                     print("Termination key pressed. Stopping the program...")
                     break
             else:
-                if keyboard.is_pressed(controls["toggle_keybinds"][2]) and keyboard.is_pressed(controls["toggle_keybinds"][3]):
+                if keyboard.is_pressed(CONTROLS["toggle_keybinds"][2]) and keyboard.is_pressed(CONTROLS["toggle_keybinds"][3]):
                     keyBindsControl(keybinds_flag)
 
                     

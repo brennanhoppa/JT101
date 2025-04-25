@@ -15,6 +15,7 @@ import cv2 #type: ignore
 import tkinter as tk
 from tkinter import filedialog
 from Utils.ButtonPresses import recordingStart, AviType, recordingSave, boundaryControl, boundaryCancel
+from Utils.CONTROLS import CONTROLS
 
 NUM_IMAGES = 300
 name = 'TESTBINNING2'
@@ -48,8 +49,8 @@ step_tracking_data = []
 
 chosenAviType = AviType.MJPG
 
-def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,controls):
-    if main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,controls):
+def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag,keybinds_flag):
+    if main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag):
         sys.exit(0)
     else:
         sys.exit(1)
@@ -180,7 +181,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos):
 
 
 
-def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,controls):
+def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag):
     global running, shared_image, chosenAviType, recording, tracking, motors, boundary_making, boundary, show_boundary, avi_recorder, step_tracking_data
     
     # Initialize webcam
@@ -222,21 +223,21 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,controls):
                 running = False
             elif event.type == pygame.KEYDOWN:
                 if keybinds_flag.value:
-                    if event.key == ord(controls["start_recording"][0]) and not recording:
+                    if event.key == ord(CONTROLS["start_recording"][0]) and not recording:
                         recording,avi_recorder,step_tracking_data,timestamp = recordingStart(recording,chosenAviType,fps,width,height)
-                    elif event.key == ord(controls["save_recording"][0]) and recording:
+                    elif event.key == ord(CONTROLS["save_recording"][0]) and recording:
                         recording = recordingSave(recording,avi_recorder,timestamp,step_tracking_data)      
-                    elif event.key == ord(controls["tracking"][0]):
+                    elif event.key == ord(CONTROLS["tracking"][0]):
                         tracking = not tracking # switches tracking on / off
-                    elif event.key == ord(controls["motor_tracking"][0]):
+                    elif event.key == ord(CONTROLS["motor_tracking"][0]):
                         motors = not motors # turn the motors on / off for tracking
-                    elif event.key == ord(controls["start_boundary"][0]): # boundary making process
+                    elif event.key == ord(CONTROLS["start_boundary"][0]): # boundary making process
                         boundary_making,boundary = boundaryControl(boundary_making,boundary)
-                    elif event.key == ord(controls["discard_boundary"][0]):
+                    elif event.key == ord(CONTROLS["discard_boundary"][0]):
                         boundary_making, boundary = boundaryCancel(boundary_making, boundary)
-                    elif event.key == ord(controls["visualize_boundary"][0]):
+                    elif event.key == ord(CONTROLS["visualize_boundary"][0]):
                         show_boundary = not show_boundary
-                    elif event.key == ord(controls["load_boundary"][0]):
+                    elif event.key == ord(CONTROLS["load_boundary"][0]):
                         boundary = load_boundary()
         
         if boundary_making:
