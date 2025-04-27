@@ -18,9 +18,9 @@ from ultralytics import YOLO # type: ignore
 import threading
 
 # Constants
-MODEL_PATH = r"C:\Users\JellyTracker\Desktop\Train Larvae\runs\detect\larvae_detector3\weights\best.pt"
+MODEL_PATH = r"C:\Users\JellyTracker\Desktop\Train Larvae\runs\detect\larvae_detector6\weights\best.pt"
 IMG_SIZE = 1024  # Set the image size for inference
-CONF_THRESHOLD = 0.25  # Confidence threshold
+CONF_THRESHOLD = 0.5  # Confidence threshold
 IOU_THRESHOLD = 0.7  # IoU threshold for NMS
 HALF_PRECISION = True  # Enable FP16 inference if supported
 
@@ -150,8 +150,7 @@ def calculate_movement(dx,dy):
     return step_x, step_y
 
 STEPS_PER_MM = 250 # default b/c 2000 steps per rev, 8mm lead on the screw, step_angle = 0.18 deg
-PIXELS_PER_CM = 154  # Calibration value: 154 pixels = 1 cm
-PIXELS_PER_MM = PIXELS_PER_CM / 10  # Convert to pixels per mm (15.4 pixels = 1 mm)
+PIXELS_PER_MM = 39.5 # for the jellyfish zoom on microscope, measured by calibration function
 
 def steps_to_mm(steps, steps_p_mm = STEPS_PER_MM):
     return steps / steps_p_mm

@@ -121,12 +121,13 @@ if __name__ == "__main__":
     command_queue = multiprocessing.Queue()
     homing_flag = multiprocessing.Value('b', False)  # 'b' for boolean type
     keybinds_flag = multiprocessing.Value('b', True)  # 'b' for boolean type
+    pixelsCal_flag = multiprocessing.Value('i', 0) # integer, starting at 0
     terminate_event = multiprocessing.Event()
     serial_proc = multiprocessing.Process(target=serial_process,args=(command_queue,homing_flag,terminate_event))
     serial_proc.start()
 
-    motor_process = multiprocessing.Process(target=run_motor_input, args=(x_pos, y_pos, file_path, command_queue,homing_flag,keybinds_flag))
-    live_stream_process = multiprocessing.Process(target=run_live_stream_record, args=(x_pos, y_pos, command_queue,homing_flag,keybinds_flag))
+    motor_process = multiprocessing.Process(target=run_motor_input, args=(x_pos, y_pos, file_path, command_queue,homing_flag,keybinds_flag,pixelsCal_flag))
+    live_stream_process = multiprocessing.Process(target=run_live_stream_record, args=(x_pos, y_pos, command_queue,homing_flag,keybinds_flag,pixelsCal_flag))
     
     time.sleep(3) # wait for serial connection happen
     if terminate_event.is_set():

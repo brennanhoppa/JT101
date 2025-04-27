@@ -55,7 +55,7 @@ def save_position(x_pos, y_pos, file_path):
     except Exception as e:
         print(f"Error writing to {file_path}: {e}")
 
-def run_motor_input(x_pos,y_pos,file_path,command_queue,homing_flag,keybinds_flag):
+def run_motor_input(x_pos,y_pos,file_path,command_queue,homing_flag,keybinds_flag,pixelsCal_flag):
     global step_size, step_to_mm_checking, steps_to_mm_ratio
 
     # Main loop for reading input and controlling motors
@@ -65,19 +65,20 @@ def run_motor_input(x_pos,y_pos,file_path,command_queue,homing_flag,keybinds_fla
             
             if keybinds_flag.value:
                 # Check for arrow key inputs
-                if keyboard.is_pressed('up'):
-                    y_dir = step_size
-                if keyboard.is_pressed('down'):
-                    y_dir = -step_size
-                if keyboard.is_pressed('left'):
-                    x_dir = -step_size
-                if keyboard.is_pressed('right'):
-                    x_dir = step_size
+                if pixelsCal_flag.value == 0 or pixelsCal_flag.value == 1:
+                    if keyboard.is_pressed('up'):
+                        y_dir = step_size
+                    if keyboard.is_pressed('down'):
+                        y_dir = -step_size
+                    if keyboard.is_pressed('left'):
+                        x_dir = -step_size
+                    if keyboard.is_pressed('right'):
+                        x_dir = step_size
                 
-                # Move if any direction is pressed
-                if x_dir != 0 or y_dir != 0:
-                    x_pos, y_pos = move(x_pos, y_pos, x_dir, y_dir, command_queue)
-                    time.sleep(.013)  # Small delay to prevent rapid commands
+                    # Move if any direction is pressed
+                    if x_dir != 0 or y_dir != 0:
+                        x_pos, y_pos = move(x_pos, y_pos, x_dir, y_dir, command_queue)
+                        time.sleep(.013)  # Small delay to prevent rapid commands
                 
                 # Check for other key presses
                 if keyboard.is_pressed(CONTROLS["homing"][0]):

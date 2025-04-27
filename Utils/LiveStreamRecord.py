@@ -7,15 +7,16 @@ import threading
 import queue
 from datetime import datetime
 import time
-from Utils.JellyTrackingFunctions import detect_jellyfish,calculate_movement, calculate_delta_Pixels, mm_to_pixels, pixels_to_mm, mm_to_steps, steps_to_mm
+from Utils.JellyTrackingFunctions import detect_jellyfish,calculate_movement, calculate_delta_Pixels, mm_to_pixels, pixels_to_mm, mm_to_steps, steps_to_mm, PIXELS_PER_MM
 from Utils.ManualMotorInput import move
 from Utils.Boundaries import save_boundaries, boundary_to_steps, boundary_to_mm_from_steps, boundary_to_pixels_from_steps, load_boundaries
 # import PySpin # type: ignore
 import cv2 #type: ignore
 import tkinter as tk
 from tkinter import filedialog
-from Utils.ButtonPresses import recordingStart, AviType, recordingSave, boundaryControl, boundaryCancel
+from Utils.ButtonPresses import recordingStart, AviType, recordingSave, boundaryControl, boundaryCancel,pixelsCalibration
 from Utils.CONTROLS import CONTROLS
+from Utils.CALIBRATIONPIECE_MM import CALIBRATIONPIECE_MM
 
 NUM_IMAGES = 300
 name = 'TESTBINNING2'
@@ -49,8 +50,8 @@ step_tracking_data = []
 
 chosenAviType = AviType.MJPG
 
-def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag,keybinds_flag):
-    if main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag):
+def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag):
+    if main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag):
         sys.exit(0)
     else:
         sys.exit(1)
@@ -181,7 +182,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos):
 
 
 
-def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag):
+def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag):
     global running, shared_image, chosenAviType, recording, tracking, motors, boundary_making, boundary, show_boundary, avi_recorder, step_tracking_data
     
     # Initialize webcam
@@ -215,14 +216,19 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag):
     last_frame_time = time.time()
     frame_count = 0
     
+    crosshair_x = window_width // 2
+    crosshair_y = window_height // 2
+    move_delay = 2  # How many frames to wait between moves
+    move_counter = 0  # Frame counter
+
     video_writer = None
     
     while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            elif event.type == pygame.KEYDOWN:
-                if keybinds_flag.value:
+        if keybinds_flag.value:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                elif event.type == pygame.KEYDOWN:
                     if event.key == ord(CONTROLS["start_recording"][0]) and not recording:
                         recording,avi_recorder,step_tracking_data,timestamp = recordingStart(recording,chosenAviType,fps,width,height)
                     elif event.key == ord(CONTROLS["save_recording"][0]) and recording:
@@ -239,7 +245,23 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag):
                         show_boundary = not show_boundary
                     elif event.key == ord(CONTROLS["load_boundary"][0]):
                         boundary = load_boundary()
-        
+                    elif event.key == ord(CONTROLS["pixels_to_mm"][0]):
+                        crosshair_x,crosshair_y = pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,window_width,window_height,PIXELS_PER_MM)
+            if pixelsCal_flag.value in (2,3):
+                keys = pygame.key.get_pressed()
+                move_counter += 1
+                if move_counter >= move_delay:
+                    if keys[pygame.K_LEFT]:
+                        crosshair_x = max(0, crosshair_x - 1)
+                    if keys[pygame.K_RIGHT]:
+                        crosshair_x = min(window_width - 1, crosshair_x + 1)
+                    if keys[pygame.K_UP]:
+                        crosshair_y = max(0, crosshair_y - 1)
+                    if keys[pygame.K_DOWN]:
+                        crosshair_y = min(window_height - 1, crosshair_y + 1)
+                    if move_counter >= move_delay + 1:
+                        move_counter = 0  # Reset after moving
+
         if boundary_making:
             boundary.append((x_pos.value,y_pos.value))
         if shared_image is not None:
@@ -263,18 +285,18 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag):
             line_color = (255, 0, 0)  # Red color
             line_thickness = 1
             
-            # Draw horizontal line
+            # Draw horizontal line centered at crosshair_x, crosshair_y
             pygame.draw.line(window, line_color, 
-                            (center_x - line_length, center_y),
-                            (center_x + line_length, center_y),
+                            (crosshair_x - line_length, crosshair_y),
+                            (crosshair_x + line_length, crosshair_y),
                             line_thickness)
-            
-            # Draw vertical line
+
+            # Draw vertical line centered at crosshair_x, crosshair_y
             pygame.draw.line(window, line_color,
-                            (center_x, center_y - line_length),
-                            (center_x, center_y + line_length),
+                            (crosshair_x, crosshair_y - line_length),
+                            (crosshair_x, crosshair_y + line_length),
                             line_thickness)
-            
+
             try:
                 flashlight_pos = tracking_result_queue.get_nowait()
                 if flashlight_pos:

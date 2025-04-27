@@ -3,6 +3,7 @@ CONTROLS = {
     "terminate": ('t', 'to terminate the program'),
     "error_check": ('e', 'to check the current error and home'),
     "steps_to_mm": ('q', 'to check the steps to mm conversion.'),
+    "pixels_to_mm": ('p','to check the pixels to mm conversion.'),
     "tracking": ('k', 'to turn on/off tracking'),
     "motor_tracking": ('m', 'to turn on/off the motor movement while tracking'),
     "start_boundary": ('o', 'to start making a boundary (and "o" again to save it)'),

@@ -72,6 +72,38 @@ def stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,steps_to_mm_ra
         step_size = 10 # normal is 95, try this / experiment 
     return step_size, step_to_mm_checking
 
+pixel_start = (0,0)
+def pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,window_width,window_height,pixels_to_mm_ratio):
+    global pixel_start
+    if pixelsCal_flag.value == 0:
+        print(f'Move the camera so the entire width of calibration piece is within frame, then press {CONTROLS["pixels_to_mm"][0]} again.')
+        pixelsCal_flag.value = 1
+    elif pixelsCal_flag.value == 1:
+        print(f'Use arrow keys to move curser on screen to one corner of the calibration piece, then press {CONTROLS["pixels_to_mm"][0]} again.')
+        pixelsCal_flag.value = 2 
+    elif pixelsCal_flag.value == 2:
+        pixel_start = (crosshair_x,crosshair_y)
+        print(f'Crosshair initial position: ({crosshair_x}, {crosshair_y})')
+        print(f'Use arrow keys to move curser on screen to the opposite corner of the width of the calibration piece, then press {CONTROLS["pixels_to_mm"][0]} again.')
+        pixelsCal_flag.value = 3
+    elif pixelsCal_flag.value == 3:
+        pixel_end = (crosshair_x,crosshair_y)
+        print(f'Crosshair final position: ({crosshair_x}, {crosshair_y})')
+        pixels_traveled = (abs(pixel_end[0]-pixel_start[0]),abs(pixel_end[1]-pixel_start[1]))
+        pixel_distance = round((pixels_traveled[0]**2 + pixels_traveled[1]**2)**(1/2),3)
+        print(f'Pythagoras pixel distance traveled: {pixel_distance}')
+        print(f'Width of calibration piece [mm]: {CALIBRATIONPIECE_MM["Width"]}')
+        ratio = round(pixel_distance / CALIBRATIONPIECE_MM['Width'],3)
+        print(f'Measured pixel to mm ratio: {ratio}')
+        print(f'Accepted / stored pixel to mm ratio: {pixels_to_mm_ratio}')
+        perror = round((ratio-pixels_to_mm_ratio)/pixels_to_mm_ratio*100,3)
+        print(f'Percent Error from measured to stored value: {perror}%')
+        print(f'If percent error greater than 2% consider remeasuring and changing stored value.')
+        pixelsCal_flag.value = 0
+        crosshair_x = window_width // 2
+        crosshair_y = window_height // 2
+    return crosshair_x, crosshair_y
+
 def keyBindsControl(keybinds_flag):
     keybinds_flag.value = not keybinds_flag.value
     print(f"Turning keybinds {'on' if keybinds_flag.value else 'off'}.")
