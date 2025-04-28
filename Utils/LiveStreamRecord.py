@@ -48,7 +48,7 @@ tracking_result_queue = queue.Queue(maxsize=5)
 # cumulative_steps = {'x': 0, 'y': 0}
 step_tracking_data = []
 
-chosenAviType = AviType.MJPG
+chosenAviType = AviType.H264
 
 def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag):
     if main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag):
@@ -284,7 +284,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag):
             line_length = 20  # Length of each line segment
             line_color = (255, 0, 0)  # Red color
             line_thickness = 1
-            
+
             # Draw horizontal line centered at crosshair_x, crosshair_y
             pygame.draw.line(window, line_color, 
                             (crosshair_x - line_length, crosshair_y),

@@ -128,7 +128,7 @@ def recordingStart(recording,chosenAviType,fps,width,height):
         fourcc = cv2.VideoWriter_fourcc('I', '4', '2', '0')
     elif chosenAviType == AviType.H264:
         avi_filename += '.mp4'
-        fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+        fourcc = cv2.VideoWriter_fourcc('H', '2', '6', '4')
     
     # Use original frame size from webcam, not the display size
     avi_recorder = cv2.VideoWriter(avi_filename, fourcc, fps, (width, height))
