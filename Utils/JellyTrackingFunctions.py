@@ -12,15 +12,15 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 import cv2 #type: ignore
-import numpy as np
 import time
 from ultralytics import YOLO # type: ignore
 import threading
 
 # Constants
-MODEL_PATH = r"C:\Users\JellyTracker\Desktop\Train Larvae\runs\detect\larvae_detector6\weights\best.pt"
+# MODEL_PATH = r"C:\Users\JellyTracker\Desktop\Train Larvae\runs\detect\larvae_detector6\weights\best.pt"
+MODEL_PATH = r"C:\Users\JellyTracker\Downloads\best (1).pt"
 IMG_SIZE = 1024  # Set the image size for inference
-CONF_THRESHOLD = 0.5  # Confidence threshold
+CONF_THRESHOLD = 0.25  # Confidence threshold
 IOU_THRESHOLD = 0.7  # IoU threshold for NMS
 HALF_PRECISION = True  # Enable FP16 inference if supported
 
@@ -74,7 +74,7 @@ def detect_jellyfish(frame, detect_light):
         cx = int(M['m10'] / M['m00'])
         cy = int(M['m01'] / M['m00'])
         # print(f'made to the end, cx:{cx}, cy:{cy}')
-        return (cx, cy)
+        return (cx, cy), (0,0,0,0)
 
 
     # Perform object detection using the YOLO model
@@ -87,18 +87,23 @@ def detect_jellyfish(frame, detect_light):
     )
 
 
-
+    original_height, original_width = frame.shape[:2]
     # Find the box with the highest confidence
     highest_conf_box = None
     for result in results:
         for box in result.boxes:
             confidence = float(box.conf.item())
             if highest_conf_box is None or confidence > highest_conf_box['confidence']:
+                x1 = int(box.xyxy[0][0] * original_width / IMG_SIZE)
+                y1 = int(box.xyxy[0][1] * original_height / IMG_SIZE)
+                x2 = int(box.xyxy[0][2] * original_width / IMG_SIZE)
+                y2 = int(box.xyxy[0][3] * original_height / IMG_SIZE)
+                
                 highest_conf_box = {
-                    'x1': int(box.xyxy[0][0]),
-                    'y1': int(box.xyxy[0][1]),
-                    'x2': int(box.xyxy[0][2]),
-                    'y2': int(box.xyxy[0][3]),
+                    'x1': x1,
+                    'y1': y1,
+                    'x2': x2,
+                    'y2': y2,
                     'class_id': int(box.cls.item()),
                     'confidence': confidence
                 }
@@ -108,10 +113,10 @@ def detect_jellyfish(frame, detect_light):
         x1, y1, x2, y2 = highest_conf_box['x1'], highest_conf_box['y1'], highest_conf_box['x2'], highest_conf_box['y2']
         center_x = (x1 + x2) // 2
         center_y = (y1 + y2) // 2
-        return (center_x, center_y)
+        return (center_x, center_y),(x1,x2,y1,y2)
 
     # No jellyfish detected
-    return None
+    return None, None
 
 def calculate_delta_Pixels(jellyfish_pos, center_x, center_y):
     """

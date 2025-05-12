@@ -97,13 +97,13 @@ def imageacq(cam):
                 shared_image = frame
 
                 # Put in queue for tracking
-                if isinstance(rgb_frame, np.ndarray):
+                if isinstance(frame, np.ndarray):
                     try:
-                        image_queue.put(rgb_frame, block=False)
+                        image_queue.put(frame, block=False)
                     except queue.Full:
                         try:
                             image_queue.get_nowait()  # Remove the oldest frame if queue is full
-                            image_queue.put(rgb_frame, block=False)
+                            image_queue.put(frame, block=False)
                         except queue.Empty:
                             pass
                 else:
@@ -147,7 +147,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos):
                     # detect_light = True # testing mode - returns x,y of brightest spot in frame
 
                     # Use YOLO to detect jellyfish position
-                    flashlight_pos = detect_jellyfish(image, detect_light)
+                    flashlight_pos, (x1,x2,y1,y2) = detect_jellyfish(image, detect_light)
                     timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-2] 
                     if flashlight_pos:
                         # Calculate deltas
@@ -167,7 +167,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos):
                             x_pos, y_pos = move(x_pos, y_pos, int(-1*round(step_x*1.3,0)), int(round(step_y*1.3,0)), command_queue)
                             
                         # Communicate tracking results for display
-                        tracking_result_queue.put(flashlight_pos, block=False)
+                        tracking_result_queue.put((flashlight_pos,(x1,x2,y1,y2)), block=False)
                     elif recording:    
                         step_tracking_data.append((None, None, timestamp))
 
@@ -298,9 +298,12 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag):
                             line_thickness)
 
             try:
-                flashlight_pos = tracking_result_queue.get_nowait()
+                (flashlight_pos,(x1,x2,y1,y2)) = tracking_result_queue.get_nowait()
                 if flashlight_pos:
                     pygame.draw.circle(window, (0, 255, 0), flashlight_pos, 10)
+                    pygame.draw.circle(window, (0, 255, 255), (x1,y1), 10)
+                    pygame.draw.circle(window, (0, 255, 255), (x2,y2), 10)
+
             except queue.Empty:
                 pass
 
