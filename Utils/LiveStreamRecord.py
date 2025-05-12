@@ -212,7 +212,8 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag):
     
     clock = pygame.time.Clock()
     font = pygame.font.Font(None, 36)
-    
+    start_time = datetime.now()
+
     last_frame_time = time.time()
     frame_count = 0
     
@@ -323,13 +324,16 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag):
                         pygame.draw.circle(window, (0, 0, 255), (b[0], b[1]), 5)  
     
 
-            current_time = datetime.now().strftime("%H:%M:%S") 
+            current_time = datetime.now() - start_time  # This is a timedelta object
+            elapsed_seconds = int(current_time.total_seconds())
+            hours, remainder = divmod(elapsed_seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
             status_text = (
                     f"{'Recording' if recording else 'Not Recording'} | "
                     f"{'Tracking' if tracking else 'Not Tracking'}\n"
                     f"{'Motors on with Tracking' if motors else 'Motors off with Tracking'}\n"
                     f"{'Boundary Visualization: On' if show_boundary else 'Boundary Visualization: Off'}\n"
-                    f"Time: {current_time}"
+                    f"Duration: {hours:02}:{minutes:02}:{seconds:02}"
                 )
 
             lines = status_text.split('\n')
