@@ -34,14 +34,14 @@ def load_boundaries(filename):
             points.append((x, y))
     return points
 
-def boundary_to_steps(boundary):
-    return [(mm_to_steps(x), mm_to_steps(y)) for x, y in boundary]
+def boundary_to_steps(boundary,is_jf_mode):
+    return [(mm_to_steps(x,is_jf_mode), mm_to_steps(y,is_jf_mode)) for x, y in boundary]
 
-def boundary_to_mm_from_steps(boundary):
-    return [(steps_to_mm(x), steps_to_mm(y)) for x,y in boundary]
+def boundary_to_mm_from_steps(boundary,is_jf_mode):
+    return [(steps_to_mm(x,is_jf_mode), steps_to_mm(y,is_jf_mode)) for x,y in boundary]
 
-def boundary_to_pixels_from_steps(boundary):
-    return [(mm_to_pixels(steps_to_mm(x)),mm_to_pixels(steps_to_mm(y))) for x,y in boundary]
+def boundary_to_pixels_from_steps(boundary,is_jf_mode):
+    return [(mm_to_pixels(steps_to_mm(x,is_jf_mode),is_jf_mode),mm_to_pixels(steps_to_mm(y,is_jf_mode),is_jf_mode)) for x,y in boundary]
 
 def plot_boundary(boundary):
     """Plot the boundary points and connect them with lines."""

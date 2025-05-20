@@ -16,7 +16,7 @@ from Utils.CONTROLS import CONTROLS
 def get_x_y():
     x_pos, y_pos = None, None
     # File containing the position data
-    script_dir = os.path.dirname(os.path.abspath(__file__))  # Directory of ManualMotorInput.py
+    script_dir = os.path.dirname(os.path.abspath(__file__))  
     file_path = os.path.join(script_dir, "Utils","motor_location.txt")
     try:
         with open(file_path, "r") as file:
@@ -36,6 +36,26 @@ def get_x_y():
     print(f"Initial coordinates loaded: x_pos: {x_pos}, y_pos: {y_pos} [steps]")
     return x_pos,y_pos,file_path
 
+def get_mode():
+    mode = 0 # just to initialize
+    # File containing the position data
+    script_dir = os.path.dirname(os.path.abspath(__file__))  
+    file_path = os.path.join(script_dir, "Utils","jf_or_larvae_mode.txt")
+    try:
+        with open(file_path, "r") as file:
+            line = file.readline().strip()
+            label = int(line.split()[0])  # Get the first token and convert to int
+            if label == 0 or label == 1:
+                mode = multiprocessing.Value('i', label)
+                print(f"Mode initially loaded as: {JellyTrackingFunctions.mode_string(mode)}")
+            else:
+                raise ValueError("Incorrect formatting in the saved mode file, edit it and restart")
+    except (FileNotFoundError, ValueError) as e:
+        print(f"Error reading {file_path}: {e}")
+        mode = multiprocessing.Value('i', 1)
+        print("Assuming jellyfish mode. If incorrect microscope position, restart and edit jf_or_larvae_mode.txt file")    
+    return mode, file_path
+
 # Function to wait for the Arduino to confirm that homing is complete
 def wait_for_homing_completion(ser):
     print("Waiting for homing to complete...")
@@ -49,7 +69,7 @@ def wait_for_homing_completion(ser):
         else:
             time.sleep(0.1)
 
-def wait_for_errorcheck_completion(ser):
+def wait_for_errorcheck_completion(ser,is_jf_mode):
     print("Waiting for error check to complete...")
     x_error_steps, y_error_steps = None, None
     x_error_mm, y_error_mm = None, None
@@ -64,15 +84,15 @@ def wait_for_errorcheck_completion(ser):
                 y_error_steps = int(response.split(":")[1].strip())
                 print(f"Y Error stored: {y_error_steps}")
             if response == "Error check complete.":
-                x_error_mm = JellyTrackingFunctions.steps_to_mm(x_error_steps)
-                y_error_mm = JellyTrackingFunctions.steps_to_mm(y_error_steps)
+                x_error_mm = JellyTrackingFunctions.steps_to_mm(x_error_steps,is_jf_mode)
+                y_error_mm = JellyTrackingFunctions.steps_to_mm(y_error_steps,is_jf_mode)
                 print(f"X Error [mm]: {x_error_mm}, Y Error [mm]: {y_error_mm}")
                 print("Error check complete.")
                 break
         else:
             time.sleep(0.1)
 
-def serial_process(command_queue,homing_flag,terminate_event):
+def serial_process(command_queue,homing_flag,terminate_event,is_jf_mode):
     try:
         ser = serial.Serial('COM5', 500000, timeout=5)
         time.sleep(0.5)
@@ -94,7 +114,7 @@ def serial_process(command_queue,homing_flag,terminate_event):
         if command.startswith('ERRORCHECK'):
             ser.write(command.encode())
             print(f"Sent command: {command}")
-            wait_for_errorcheck_completion(ser)
+            wait_for_errorcheck_completion(ser,is_jf_mode)
             homing_flag.value = False
             continue
         if command == "EXIT":
@@ -115,7 +135,8 @@ def printControls():
 
 if __name__ == "__main__":
     
-    x_pos, y_pos,file_path = get_x_y()
+    x_pos, y_pos, file_path_xy = get_x_y()
+    is_jf_mode, file_path_mode = get_mode()
     x_pos = multiprocessing.Value('i', x_pos)
     y_pos = multiprocessing.Value('i', y_pos)
     command_queue = multiprocessing.Queue()
@@ -123,11 +144,10 @@ if __name__ == "__main__":
     keybinds_flag = multiprocessing.Value('b', True)  # 'b' for boolean type
     pixelsCal_flag = multiprocessing.Value('i', 0) # integer, starting at 0
     terminate_event = multiprocessing.Event()
-    serial_proc = multiprocessing.Process(target=serial_process,args=(command_queue,homing_flag,terminate_event))
+    serial_proc = multiprocessing.Process(target=serial_process,args=(command_queue,homing_flag,terminate_event,is_jf_mode))
     serial_proc.start()
-
-    motor_process = multiprocessing.Process(target=run_motor_input, args=(x_pos, y_pos, file_path, command_queue,homing_flag,keybinds_flag,pixelsCal_flag))
-    live_stream_process = multiprocessing.Process(target=run_live_stream_record, args=(x_pos, y_pos, command_queue,homing_flag,keybinds_flag,pixelsCal_flag))
+    motor_process = multiprocessing.Process(target=run_motor_input, args=(x_pos, y_pos, file_path_xy, command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode,file_path_mode))
+    live_stream_process = multiprocessing.Process(target=run_live_stream_record, args=(x_pos, y_pos, command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode))
     
     time.sleep(3) # wait for serial connection happen
     if terminate_event.is_set():

@@ -1,0 +1,1 @@
+0 # 0 means larvae, 1 means jellyfish

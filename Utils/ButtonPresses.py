@@ -5,6 +5,7 @@ import cv2 #type: ignore
 from Utils.Boundaries import save_boundaries, boundary_to_steps, boundary_to_mm_from_steps, boundary_to_pixels_from_steps, load_boundaries
 from Utils.CONTROLS import CONTROLS
 from Utils.CALIBRATIONPIECE_MM import CALIBRATIONPIECE_MM
+from Utils.CONSTANTS import CONSTANTS
 
 def homingSteps(command_queue,homing_flag,x_pos,y_pos):
     command_queue.put('HOMING\n')
@@ -25,58 +26,102 @@ def homingStepsWithErrorCheck(command_queue,homing_flag,x_pos,y_pos):
 
 start_loc = (0,0)
 steps_per_mm_list = []
-def stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,steps_to_mm_ratio,defaultStepSize):
+def stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,defaultStepSize,is_jf_mode):
     global start_loc, steps_per_mm_list
+    if is_jf_mode.value == 1:
+        steps_to_mm_ratio = CONSTANTS["JFStepsPerMm"]
+    else:
+        steps_to_mm_ratio = CONSTANTS["LStepsPerMm"]
     time.sleep(0.2)  # Short delay to prevent multiple triggers
     if step_to_mm_checking == 1:
-        if len(steps_per_mm_list)==0:
+        if len(steps_per_mm_list)==0 and is_jf_mode.value==1:
             print(f'Move center camera x to the end of the length of the calibration piece, and press {CONTROLS["steps_to_mm"][0]} again. ')
-        else:
+        elif len(steps_per_mm_list)==1 and is_jf_mode.value==1:
             print(f'Move center camera x to the end of the width of the calibration piece, and press {CONTROLS["steps_to_mm"][0]} again. ')
+        elif len(steps_per_mm_list)==0 and is_jf_mode.value==0:
+            print(f'Move center camera x to one edge of the calibration piece, and press {CONTROLS["steps_to_mm"][0]} again. ')
+        else:
+            print(f'Move center camera x to one edge of the calibration piece, and press {CONTROLS["steps_to_mm"][0]} again. ')
         step_size = 10 # normal is 95, try this / experiment 
         start_loc = (x_pos.value, y_pos.value)
         step_to_mm_checking = 2
     elif step_to_mm_checking == 2:
         steps_taken = (abs(x_pos.value - start_loc[0]),abs(y_pos.value - start_loc[1]))
         print("Steps taken: ", steps_taken)
-        distance = CALIBRATIONPIECE_MM['Length']
-        dim = "Length"
-        if len(steps_per_mm_list)>0:
-            distance = CALIBRATIONPIECE_MM['Width']
-            dim = "Width"
-        print("Distance of the", dim, "of the calibration piece [mm]: ", distance)
-        ratio = round((steps_taken[0]**2+steps_taken[1]**2)**(1/2)/distance,3)
-        print("Using Pythagorean th, measured steps/mm = ", ratio)
-        print("Theoretical value: steps/mm = ", steps_to_mm_ratio)
-        error = round(((ratio-steps_to_mm_ratio)/(steps_to_mm_ratio)*100),3)
-        print("Percent Error = ", error,'%')        
-        steps_per_mm_list.append((ratio, error))
-        if len(steps_per_mm_list) == 2:
-            avg_ratio = sum(item[0] for item in steps_per_mm_list) / 2
-            avg_error = sum(item[1] for item in steps_per_mm_list) / 2
-            print("Average Ratio of Steps/mm:", round(avg_ratio,2))
-            print("Average Error:", round(avg_error,3),'%')
-            print("If average percent error larger than 5 percent, consider changing theoretical steps/mm ratio (which is used as the conversion factor for saved data). ")
-            step_to_mm_checking = 0
-            steps_per_mm_list = []
-            step_size = defaultStepSize
+        if is_jf_mode.value == 1:
+            distance = CALIBRATIONPIECE_MM['Length']
+            dim = "Length"
+            if len(steps_per_mm_list)>0:
+                distance = CALIBRATIONPIECE_MM['Width']
+                dim = "Width"
+            print("Distance of the", dim, "of the calibration piece [mm]: ", distance)
+            ratio = round((steps_taken[0]**2+steps_taken[1]**2)**(1/2)/distance,3)
+            print("Using Pythagorean th, measured steps/mm = ", ratio)
+            print("Theoretical value: steps/mm = ", steps_to_mm_ratio)
+            error = round(((ratio-steps_to_mm_ratio)/(steps_to_mm_ratio)*100),3)
+            print("Percent Error = ", error,'%')        
+            steps_per_mm_list.append((ratio, error))
+            if len(steps_per_mm_list) == 2:
+                avg_ratio = sum(item[0] for item in steps_per_mm_list) / 2
+                avg_error = sum(item[1] for item in steps_per_mm_list) / 2
+                print("Average Ratio of Steps/mm:", round(avg_ratio,2))
+                print("Average Error:", round(avg_error,3),'%')
+                print("If average percent error larger than 5 percent, consider changing theoretical steps/mm ratio (which is used as the conversion factor for saved data). ")
+                step_to_mm_checking = 0
+                steps_per_mm_list = []
+                step_size = defaultStepSize
+            else:
+                step_to_mm_checking += 1
+                print(f'Press {CONTROLS["steps_to_mm"][0]} again to measure the other dimension')
         else:
-            step_to_mm_checking += 1
-            print(f'Press {CONTROLS["steps_to_mm"][0]} again to measure the other dimension')
+            distance = CALIBRATIONPIECE_MM['Thickness']
+            dim = 'Thickness'
+            if len(steps_per_mm_list)>0:
+                distance = CALIBRATIONPIECE_MM['Thickness']
+                dim = 'Thickness'
+            print("Distance of the", dim, "of the calibration piece [mm]: ", distance)
+            ratio = round((steps_taken[0]**2+steps_taken[1]**2)**(1/2)/distance,3)
+            print("Using Pythagorean th, measured steps/mm = ", ratio)
+            print("Theoretical value: steps/mm = ", steps_to_mm_ratio)
+            error = round(((ratio-steps_to_mm_ratio)/(steps_to_mm_ratio)*100),3)
+            print("Percent Error = ", error,'%')        
+            steps_per_mm_list.append((ratio, error))
+            if len(steps_per_mm_list) == 2:
+                avg_ratio = sum(item[0] for item in steps_per_mm_list) / 2
+                avg_error = sum(item[1] for item in steps_per_mm_list) / 2
+                print("Average Ratio of Steps/mm:", round(avg_ratio,2))
+                print("Average Error:", round(avg_error,3),'%')
+                print("If average percent error larger than 5 percent, consider changing theoretical steps/mm ratio (which is used as the conversion factor for saved data). ")
+                step_to_mm_checking = 0
+                steps_per_mm_list = []
+                step_size = defaultStepSize
+            else:
+                step_to_mm_checking += 1
+                print(f'Press {CONTROLS["steps_to_mm"][0]} again to the thickness again')
     else:
-        if len(steps_per_mm_list)==0:
-            print(f'Move center camera x to the corner of calibration piece to measure the length of the piece. Press {CONTROLS["steps_to_mm"][0]} again when there.')
+        if is_jf_mode.value == 1:
+            if len(steps_per_mm_list)==0:
+                print(f'Move center camera x to the corner of calibration piece to measure the length of the piece. Press {CONTROLS["steps_to_mm"][0]} again when there.')
+            else:
+                print(f'Move center camera x to the corner of calibration piece to measure the width of the piece. Press {CONTROLS["steps_to_mm"][0]} again when there.')
         else:
-            print(f'Move center camera x to the corner of calibration piece to measure the width of the piece. Press {CONTROLS["steps_to_mm"][0]} again when there.')
+            print(f'Move center camera x to one edge of calibration piece to measure the thickness. Press {CONTROLS["steps_to_mm"][0]} again when there.')
         step_to_mm_checking = 1
         step_size = 10 # normal is 95, try this / experiment 
     return step_size, step_to_mm_checking
 
 pixel_start = (0,0)
-def pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,window_width,window_height,pixels_to_mm_ratio):
+def pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,window_width,window_height,is_jf_mode):
     global pixel_start
+    if is_jf_mode.value == 1:
+        pixels_to_mm_ratio = CONSTANTS["JFPixelsPerMm"]
+    else:
+        pixels_to_mm_ratio = CONSTANTS["LPixelsPerMm"]
     if pixelsCal_flag.value == 0:
-        print(f'Move the camera so the entire width of calibration piece is within frame, then press {CONTROLS["pixels_to_mm"][0]} again.')
+        if is_jf_mode.value == 1:
+            print(f'Move the camera so the entire width of calibration piece is within frame, then press {CONTROLS["pixels_to_mm"][0]} again.')
+        else:
+            print(f'Move the camera so the entire thickness of calibration piece is within frame, and the edge of it is visible, then press {CONTROLS["pixels_to_mm"][0]} again.')        
         pixelsCal_flag.value = 1
     elif pixelsCal_flag.value == 1:
         print(f'Use arrow keys to move curser on screen to one corner of the calibration piece, then press {CONTROLS["pixels_to_mm"][0]} again.')
@@ -92,8 +137,12 @@ def pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,window_width,window
         pixels_traveled = (abs(pixel_end[0]-pixel_start[0]),abs(pixel_end[1]-pixel_start[1]))
         pixel_distance = round((pixels_traveled[0]**2 + pixels_traveled[1]**2)**(1/2),3)
         print(f'Pythagoras pixel distance traveled: {pixel_distance}')
-        print(f'Width of calibration piece [mm]: {CALIBRATIONPIECE_MM["Width"]}')
-        ratio = round(pixel_distance / CALIBRATIONPIECE_MM['Width'],3)
+        if is_jf_mode.value == 1:
+            print(f'Width of calibration piece [mm]: {CALIBRATIONPIECE_MM["Width"]}')
+            ratio = round(pixel_distance / CALIBRATIONPIECE_MM['Width'],3)
+        else:
+            print(f'Thickness of calibration piece [mm]: {CALIBRATIONPIECE_MM["Thickness"]}')
+            ratio = round(pixel_distance / CALIBRATIONPIECE_MM['Thickness'],3)
         print(f'Measured pixel to mm ratio: {ratio}')
         print(f'Accepted / stored pixel to mm ratio: {pixels_to_mm_ratio}')
         perror = round((ratio-pixels_to_mm_ratio)/pixels_to_mm_ratio*100,3)
@@ -176,3 +225,34 @@ def boundaryCancel(boundary_making, boundary):
     else: # do nothing
         pass
     return boundary_making, boundary
+
+def change_mode(is_jf_mode,x_pos,y_pos):
+    step_size = 0
+    if is_jf_mode.value == 0: # switching from larvae to jf
+        is_jf_mode.value = 1
+        print("Move the microscope so it is all the way down on the platform.")
+        print("Refocus microscope on corner border or other object.")
+        print("Switch the motor controller switchs on both motors so switches 1,2,4,5 are on (3 and 6 off). This gives 2000 steps/revolution")
+        print("Prepare boundary inside tank for jellyfish.")
+        step_size = CONSTANTS['JellyStepSizeManual']
+        print(x_pos.value, y_pos.value, 'intilai poses ')
+        x_pos.value = int(x_pos.value * CONSTANTS['JFStepPerRev'] / CONSTANTS['LStepPerRev'])
+        y_pos.value = int(y_pos.value * CONSTANTS['JFStepPerRev'] / CONSTANTS['LStepPerRev'])
+        print(x_pos.value, y_pos.value, 'final poses ')
+
+    elif is_jf_mode.value == 1: # switching from jf to larvae
+        is_jf_mode.value = 0
+        print("Move the microscope so it inside the tank boundary.")
+        print("Move the microscope up on the platform to be the WD away from the glass. Use the 3d printed calibration piece (it's 0.407 inches thick).")
+        print("Refocus microscope on corner border or other object.")
+        print("Switch the motor controller switchs on both motors so switches 1,2,4,6 are on (3 and 5 off). This gives 12800 steps/revolution")
+        print("Prepare boundary inside tank for larvae.")
+        step_size = CONSTANTS['LarvaeStepSizeManual']
+        x_pos.value = int(x_pos.value / CONSTANTS['JFStepPerRev'] * CONSTANTS['LStepPerRev'])
+        y_pos.value = int(y_pos.value / CONSTANTS['JFStepPerRev'] * CONSTANTS['LStepPerRev'])
+        # NEED TO TURN ON TANK BOUNDARY / DON'T LET IT TURN ON IF NOT INSIDE THE TANK BOUNDARY
+        
+    else:
+        print("Error, mode is incorrect value")
+    time.sleep(0.2)  # Short delay to prevent multiple triggers
+    return step_size

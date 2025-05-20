@@ -7,7 +7,7 @@ import threading
 import queue
 from datetime import datetime
 import time
-from Utils.JellyTrackingFunctions import detect_jellyfish,calculate_movement, calculate_delta_Pixels, mm_to_pixels, pixels_to_mm, mm_to_steps, steps_to_mm, PIXELS_PER_MM
+from Utils.JellyTrackingFunctions import detect_jellyfish,calculate_movement, calculate_delta_Pixels, mm_to_pixels, pixels_to_mm, mm_to_steps, steps_to_mm, mode_string
 from Utils.ManualMotorInput import move
 from Utils.Boundaries import save_boundaries, boundary_to_steps, boundary_to_mm_from_steps, boundary_to_pixels_from_steps, load_boundaries
 # import PySpin # type: ignore
@@ -50,8 +50,8 @@ step_tracking_data = []
 
 chosenAviType = AviType.H264
 
-def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag):
-    if main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag):
+def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode):
+    if main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode):
         sys.exit(0)
     else:
         sys.exit(1)
@@ -68,7 +68,7 @@ def webcam_image_to_pygame(frame):
     # Create pygame surface
     return pygame.surfarray.make_surface(rgb_frame.swapaxes(0, 1))
 
-def load_boundary():
+def load_boundary(is_jf_mode):
     root = tk.Tk()
     root.withdraw()
     file_path = filedialog.askopenfilename(title="Select a File", filetypes=[("CSV files", "*.csv"), ("All Files", "*.*")])
@@ -76,7 +76,7 @@ def load_boundary():
         print(f"Selected file: {file_path}")
         try:
             boundary_mm = load_boundaries(file_path)
-            return boundary_to_steps(boundary_mm)
+            return boundary_to_steps(boundary_mm,is_jf_mode)
         except:
             print('Incorrect file loaded')
     else:
@@ -118,7 +118,7 @@ def imageacq(cam):
         avi_recorder.release()
 
 
-def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos):
+def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_jf_mode):
     global running, tracking, motors, recording, step_tracking_data
     last_tracking_time = time.time()
     
@@ -147,7 +147,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos):
                     # detect_light = True # testing mode - returns x,y of brightest spot in frame
 
                     # Use YOLO to detect jellyfish position
-                    flashlight_pos, (x1,x2,y1,y2) = detect_jellyfish(image, detect_light)
+                    flashlight_pos, (x1,x2,y1,y2) = detect_jellyfish(image, detect_light, is_jf_mode)
                     timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-2] 
                     if flashlight_pos:
                         # Calculate deltas
@@ -156,15 +156,15 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos):
                         if recording:
                             # x_pos + dx thing and y !!!!!!!!!!!!!!
                             # mm position of jf in the global coords
-                            x = steps_to_mm(x_pos.value)
-                            y = steps_to_mm(y_pos.value)
+                            x = steps_to_mm(x_pos.value, is_jf_mode)
+                            y = steps_to_mm(y_pos.value, is_jf_mode)
                             x -= dx # matching to the inverting of the x axis with the camera
                             y += dy # same as above
                             step_tracking_data.append((x, y, timestamp))                        
                         if motors:
-                            step_x, step_y = calculate_movement(dx,dy)
+                            step_x, step_y = calculate_movement(dx,dy,is_jf_mode)
                             # Send movement command
-                            x_pos, y_pos = move(x_pos, y_pos, int(-1*round(step_x*1.3,0)), int(round(step_y*1.3,0)), command_queue)
+                            x_pos, y_pos = move(x_pos, y_pos, int(-1*round(step_x*1.3,0)), int(round(step_y*1.3,0)), command_queue,is_jf_mode)
                             
                         # Communicate tracking results for display
                         tracking_result_queue.put((flashlight_pos,(x1,x2,y1,y2)), block=False)
@@ -182,7 +182,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos):
 
 
 
-def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag):
+def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode):
     global running, shared_image, chosenAviType, recording, tracking, motors, boundary_making, boundary, show_boundary, avi_recorder, step_tracking_data
     
     # Initialize webcam
@@ -207,7 +207,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag):
     acq_thread = threading.Thread(target=imageacq, args=(cap,))
     acq_thread.start()
     
-    tracking_thread = threading.Thread(target=active_tracking_thread, args=(window_width // 2, window_height // 2, command_queue, x_pos, y_pos))
+    tracking_thread = threading.Thread(target=active_tracking_thread, args=(window_width // 2, window_height // 2, command_queue, x_pos, y_pos, is_jf_mode))
     tracking_thread.start()
     
     clock = pygame.time.Clock()
@@ -245,9 +245,9 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag):
                     elif event.key == ord(CONTROLS["visualize_boundary"][0]):
                         show_boundary = not show_boundary
                     elif event.key == ord(CONTROLS["load_boundary"][0]):
-                        boundary = load_boundary()
+                        boundary = load_boundary(is_jf_mode)
                     elif event.key == ord(CONTROLS["pixels_to_mm"][0]):
-                        crosshair_x,crosshair_y = pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,window_width,window_height,PIXELS_PER_MM)
+                        crosshair_x,crosshair_y = pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,window_width,window_height,is_jf_mode)
             if pixelsCal_flag.value in (2,3):
                 keys = pygame.key.get_pressed()
                 move_counter += 1
@@ -311,15 +311,15 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag):
             if show_boundary: 
                 if boundary != []: # boundary is currently in steps
                     xs, ys = x_pos.value, y_pos.value
-                    dx = mm_to_steps(pixels_to_mm(window_width//2))
-                    dy = mm_to_steps(pixels_to_mm(window_height//2))
+                    dx = mm_to_steps(pixels_to_mm(window_width//2, is_jf_mode), is_jf_mode)
+                    dy = mm_to_steps(pixels_to_mm(window_height//2, is_jf_mode), is_jf_mode)
                     viewing_window_s = (xs-dx,xs+dx,ys-dy,ys+dy)
                     x_min_s, x_max_s, y_min_s, y_max_s = viewing_window_s
                     boundary_within_window = [
                         (x, y) for x, y in boundary if x_min_s <= x <= x_max_s and y_min_s <= y <= y_max_s
                     ] # list of pts that are in the window
                     boundary_shifted = [(dx+xs-x,dy+ys-y) for x,y in boundary_within_window]
-                    boundary_pixels_shifted = [(mm_to_pixels(steps_to_mm(x)),mm_to_pixels(steps_to_mm(y))) for x,y in boundary_shifted]
+                    boundary_pixels_shifted = [(mm_to_pixels(steps_to_mm(x, is_jf_mode), is_jf_mode),mm_to_pixels(steps_to_mm(y, is_jf_mode), is_jf_mode)) for x,y in boundary_shifted]
                     for b in boundary_pixels_shifted:
                         pygame.draw.circle(window, (0, 0, 255), (b[0], b[1]), 5)  
     
@@ -333,7 +333,8 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag):
                     f"{'Tracking' if tracking else 'Not Tracking'}\n"
                     f"{'Motors on with Tracking' if motors else 'Motors off with Tracking'}\n"
                     f"{'Boundary Visualization: On' if show_boundary else 'Boundary Visualization: Off'}\n"
-                    f"Duration: {hours:02}:{minutes:02}:{seconds:02}"
+                    f"Duration: {hours:02}:{minutes:02}:{seconds:02}\n"
+                    f"Mode: {mode_string(is_jf_mode)}"
                 )
 
             lines = status_text.split('\n')

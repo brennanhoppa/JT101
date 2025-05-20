@@ -13,4 +13,5 @@ CONTROLS = {
     "load_boundary": ('l', 'to load a boundary from file explorer'),
     "visualize_boundary": ('v', 'to visualize the currently loaded boundary'),
     "toggle_keybinds": ('&', 'to turn on/off the other keybinds', 'shift', '7'),
+    "toggle_mode": ('j', 'to change between jellyfish and larvae modes.'),
 }

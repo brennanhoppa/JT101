@@ -1,33 +1,30 @@
 import numpy as np
 import logging
-
-# Constants for tracking
-MAX_STEP_SIZE = 95
-MIN_STEP_SIZE = 10
-DEAD_ZONE = 20  # Minimum movement threshold to ignore small movements
-MOVE_MULTIPLIER = 0.7  # Factor to adjust sensitivity of movements
-
 # Logging setup
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-
 import cv2 #type: ignore
 import time
 from ultralytics import YOLO # type: ignore
 import threading
+from Utils.CONSTANTS import CONSTANTS
 
 # Constants
-# MODEL_PATH = r"C:\Users\JellyTracker\Desktop\Train Larvae\runs\detect\larvae_detector6\weights\best.pt"
-MODEL_PATH = r"C:\Users\JellyTracker\Downloads\best (1).pt"
+DEAD_ZONE = 20  # Minimum movement threshold to ignore small movements
+MOVE_MULTIPLIER = 0.7  # Factor to adjust sensitivity of movements
+
+MODEL_PATH_JF = r"C:\Users\JellyTracker\Downloads\best (1).pt" # jf good model
+MODEL_PATH_LARVAE = r"C:\Users\JellyTracker\Desktop\TrainingPipeline\Foundational_Training\train_m_Larvae_seg\weights\best.pt" # larvae testing model
 IMG_SIZE = 1024  # Set the image size for inference
 CONF_THRESHOLD = 0.25  # Confidence threshold
 IOU_THRESHOLD = 0.7  # IoU threshold for NMS
 HALF_PRECISION = True  # Enable FP16 inference if supported
 
 # Load the trained YOLO model
-model = YOLO(MODEL_PATH)
+modelJF = YOLO(MODEL_PATH_JF)
+modelLarvae = YOLO(MODEL_PATH_LARVAE)
 
-def detect_jellyfish(frame, detect_light):
+def detect_jellyfish(frame, detect_light, is_jf_mode):
     """
     Uses the YOLO model to detect jellyfish in a given frame.
     
@@ -75,16 +72,39 @@ def detect_jellyfish(frame, detect_light):
         cy = int(M['m01'] / M['m00'])
         # print(f'made to the end, cx:{cx}, cy:{cy}')
         return (cx, cy), (0,0,0,0)
-
+    
+    if is_jf_mode.value == 0: # larvae tracking
+        ### BRAD EDIT THIS ###
+        ######FOR LARVAE ONLY#######
+        # --- Apply Histogram Equalization to frame_resized before inference ---
+        # 1. Convert to YCrCb colorspace
+        ycbcr_frame = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2YCrCb)
+        # 2. Split channels
+        y_channel, cr_channel, cb_channel = cv2.split(ycbcr_frame)
+        # 3. Apply histogram equalization to the Y (luminance) channel
+        y_channel_eq = cv2.equalizeHist(y_channel)
+        # 4. Merge the equalized Y channel back with the original Cr and Cb channels
+        equalized_ycbcr_frame = cv2.merge((y_channel_eq, cr_channel, cb_channel))
+        # 5. Convert back to BGR color_space for YOLO model
+        frame_for_inference = cv2.cvtColor(equalized_ycbcr_frame, cv2.COLOR_YCrCb2BGR)
 
     # Perform object detection using the YOLO model
-    results = model.predict(
-        frame_resized,
-        imgsz=IMG_SIZE,
-        conf=CONF_THRESHOLD,
-        iou=IOU_THRESHOLD,
-        half=HALF_PRECISION
-    )
+    if is_jf_mode.value == 1:
+        results = modelJF.predict(
+            frame_for_inference,
+            imgsz=IMG_SIZE,
+            conf=CONF_THRESHOLD,
+            iou=IOU_THRESHOLD,
+            half=HALF_PRECISION
+        )
+    else:
+        results = modelLarvae.predict(
+            frame_for_inference,
+            imgsz=IMG_SIZE,
+            conf=CONF_THRESHOLD,
+            iou=IOU_THRESHOLD,
+            half=HALF_PRECISION
+        )
 
 
     original_height, original_width = frame.shape[:2]
@@ -118,6 +138,14 @@ def detect_jellyfish(frame, detect_light):
     # No jellyfish detected
     return None, None
 
+def mode_string(mode):
+    if mode.value == 0:
+        return "larvae"
+    elif mode.value == 1:
+        return "jellyfish"
+    else:
+        return "invalid mode"
+
 def calculate_delta_Pixels(jellyfish_pos, center_x, center_y):
     """
     Calculates the pixel difference in x and y from the center of the frame to the center of the jellyfish box
@@ -127,7 +155,7 @@ def calculate_delta_Pixels(jellyfish_pos, center_x, center_y):
     dy = center_y - jy  # Invert y-axis to match Cartesian coordinates
     return dx,dy
 
-def calculate_movement(dx,dy):
+def calculate_movement(dx,dy,is_jf_mode):
     """
     Calculates the movement needed to center the camera on the jellyfish.
     
@@ -136,6 +164,14 @@ def calculate_movement(dx,dy):
     :param center_y: Center y-coordinate of the camera's frame
     :return: Tuple of steps (step_x, step_y) needed to center the jellyfish
     """
+    
+    # Constants for tracking
+    if is_jf_mode.value == 1: # means JF mode
+        MIN_STEP_SIZE = 10 # 10 for JF
+        MAX_STEP_SIZE = 95
+    else: # means larvae mode
+        MIN_STEP_SIZE = 5 # 5 for larvae
+        MAX_STEP_SIZE = 50
     # Calculate step sizes with adjusted sensitivity
     step_x = int(np.clip(dx * MOVE_MULTIPLIER, -MAX_STEP_SIZE, MAX_STEP_SIZE))
     step_y = int(np.clip(dy * MOVE_MULTIPLIER, -MAX_STEP_SIZE, MAX_STEP_SIZE))
@@ -154,24 +190,32 @@ def calculate_movement(dx,dy):
 
     return step_x, step_y
 
-STEPS_PER_MM = 250 # default b/c 2000 steps per rev, 8mm lead on the screw, step_angle = 0.18 deg
-PIXELS_PER_MM = 39.5 # for the jellyfish zoom on microscope, measured by calibration function
+def steps_to_mm(steps, is_jf_mode):
+    if is_jf_mode.value == 1: # jf
+        return steps / CONSTANTS["JFStepsPerMm"]
+    else: # larvae
+        return steps / CONSTANTS["LStepsPerMm"]
 
-def steps_to_mm(steps, steps_p_mm = STEPS_PER_MM):
-    return steps / steps_p_mm
+def mm_to_steps(mm, is_jf_mode):
+    if is_jf_mode.value == 1: # jf
+        return mm * CONSTANTS["JFStepsPerMm"]
+    else: # larvae
+        return mm * CONSTANTS["LStepsPerMm"]
 
-def mm_to_steps(mm, steps_p_mm = STEPS_PER_MM):
-    return mm*steps_p_mm
-
-def pixels_to_mm(pixel_distance, pixels_per_mm = PIXELS_PER_MM):
+def pixels_to_mm(pixel_distance, is_jf_mode):
     """
     Convert pixel distance to millimeters
     """
-    return pixel_distance / pixels_per_mm
+    if is_jf_mode.value == 1: # jf
+        return pixel_distance / CONSTANTS["JFPixelsPerMm"]
+    else: # larvae
+        return pixel_distance / CONSTANTS["LPixelsPerMm"]
 
-def mm_to_pixels(mm_distance, pixels_per_mm = PIXELS_PER_MM):
-    return mm_distance * pixels_per_mm
-
+def mm_to_pixels(mm_distance, is_jf_mode):
+    if is_jf_mode.value == 1: # jf
+        return mm_distance * CONSTANTS["JFPixelsPerMm"]
+    else: # larvae
+        return mm_distance * CONSTANTS["LPixelsPerMm"]
 
 
 

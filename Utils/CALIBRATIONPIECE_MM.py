@@ -1,4 +1,5 @@
 CALIBRATIONPIECE_MM = {
     'Length': 29.8196,
-    'Width': 8.8138
+    'Width': 8.8138,
+    'Thickness': 1,
 }
