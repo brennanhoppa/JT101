@@ -91,7 +91,7 @@ def detect_jellyfish(frame, detect_light, is_jf_mode):
     # Perform object detection using the YOLO model
     if is_jf_mode.value == 1:
         results = modelJF.predict(
-            frame_for_inference,
+            frame_resized,
             imgsz=IMG_SIZE,
             conf=CONF_THRESHOLD,
             iou=IOU_THRESHOLD,
