@@ -197,7 +197,8 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
     fps = 60 # change if camera settings change
     
     pygame.init()
-    window_width, window_height = 960,540
+    text_panel_height = 320
+    window_width, window_height = width, height+text_panel_height
     window = pygame.display.set_mode((window_width, window_height))
     pygame.display.set_caption("Camera Live View with Flashlight Tracking")
     
@@ -207,7 +208,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
     acq_thread = threading.Thread(target=imageacq, args=(cap,))
     acq_thread.start()
     
-    tracking_thread = threading.Thread(target=active_tracking_thread, args=(window_width // 2, window_height // 2, command_queue, x_pos, y_pos, is_jf_mode))
+    tracking_thread = threading.Thread(target=active_tracking_thread, args=(width // 2, height // 2, command_queue, x_pos, y_pos, is_jf_mode))
     tracking_thread.start()
     
     clock = pygame.time.Clock()
@@ -217,8 +218,8 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
     last_frame_time = time.time()
     frame_count = 0
     
-    crosshair_x = window_width // 2
-    crosshair_y = window_height // 2
+    crosshair_x = width // 2
+    crosshair_y = height // 2
     move_delay = 2  # How many frames to wait between moves
     move_counter = 0  # Frame counter
 
@@ -247,7 +248,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
                     elif event.key == ord(CONTROLS["load_boundary"][0]):
                         boundary = load_boundary(is_jf_mode)
                     elif event.key == ord(CONTROLS["pixels_to_mm"][0]):
-                        crosshair_x,crosshair_y = pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,window_width,window_height,is_jf_mode)
+                        crosshair_x,crosshair_y = pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,width,height,is_jf_mode)
             if pixelsCal_flag.value in (2,3):
                 keys = pygame.key.get_pressed()
                 move_counter += 1
@@ -255,11 +256,11 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
                     if keys[pygame.K_LEFT]:
                         crosshair_x = max(0, crosshair_x - 1)
                     if keys[pygame.K_RIGHT]:
-                        crosshair_x = min(window_width - 1, crosshair_x + 1)
+                        crosshair_x = min(width - 1, crosshair_x + 1)
                     if keys[pygame.K_UP]:
                         crosshair_y = max(0, crosshair_y - 1)
                     if keys[pygame.K_DOWN]:
-                        crosshair_y = min(window_height - 1, crosshair_y + 1)
+                        crosshair_y = min(height - 1, crosshair_y + 1)
                     if move_counter >= move_delay + 1:
                         move_counter = 0  # Reset after moving
 
@@ -277,11 +278,12 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
             py_image = pygame.surfarray.make_surface(rgb_frame.swapaxes(0, 1))
             # py_image = pygame.transform.scale(py_image, (window_width, window_height))
             py_image_mirror = pygame.transform.flip(py_image, True, False) # mirrored to have live stream make more
+            window.fill((0, 0, 0))  # Clear full window
             window.blit(py_image, (0, 0))   
             
             # Draw crosshair at the center of the screen
-            center_x = window_width // 2
-            center_y = window_height // 2
+            center_x = width // 2
+            center_y = height // 2
             line_length = 20  # Length of each line segment
             line_color = (255, 0, 0)  # Red color
             line_thickness = 1
@@ -311,8 +313,8 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
             if show_boundary: 
                 if boundary != []: # boundary is currently in steps
                     xs, ys = x_pos.value, y_pos.value
-                    dx = mm_to_steps(pixels_to_mm(window_width//2, is_jf_mode), is_jf_mode)
-                    dy = mm_to_steps(pixels_to_mm(window_height//2, is_jf_mode), is_jf_mode)
+                    dx = mm_to_steps(pixels_to_mm(width//2, is_jf_mode), is_jf_mode)
+                    dy = mm_to_steps(pixels_to_mm(height//2, is_jf_mode), is_jf_mode)
                     viewing_window_s = (xs-dx,xs+dx,ys-dy,ys+dy)
                     x_min_s, x_max_s, y_min_s, y_max_s = viewing_window_s
                     boundary_within_window = [
@@ -338,7 +340,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
                 )
 
             lines = status_text.split('\n')
-            y_offset = 10
+            y_offset = 570
             for line in lines:
                 line_surface = font.render(line, True, (255, 0, 0) if recording else (0, 255, 0))
                 window.blit(line_surface, (10, y_offset))
