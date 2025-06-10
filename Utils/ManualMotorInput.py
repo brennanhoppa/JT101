@@ -6,8 +6,6 @@ from Utils.ButtonPresses import stepsCalibration, homingSteps, homingStepsWithEr
 from Utils.CONTROLS import CONTROLS
 from Utils.CONSTANTS import CONSTANTS
 
-step_to_mm_checking = 0
-
 def move(x_pos, y_pos, x_direction, y_direction, command_queue, is_jf_mode):       
         # Calculate new positions
         new_x = x_pos.value + x_direction
@@ -58,15 +56,7 @@ def save_mode(mode, file_path):
     except Exception as e:
         print(f"Error writing to {file_path}: {e}")
 
-def run_motor_input(x_pos,y_pos,file_path_xy,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode,file_path_mode):
-    global step_to_mm_checking
-    if is_jf_mode.value == 1:
-        step_size = CONSTANTS['JellyStepSizeManual']
-    elif is_jf_mode.value == 0:
-        step_size = CONSTANTS['LarvaeStepSizeManual']
-    else:
-        print("Invalide mode type")
-
+def run_motor_input(x_pos,y_pos,file_path_xy,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode,file_path_mode,terminate_event,running_flag, step_size,homing_button,homing_error_button):
     # Main loop for reading input and controlling motors
     try:
         while True:
@@ -76,44 +66,30 @@ def run_motor_input(x_pos,y_pos,file_path_xy,command_queue,homing_flag,keybinds_
                 # Check for arrow key inputs
                 if pixelsCal_flag.value == 0 or pixelsCal_flag.value == 1:
                     if keyboard.is_pressed('up'):
-                        y_dir = step_size
+                        y_dir = step_size.value
                     if keyboard.is_pressed('down'):
-                        y_dir = -step_size
+                        y_dir = -step_size.value
                     if keyboard.is_pressed('left'):
-                        x_dir = -step_size
+                        x_dir = -step_size.value
                     if keyboard.is_pressed('right'):
-                        x_dir = step_size
+                        x_dir = step_size.value
                 
                     # Move if any direction is pressed
                     if x_dir != 0 or y_dir != 0:
                         x_pos, y_pos = move(x_pos, y_pos, x_dir, y_dir, command_queue,is_jf_mode)
                         time.sleep(.013)  # Small delay to prevent rapid commands
-                
-                # Check for other key presses
-                if keyboard.is_pressed(CONTROLS["homing"][0]):
-                    if is_jf_mode.value == 0: # means larvae mode
-                        print("Cannot home in larvae mode, need to switch to jellyfish mode.")
-                    else:
-                        homingSteps(command_queue,homing_flag,x_pos,y_pos)
-                if keyboard.is_pressed(CONTROLS["error_check"][0]): # error checking process
-                    if is_jf_mode.value == 0: # means larvae mode
-                        print("Cannot error check in larvae mode, need to switch to jellyfish mode.")
-                    else:
-                        homingStepsWithErrorCheck(command_queue,homing_flag,x_pos,y_pos)
-                if keyboard.is_pressed(CONTROLS["steps_to_mm"][0]): # check step to mm conversion
-                    step_size, step_to_mm_checking = stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,step_size,is_jf_mode)
-                if keyboard.is_pressed(CONTROLS["toggle_mode"][0]): # change between jf and larvae mode
-                    step_size = change_mode(is_jf_mode,x_pos,y_pos)
-                if keyboard.is_pressed(CONTROLS["toggle_keybinds"][2]) and keyboard.is_pressed(CONTROLS["toggle_keybinds"][3]): # turn keybinds on off wiht &
-                    keyBindsControl(keybinds_flag)
-                if keyboard.is_pressed(CONTROLS["terminate"][0]): # Check for the termination key 't'
-                    print("Termination key pressed. Stopping the program...")
-                    break
-            else:
-                if keyboard.is_pressed(CONTROLS["toggle_keybinds"][2]) and keyboard.is_pressed(CONTROLS["toggle_keybinds"][3]):
-                    keyBindsControl(keybinds_flag)
-
-                    
+        
+            if running_flag.value == False:
+                print('Stopping program.')
+                break
+            # GUI buttons pressed
+            if homing_button.value == 1:
+                homingSteps(is_jf_mode, command_queue,homing_flag,x_pos,y_pos)
+                homing_button.value = 0
+            if homing_error_button.value == 1:
+                homingStepsWithErrorCheck(is_jf_mode, command_queue,homing_flag,x_pos,y_pos)
+                homing_error_button.value = 0
+            
     except KeyboardInterrupt:
         save_position(x_pos,y_pos,file_path_xy)
         save_mode(is_jf_mode, file_path_mode)

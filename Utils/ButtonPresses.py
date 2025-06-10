@@ -7,33 +7,39 @@ from Utils.CONTROLS import CONTROLS
 from Utils.CALIBRATIONPIECE_MM import CALIBRATIONPIECE_MM
 from Utils.CONSTANTS import CONSTANTS
 
-def homingSteps(command_queue,homing_flag,x_pos,y_pos):
-    command_queue.put('HOMING\n')
-    homing_flag.value = True
-    print("Homing process started...")
-    while homing_flag.value:
-        time.sleep(0.1)
-    x_pos.value, y_pos.value = 0, 0
+def homingSteps(is_jf_mode, command_queue,homing_flag,x_pos,y_pos):
+    if is_jf_mode.value == 0: # means larvae mode
+        print("Cannot home in larvae mode, need to switch to jellyfish mode.")
+    else:
+        command_queue.put('HOMING\n')
+        homing_flag.value = True
+        print("Homing process started...")
+        while homing_flag.value:
+            time.sleep(0.1)
+        x_pos.value, y_pos.value = 0, 0
 
-def homingStepsWithErrorCheck(command_queue,homing_flag,x_pos,y_pos):
-    command_queue.put(f'ERRORCHECK_{x_pos.value}_{y_pos.value}\n')
-    homing_flag.value = True
-    print("Error process starting...")
-    while homing_flag.value:
-        time.sleep(0.1)
-    x_pos.value, y_pos.value = 0, 0
-    print("Error Check Completed.")
+def homingStepsWithErrorCheck(is_jf_mode,command_queue,homing_flag,x_pos,y_pos):
+    if is_jf_mode.value == 0: # means larvae mode
+        print("Cannot error check in larvae mode, need to switch to jellyfish mode.")
+    else:
+        command_queue.put(f'ERRORCHECK_{x_pos.value}_{y_pos.value}\n')
+        homing_flag.value = True
+        print("Error process starting...")
+        while homing_flag.value:
+            time.sleep(0.1)
+        x_pos.value, y_pos.value = 0, 0
+        print("Error Check Completed.")
 
 start_loc = (0,0)
 steps_per_mm_list = []
-def stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,defaultStepSize,is_jf_mode):
+def stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,is_jf_mode):
     global start_loc, steps_per_mm_list
     if is_jf_mode.value == 1:
         steps_to_mm_ratio = CONSTANTS["JFStepsPerMm"]
     else:
         steps_to_mm_ratio = CONSTANTS["LStepsPerMm"]
     time.sleep(0.2)  # Short delay to prevent multiple triggers
-    if step_to_mm_checking == 1:
+    if step_to_mm_checking.value == 1:
         if len(steps_per_mm_list)==0 and is_jf_mode.value==1:
             print(f'Move center camera x to the end of the length of the calibration piece, and press {CONTROLS["steps_to_mm"][0]} again. ')
         elif len(steps_per_mm_list)==1 and is_jf_mode.value==1:
@@ -42,10 +48,10 @@ def stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,defaultStepSiz
             print(f'Move center camera x to one edge of the calibration piece, and press {CONTROLS["steps_to_mm"][0]} again. ')
         else:
             print(f'Move center camera x to one edge of the calibration piece, and press {CONTROLS["steps_to_mm"][0]} again. ')
-        step_size = 10 # normal is 95, try this / experiment 
+        step_size.value = 10 # normal is 95, try this / experiment 
         start_loc = (x_pos.value, y_pos.value)
-        step_to_mm_checking = 2
-    elif step_to_mm_checking == 2:
+        step_to_mm_checking.value = 2
+    elif step_to_mm_checking.value == 2:
         steps_taken = (abs(x_pos.value - start_loc[0]),abs(y_pos.value - start_loc[1]))
         print("Steps taken: ", steps_taken)
         if is_jf_mode.value == 1:
@@ -67,11 +73,11 @@ def stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,defaultStepSiz
                 print("Average Ratio of Steps/mm:", round(avg_ratio,2))
                 print("Average Error:", round(avg_error,3),'%')
                 print("If average percent error larger than 5 percent, consider changing theoretical steps/mm ratio (which is used as the conversion factor for saved data). ")
-                step_to_mm_checking = 0
+                step_to_mm_checking.value = 0
                 steps_per_mm_list = []
-                step_size = defaultStepSize
+                step_size.value = CONSTANTS["JellyStepSizeManual"] if is_jf_mode.value == 1 else CONSTANTS["LarvaeStepSizeManual"]
             else:
-                step_to_mm_checking += 1
+                step_to_mm_checking.value += 1
                 print(f'Press {CONTROLS["steps_to_mm"][0]} again to measure the other dimension')
         else:
             distance = CALIBRATIONPIECE_MM['Thickness']
@@ -92,11 +98,11 @@ def stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,defaultStepSiz
                 print("Average Ratio of Steps/mm:", round(avg_ratio,2))
                 print("Average Error:", round(avg_error,3),'%')
                 print("If average percent error larger than 5 percent, consider changing theoretical steps/mm ratio (which is used as the conversion factor for saved data). ")
-                step_to_mm_checking = 0
+                step_to_mm_checking.value = 0
                 steps_per_mm_list = []
-                step_size = defaultStepSize
+                step_size.value = CONSTANTS["JellyStepSizeManual"] if is_jf_mode.value == 1 else CONSTANTS["LarvaeStepSizeManual"]
             else:
-                step_to_mm_checking += 1
+                step_to_mm_checking.value += 1
                 print(f'Press {CONTROLS["steps_to_mm"][0]} again to the thickness again')
     else:
         if is_jf_mode.value == 1:
@@ -106,9 +112,8 @@ def stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,defaultStepSiz
                 print(f'Move center camera x to the corner of calibration piece to measure the width of the piece. Press {CONTROLS["steps_to_mm"][0]} again when there.')
         else:
             print(f'Move center camera x to one edge of calibration piece to measure the thickness. Press {CONTROLS["steps_to_mm"][0]} again when there.')
-        step_to_mm_checking = 1
-        step_size = 10 # normal is 95, try this / experiment 
-    return step_size, step_to_mm_checking
+        step_to_mm_checking.value = 1
+        step_size.value = 10 # normal is 95, try this / experiment 
 
 pixel_start = (0,0)
 def pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,window_width,window_height,is_jf_mode):
@@ -156,7 +161,7 @@ def pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,window_width,window
 def keyBindsControl(keybinds_flag):
     keybinds_flag.value = not keybinds_flag.value
     print(f"Turning keybinds {'on' if keybinds_flag.value else 'off'}.")
-    time.sleep(0.2)
+    # time.sleep(0.2)
 
 class AviType:
         UNCOMPRESSED = 0
@@ -202,14 +207,14 @@ def recordingSave(recording,avi_recorder,timestamp,step_tracking_data):
     print(f"Tracking data saved to {tracking_filename}")
     return recording
 
-def boundaryControl(boundary_making, boundary):
+def boundaryControl(boundary_making, boundary,is_jf_mode):
     if boundary_making:
         print('Boundary Making Mode turned Off.')
         file_start = "C:\\Users\\JellyTracker\\Desktop\\JellyFishTrackingPC-main\\saved_boundaries_mm\\"
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
         filename = file_start + f"new_boundary_{timestamp}.csv"
         print(f'Boundary saved at: {filename}')
-        save_boundaries(filename,boundary_to_mm_from_steps(boundary))
+        save_boundaries(filename,boundary_to_mm_from_steps(boundary,is_jf_mode))
         boundary_making = False
     else:
         print('Boundary Making Mode turned On. Move to record boundary. Finish and save by pressing b again. Press x to cancel/start over.')
@@ -226,15 +231,15 @@ def boundaryCancel(boundary_making, boundary):
         pass
     return boundary_making, boundary
 
-def change_mode(is_jf_mode,x_pos,y_pos):
-    step_size = 0
+def change_mode(is_jf_mode,x_pos,y_pos,step_size):
+    step_size.value = 0
     if is_jf_mode.value == 0: # switching from larvae to jf
         is_jf_mode.value = 1
         print("Move the microscope so it is all the way down on the platform.")
         print("Refocus microscope on corner border or other object.")
         print("Switch the motor controller switchs on both motors so switches 1,2,4,5 are on (3 and 6 off). This gives 2000 steps/revolution")
         print("Prepare boundary inside tank for jellyfish.")
-        step_size = CONSTANTS['JellyStepSizeManual']
+        step_size.value = CONSTANTS['JellyStepSizeManual']
         print(x_pos.value, y_pos.value, 'intilai poses ')
         x_pos.value = int(x_pos.value * CONSTANTS['JFStepPerRev'] / CONSTANTS['LStepPerRev'])
         y_pos.value = int(y_pos.value * CONSTANTS['JFStepPerRev'] / CONSTANTS['LStepPerRev'])
@@ -247,7 +252,7 @@ def change_mode(is_jf_mode,x_pos,y_pos):
         print("Refocus microscope on corner border or other object.")
         print("Switch the motor controller switchs on both motors so switches 1,2,4,6 are on (3 and 5 off). This gives 12800 steps/revolution")
         print("Prepare boundary inside tank for larvae.")
-        step_size = CONSTANTS['LarvaeStepSizeManual']
+        step_size.value = CONSTANTS['LarvaeStepSizeManual']
         x_pos.value = int(x_pos.value / CONSTANTS['JFStepPerRev'] * CONSTANTS['LStepPerRev'])
         y_pos.value = int(y_pos.value / CONSTANTS['JFStepPerRev'] * CONSTANTS['LStepPerRev'])
         # NEED TO TURN ON TANK BOUNDARY / DON'T LET IT TURN ON IF NOT INSIDE THE TANK BOUNDARY
@@ -255,4 +260,3 @@ def change_mode(is_jf_mode,x_pos,y_pos):
     else:
         print("Error, mode is incorrect value")
     time.sleep(0.2)  # Short delay to prevent multiple triggers
-    return step_size

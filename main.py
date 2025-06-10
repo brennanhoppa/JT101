@@ -12,6 +12,7 @@ import Utils.JellyTrackingFunctions as JellyTrackingFunctions
 from Utils.ManualMotorInput import run_motor_input
 from Utils.LiveStreamRecord import run_live_stream_record
 from Utils.CONTROLS import CONTROLS
+from Utils.CONSTANTS import CONSTANTS
 
 def get_x_y():
     x_pos, y_pos = None, None
@@ -137,24 +138,36 @@ if __name__ == "__main__":
     
     x_pos, y_pos, file_path_xy = get_x_y()
     is_jf_mode, file_path_mode = get_mode()
+    if is_jf_mode.value == 1:
+        step_size = multiprocessing.Value('i', CONSTANTS['JellyStepSizeManual'])
+    elif is_jf_mode.value == 0:
+        step_size = multiprocessing.Value('i', CONSTANTS['LarvaeStepSizeManual'])
+    else:
+        print("Invalide mode type")
+    step_to_mm_checking = multiprocessing.Value('i',0)
     x_pos = multiprocessing.Value('i', x_pos)
     y_pos = multiprocessing.Value('i', y_pos)
     command_queue = multiprocessing.Queue()
     homing_flag = multiprocessing.Value('b', False)  # 'b' for boolean type
+    homing_button = multiprocessing.Value('i', 0)  
+    homing_error_button = multiprocessing.Value('i', 0)  
     keybinds_flag = multiprocessing.Value('b', True)  # 'b' for boolean type
     pixelsCal_flag = multiprocessing.Value('i', 0) # integer, starting at 0
     terminate_event = multiprocessing.Event()
+    running_flag = multiprocessing.Value('b', True)  # 'b' for boolean type
+
     serial_proc = multiprocessing.Process(target=serial_process,args=(command_queue,homing_flag,terminate_event,is_jf_mode))
     serial_proc.start()
-    motor_process = multiprocessing.Process(target=run_motor_input, args=(x_pos, y_pos, file_path_xy, command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode,file_path_mode))
-    live_stream_process = multiprocessing.Process(target=run_live_stream_record, args=(x_pos, y_pos, command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode))
+    motor_process = multiprocessing.Process(target=run_motor_input, args=(x_pos, y_pos, file_path_xy, command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode,file_path_mode,terminate_event,running_flag, step_size, homing_button,homing_error_button))
+    live_stream_process = multiprocessing.Process(target=run_live_stream_record, args=(x_pos, y_pos, command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_button,homing_error_button))
     
     time.sleep(3) # wait for serial connection happen
     if terminate_event.is_set():
         sys.exit(0)  
     motor_process.start()
     live_stream_process.start()
-    printControls()
+    # printControls()
+    print("Arrow keys on keyboard to move camera")
     motor_process.join()
     live_stream_process.join()
 

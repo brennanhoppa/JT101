@@ -14,9 +14,11 @@ from Utils.Boundaries import save_boundaries, boundary_to_steps, boundary_to_mm_
 import cv2 #type: ignore
 import tkinter as tk
 from tkinter import filedialog
-from Utils.ButtonPresses import recordingStart, AviType, recordingSave, boundaryControl, boundaryCancel,pixelsCalibration
+from Utils.ButtonPresses import recordingStart, AviType, recordingSave, boundaryControl, boundaryCancel,pixelsCalibration, keyBindsControl, change_mode, homingSteps, homingStepsWithErrorCheck, stepsCalibration
 from Utils.CONTROLS import CONTROLS
 from Utils.CALIBRATIONPIECE_MM import CALIBRATIONPIECE_MM
+from Utils.Button import Button
+from Utils.savePopUp import popup_save_recording
 
 NUM_IMAGES = 300
 name = 'TESTBINNING2'
@@ -50,8 +52,8 @@ step_tracking_data = []
 
 chosenAviType = AviType.H264
 
-def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode):
-    if main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode):
+def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag,step_size,step_to_mm_checking,homing_button,homing_error_button):
+    if main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_button,homing_error_button):
         sys.exit(0)
     else:
         sys.exit(1)
@@ -180,11 +182,12 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                 print(f"Error in tracking thread: {e}")
         time.sleep(0.001)  # Sleep briefly to prevent excessive CPU usage
 
+start_time = datetime.now()
 
 
-def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode):
-    global running, shared_image, chosenAviType, recording, tracking, motors, boundary_making, boundary, show_boundary, avi_recorder, step_tracking_data
-    
+def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_button,homing_error_button):
+    global running, shared_image, chosenAviType, recording, tracking, motors, boundary_making, boundary, show_boundary, avi_recorder, step_tracking_data, start_time
+      
     # Initialize webcam
     cap = cv2.VideoCapture(0)  # Use default webcam (index 0)
     if not cap.isOpened():
@@ -198,7 +201,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
     
     pygame.init()
     text_panel_height = 320
-    window_width, window_height = width, height+text_panel_height
+    window_width, window_height = width+100, height+text_panel_height
     window = pygame.display.set_mode((window_width, window_height))
     pygame.display.set_caption("Camera Live View with Flashlight Tracking")
     
@@ -213,7 +216,6 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
     
     clock = pygame.time.Clock()
     font = pygame.font.Font(None, 36)
-    start_time = datetime.now()
 
     last_frame_time = time.time()
     frame_count = 0
@@ -225,44 +227,108 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
 
     video_writer = None
     
+    def homing_set(homing_button):
+        homing_button.value = 1
+    
+    def homing_set_with_error(homing_error_button):
+        homing_error_button.value = 1
+
+    def recordingHelper():
+        global recording, avi_recorder, step_tracking_data, timestamp, start_time
+        if not recording:
+            recording,avi_recorder,step_tracking_data,timestamp = recordingStart(recording,chosenAviType,fps,width,height)
+            start_time = datetime.now()
+
+    def saveHelper():
+        global recording, start_time
+        if recording:
+            recording = recordingSave(recording,avi_recorder,timestamp,step_tracking_data)
+            start_time = datetime.now() 
+    
+    def trackingHelper():
+        global tracking
+        tracking = not tracking
+
+    def trackingMotors():
+        global motors
+        motors = not motors
+    
+    def borderHelper(is_jf_mode):
+        global boundary, boundary_making
+        boundary_making,boundary = boundaryControl(boundary_making,boundary,is_jf_mode)
+
+    def borderCancelHelper():
+        global boundary, boundary_making
+        boundary_making, boundary = boundaryCancel(boundary_making, boundary)
+
+    def borderShowHelper():
+        global show_boundary
+        show_boundary = not show_boundary
+
+    def borderLoadHelper():
+        global boundary
+        boundary = load_boundary(is_jf_mode)
+
+    def pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode):
+        nonlocal crosshair_x, crosshair_y
+        crosshair_x,crosshair_y = pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,width,height,is_jf_mode)
+
+    def openHelp():
+        os.startfile("C:\\Users\\JellyTracker\\Desktop\\HelpDoc.pdf")
+
+    buttons = [
+       Button(370, 570, 150, 50, "Home", lambda: homing_set(homing_button)),
+       Button(370, 630, 150, 50, "Home w EC", lambda: homing_set_with_error(homing_error_button)),
+       Button(370, 690, 150, 50, "Steps Cal", lambda: stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,is_jf_mode)),
+       Button(370, 750, 150, 50, "Change Mode", lambda: change_mode(is_jf_mode,x_pos,y_pos,step_size)),
+       Button(530, 570, 150, 50, "Keybinds", lambda: keyBindsControl(keybinds_flag)),
+       Button(530, 630, 150, 50, "Record", lambda: recordingHelper()),
+       Button(530, 690, 150, 50, "Save Video", lambda: saveHelper()),
+       Button(530, 750, 150, 50, "Tracking", lambda: trackingHelper()),
+       Button(690, 570, 150, 50, "Tracking Motors", lambda: trackingMotors()),
+       Button(690, 630, 150, 50, "Make Border", lambda: borderHelper(is_jf_mode)),
+       Button(690, 690, 150, 50, "Cancel Border", lambda: borderCancelHelper()),
+       Button(690, 750, 150, 50, "Show Border", lambda: borderShowHelper()),
+       Button(850, 570, 150, 50, "Load Border", lambda: borderLoadHelper()),
+       Button(850, 630, 150, 50, "Pixels Cal", lambda: pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode)),
+       Button(850, 690, 150, 50, "Help", lambda: openHelp()),       
+    ]  
+
     while running:
-        if keybinds_flag.value:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
+        window.fill((0, 0, 0))  # Clear full window
+        mouse_pos = pygame.mouse.get_pos()
+        mouse_pressed = pygame.mouse.get_pressed()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                if recording:
+                    cont, recording = popup_save_recording(window, font, recordingSave, avi_recorder, timestamp, step_tracking_data, recording)
+                    if not cont:
+                        running = False
+                        terminate_event.set()
+                        running_flag.value = False
+                else:
                     running = False
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == ord(CONTROLS["start_recording"][0]) and not recording:
-                        recording,avi_recorder,step_tracking_data,timestamp = recordingStart(recording,chosenAviType,fps,width,height)
-                    elif event.key == ord(CONTROLS["save_recording"][0]) and recording:
-                        recording = recordingSave(recording,avi_recorder,timestamp,step_tracking_data)      
-                    elif event.key == ord(CONTROLS["tracking"][0]):
-                        tracking = not tracking # switches tracking on / off
-                    elif event.key == ord(CONTROLS["motor_tracking"][0]):
-                        motors = not motors # turn the motors on / off for tracking
-                    elif event.key == ord(CONTROLS["start_boundary"][0]): # boundary making process
-                        boundary_making,boundary = boundaryControl(boundary_making,boundary)
-                    elif event.key == ord(CONTROLS["discard_boundary"][0]):
-                        boundary_making, boundary = boundaryCancel(boundary_making, boundary)
-                    elif event.key == ord(CONTROLS["visualize_boundary"][0]):
-                        show_boundary = not show_boundary
-                    elif event.key == ord(CONTROLS["load_boundary"][0]):
-                        boundary = load_boundary(is_jf_mode)
-                    elif event.key == ord(CONTROLS["pixels_to_mm"][0]):
-                        crosshair_x,crosshair_y = pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,width,height,is_jf_mode)
-            if pixelsCal_flag.value in (2,3):
-                keys = pygame.key.get_pressed()
-                move_counter += 1
-                if move_counter >= move_delay:
-                    if keys[pygame.K_LEFT]:
-                        crosshair_x = max(0, crosshair_x - 1)
-                    if keys[pygame.K_RIGHT]:
-                        crosshair_x = min(width - 1, crosshair_x + 1)
-                    if keys[pygame.K_UP]:
-                        crosshair_y = max(0, crosshair_y - 1)
-                    if keys[pygame.K_DOWN]:
-                        crosshair_y = min(height - 1, crosshair_y + 1)
-                    if move_counter >= move_delay + 1:
-                        move_counter = 0  # Reset after moving
+                    terminate_event.set()
+                    running_flag.value = False
+        if pixelsCal_flag.value in (2,3):
+            keys = pygame.key.get_pressed()
+            move_counter += 1
+            if move_counter >= move_delay:
+                if keys[pygame.K_LEFT]:
+                    crosshair_x = max(0, crosshair_x - 1)
+                if keys[pygame.K_RIGHT]:
+                    crosshair_x = min(width - 1, crosshair_x + 1)
+                if keys[pygame.K_UP]:
+                    crosshair_y = max(0, crosshair_y - 1)
+                if keys[pygame.K_DOWN]:
+                    crosshair_y = min(height - 1, crosshair_y + 1)
+                if move_counter >= move_delay + 1:
+                    move_counter = 0  # Reset after moving
+        
+        # BUTTON LOGIC
+        for button in buttons:
+            button.handle_event(event, mouse_pos, mouse_pressed)
+            button.draw(window)
 
         if boundary_making:
             boundary.append((x_pos.value,y_pos.value))
@@ -278,7 +344,6 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
             py_image = pygame.surfarray.make_surface(rgb_frame.swapaxes(0, 1))
             # py_image = pygame.transform.scale(py_image, (window_width, window_height))
             py_image_mirror = pygame.transform.flip(py_image, True, False) # mirrored to have live stream make more
-            window.fill((0, 0, 0))  # Clear full window
             window.blit(py_image, (0, 0))   
             
             # Draw crosshair at the center of the screen

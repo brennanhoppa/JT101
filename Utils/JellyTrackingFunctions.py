@@ -217,49 +217,6 @@ def mm_to_pixels(mm_distance, is_jf_mode):
     else: # larvae
         return mm_distance * CONSTANTS["LPixelsPerMm"]
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 def detect_flashlight(image_ptr):
     image_data = image_ptr.GetNDArray()
     threshold = 200
