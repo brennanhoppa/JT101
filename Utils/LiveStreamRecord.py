@@ -51,6 +51,8 @@ tracking_result_queue = queue.Queue(maxsize=5)
 step_tracking_data = []
 
 chosenAviType = AviType.H264
+start_time = datetime.now()
+avi_filename = ""
 
 def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag,step_size,step_to_mm_checking,homing_button,homing_error_button):
     if main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_button,homing_error_button):
@@ -182,9 +184,6 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                 print(f"Error in tracking thread: {e}")
         time.sleep(0.001)  # Sleep briefly to prevent excessive CPU usage
 
-start_time = datetime.now()
-
-
 def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_button,homing_error_button):
     global running, shared_image, chosenAviType, recording, tracking, motors, boundary_making, boundary, show_boundary, avi_recorder, step_tracking_data, start_time
       
@@ -234,9 +233,9 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
         homing_error_button.value = 1
 
     def recordingHelper():
-        global recording, avi_recorder, step_tracking_data, timestamp, start_time
+        global recording, avi_recorder, step_tracking_data, timestamp, start_time,avi_filename
         if not recording:
-            recording,avi_recorder,step_tracking_data,timestamp = recordingStart(recording,chosenAviType,fps,width,height)
+            recording,avi_recorder,step_tracking_data,timestamp,avi_filename = recordingStart(recording,chosenAviType,fps,width,height)
             start_time = datetime.now()
 
     def saveHelper():
@@ -301,7 +300,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 if recording:
-                    cont, recording = popup_save_recording(window, font, recordingSave, avi_recorder, timestamp, step_tracking_data, recording)
+                    cont, recording = popup_save_recording(window, font, recordingSave, avi_recorder, timestamp, step_tracking_data, recording, avi_filename)
                     if not cont:
                         running = False
                         terminate_event.set()

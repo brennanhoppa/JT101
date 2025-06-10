@@ -189,7 +189,7 @@ def recordingStart(recording,chosenAviType,fps,width,height):
     print(f"Recording started: {avi_filename}")
     # Reset step tracking data
     step_tracking_data = []
-    return recording,avi_recorder,step_tracking_data,timestamp
+    return recording,avi_recorder,step_tracking_data,timestamp,avi_filename
 
 def recordingSave(recording,avi_recorder,timestamp,step_tracking_data):
     recording = False
