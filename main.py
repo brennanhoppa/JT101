@@ -13,6 +13,7 @@ from Utils.ManualMotorInput import run_motor_input
 from Utils.LiveStreamRecord import run_live_stream_record
 from Utils.CONTROLS import CONTROLS
 from Utils.CONSTANTS import CONSTANTS
+from Utils.log import log
 
 def get_x_y():
     x_pos, y_pos = None, None
@@ -135,7 +136,8 @@ def printControls():
         print(f'Press "{key}" {description}')
 
 if __name__ == "__main__":
-    
+    log_queue = multiprocessing.Queue()
+
     x_pos, y_pos, file_path_xy = get_x_y()
     is_jf_mode, file_path_mode = get_mode()
     if is_jf_mode.value == 1:
@@ -159,7 +161,7 @@ if __name__ == "__main__":
     serial_proc = multiprocessing.Process(target=serial_process,args=(command_queue,homing_flag,terminate_event,is_jf_mode))
     serial_proc.start()
     motor_process = multiprocessing.Process(target=run_motor_input, args=(x_pos, y_pos, file_path_xy, command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode,file_path_mode,terminate_event,running_flag, step_size, homing_button,homing_error_button))
-    live_stream_process = multiprocessing.Process(target=run_live_stream_record, args=(x_pos, y_pos, command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_button,homing_error_button))
+    live_stream_process = multiprocessing.Process(target=run_live_stream_record, args=(x_pos, y_pos, command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_button,homing_error_button,log_queue))
     
     time.sleep(3) # wait for serial connection happen
     if terminate_event.is_set():
@@ -168,6 +170,8 @@ if __name__ == "__main__":
     live_stream_process.start()
     # printControls()
     print("Arrow keys on keyboard to move camera")
+    log("TESTING", log_queue)
+    
     motor_process.join()
     live_stream_process.join()
 

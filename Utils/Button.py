@@ -10,6 +10,8 @@ class Button:
         self.base_color = (50, 50, 100)
 
         self.font = pygame.font.SysFont(None, 28)
+        if self.text == 'Clear Term':
+            self.font = pygame.font.SysFont("consolas", 16)
         self.text_surf = self.font.render(text, True, (255, 255, 255))
         self.text_rect = self.text_surf.get_rect(center=self.rect.center)
 

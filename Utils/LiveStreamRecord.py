@@ -19,6 +19,7 @@ from Utils.CONTROLS import CONTROLS
 from Utils.CALIBRATIONPIECE_MM import CALIBRATIONPIECE_MM
 from Utils.Button import Button
 from Utils.savePopUp import popup_save_recording
+from Utils.log import log
 
 NUM_IMAGES = 300
 name = 'TESTBINNING2'
@@ -54,8 +55,8 @@ chosenAviType = AviType.H264
 start_time = datetime.now()
 avi_filename = ""
 
-def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag,step_size,step_to_mm_checking,homing_button,homing_error_button):
-    if main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_button,homing_error_button):
+def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag,step_size,step_to_mm_checking,homing_button,homing_error_button,log_queue):
+    if main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_button,homing_error_button,log_queue):
         sys.exit(0)
     else:
         sys.exit(1)
@@ -63,6 +64,93 @@ def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,p
 def ensure_dir(directory):
     if not os.path.exists(directory):
         os.makedirs(directory)
+
+class RollingLog:
+    def __init__(self, max_lines=300):
+        self.lines = []
+        self.max_lines = max_lines
+
+    def append(self, line):
+        self.lines.append(line)
+        while len(self.lines) > self.max_lines:
+            self.lines.pop(0)
+
+    def get_visible_lines(self, start_index, num_lines):
+        return self.lines[start_index:start_index + num_lines]
+
+    def total_lines(self):
+        return len(self.lines)
+    
+    def clear(self):
+        self.lines.clear()
+
+def draw_log_terminal(surface, rolling_log, scroll_offset=0, column_width=400, margin=10, top=50,
+                      line_height=18, bg_color=(0, 0, 0, 180), text_color=(255, 255, 255),
+                      font_size=16, scrollbar_width=8):
+
+    font = pygame.font.SysFont("consolas", font_size)
+    screen_width = surface.get_width()
+    screen_height = surface.get_height()
+    panel_height = screen_height - top
+
+    # Draw translucent background
+    panel_surface = pygame.Surface((column_width, panel_height), pygame.SRCALPHA)
+    panel_surface.fill(bg_color)
+    surface.blit(panel_surface, (screen_width - column_width, 0))
+    
+    separator_rect = pygame.Rect(screen_width - column_width, 0, 2, screen_height)
+    pygame.draw.rect(surface, (150, 150, 150), separator_rect)
+    horiz_bar = pygame.Rect(screen_width - column_width, 35, screen_width-column_width, 2)
+    pygame.draw.rect(surface, (150,150,150), horiz_bar)
+
+    label_surf = font.render("Terminal", True, (255, 255, 255))
+    surface.blit(label_surf, (screen_width - column_width + margin, 10))
+
+    x = screen_width - column_width + margin
+    y = top
+
+    # Calculate how many lines fit in the panel
+    visible_lines_count = (panel_height - top) // line_height
+    total_lines = rolling_log.total_lines()
+
+    # Clamp scroll_offset
+    max_scroll = max(0, total_lines - visible_lines_count)
+    scroll_offset = max(0, min(scroll_offset, max_scroll))
+
+    # Get visible lines
+    lines = rolling_log.get_visible_lines(scroll_offset, visible_lines_count)
+
+    # Draw the text
+    for line in lines:
+        words = line.split()
+        wrapped_line = ""
+        for word in words:
+            test_line = f"{wrapped_line} {word}".strip()
+            test_surf = font.render(test_line, True, text_color)
+            if test_surf.get_width() < (column_width - 2 * margin - scrollbar_width):
+                wrapped_line = test_line
+            else:
+                text_surf = font.render(wrapped_line, True, text_color)
+                surface.blit(text_surf, (x, y))
+                y += line_height
+                wrapped_line = word
+        if wrapped_line:
+            text_surf = font.render(wrapped_line, True, text_color)
+            surface.blit(text_surf, (x, y))
+            y += line_height
+
+    # Draw the scrollbar
+    if total_lines > visible_lines_count:
+        scrollbar_height = int((visible_lines_count / total_lines) * panel_height)
+        scrollbar_pos = int((scroll_offset / total_lines) * panel_height)
+        scrollbar_rect = pygame.Rect(
+            screen_width - scrollbar_width,
+            scrollbar_pos,
+            scrollbar_width,
+            scrollbar_height
+        )
+        pygame.draw.rect(surface, (180, 180, 180), scrollbar_rect)
+
 
 def webcam_image_to_pygame(frame):
     # Convert BGR to RGB for pygame
@@ -184,7 +272,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                 print(f"Error in tracking thread: {e}")
         time.sleep(0.001)  # Sleep briefly to prevent excessive CPU usage
 
-def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_button,homing_error_button):
+def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_button,homing_error_button,log_queue):
     global running, shared_image, chosenAviType, recording, tracking, motors, boundary_making, boundary, show_boundary, avi_recorder, step_tracking_data, start_time
       
     # Initialize webcam
@@ -200,7 +288,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
     
     pygame.init()
     text_panel_height = 320
-    window_width, window_height = width+100, height+text_panel_height
+    window_width, window_height = width+500, height+text_panel_height
     window = pygame.display.set_mode((window_width, window_height))
     pygame.display.set_caption("Camera Live View with Flashlight Tracking")
     
@@ -275,6 +363,14 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
     def openHelp():
         os.startfile("C:\\Users\\JellyTracker\\Desktop\\HelpDoc.pdf")
 
+    rolling_log = RollingLog()
+    def clear_log_callback(rolling_log):
+        rolling_log.clear()
+    button_x = window.get_width() - 130  # inside terminal panel left margin
+    button_y = 5
+    button_width = 120
+    button_height = 20
+
     onOffColors = [(50, 50, 100),(0, 150, 255)]
     calColors = [(50, 50, 100),(38, 75, 139),(25, 100, 178),(13, 125, 216),(0, 150, 255)]
     buttons = [
@@ -293,10 +389,17 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
        Button(850, 570, 150, 50, "Load Border", lambda: borderLoadHelper()),
        Button(850, 630, 150, 50, "Pixels Cal", lambda: pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode),get_color=lambda: calColors[pixelsCal_flag.value]),
        Button(850, 690, 150, 50, "Help", lambda: openHelp()),       
+       Button(button_x, button_y, button_width, button_height,
+                        "Clear Term", lambda: clear_log_callback(rolling_log),
+                        get_color=lambda: (255, 50, 50))  # red button
     ]  
-
+    scroll_offset = 0
+    scroll_speed = 3
+    is_dragging_scrollbar = False
+    
     while running:
         window.fill((0, 0, 0))  # Clear full window
+
         mouse_pos = pygame.mouse.get_pos()
         mouse_pressed = pygame.mouse.get_pressed()
         for event in pygame.event.get():
@@ -311,6 +414,59 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
                     running = False
                     terminate_event.set()
                     running_flag.value = False
+            
+            elif event.type == pygame.MOUSEWHEEL:
+                scroll_offset -= event.y * scroll_speed
+                # Clamp scroll_offset here if you want immediate clamping
+                total_lines = rolling_log.total_lines()
+                visible_lines = window.get_height() // 18
+                max_scroll = max(0, total_lines - visible_lines)
+                scroll_offset = max(0, min(scroll_offset, max_scroll))
+
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_x, mouse_y = pygame.mouse.get_pos()
+                scrollbar_x = window.get_width() - 8  # scrollbar left edge
+                scrollbar_width = 8
+                panel_height = window.get_height()
+
+                total_lines = rolling_log.total_lines()
+                visible_lines = panel_height // 18
+                if total_lines <= visible_lines:
+                    continue  # no scrollbar needed, so ignore click
+
+                scrollbar_height = int((visible_lines / total_lines) * panel_height)
+                scrollbar_track_height = panel_height - scrollbar_height
+                scrollbar_pos = int((scroll_offset / max(1, total_lines - visible_lines)) * scrollbar_track_height)
+
+                scrollbar_rect = pygame.Rect(scrollbar_x, scrollbar_pos, scrollbar_width, scrollbar_height)
+
+                if scrollbar_rect.collidepoint(mouse_x, mouse_y):
+                    is_dragging_scrollbar = True
+                    drag_start_y = mouse_y
+                    drag_start_offset = scroll_offset
+
+            elif event.type == pygame.MOUSEBUTTONUP:
+                is_dragging_scrollbar = False
+
+            elif event.type == pygame.MOUSEMOTION and is_dragging_scrollbar:
+                mouse_y = pygame.mouse.get_pos()[1]
+                delta_y = mouse_y - drag_start_y
+
+                total_lines = rolling_log.total_lines()
+                visible_lines = window.get_height() // 18
+                max_scroll = max(0, total_lines - visible_lines)
+
+                # Scrollbar track height minus thumb height is the drag range
+                panel_height = window.get_height()
+                scrollbar_height = int((visible_lines / total_lines) * panel_height)
+                scrollbar_track_height = panel_height - scrollbar_height
+
+                if scrollbar_track_height > 0:
+                    # Convert drag delta to scroll offset proportionally
+                    scroll_offset = drag_start_offset + int((delta_y / scrollbar_track_height) * max_scroll)
+                    scroll_offset = max(0, min(scroll_offset, max_scroll))
+
+                
         if pixelsCal_flag.value in (2,3):
             keys = pygame.key.get_pressed()
             move_counter += 1
@@ -326,6 +482,27 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
                 if move_counter >= move_delay + 1:
                     move_counter = 0  # Reset after moving
         
+        while not log_queue.empty():
+                msg = log_queue.get()
+                rolling_log.append(msg)
+
+        # Calculate scrolling limits
+        total_lines = rolling_log.total_lines()
+        visible_lines = window.get_height() // 18
+        max_scroll = max(0, total_lines - visible_lines)
+
+        # Auto-scroll if near bottom
+        near_bottom_threshold = 3  # lines, you can tweak this
+
+        if scroll_offset >= max_scroll - near_bottom_threshold:
+            scroll_offset = max_scroll  # auto-scroll to bottom
+        else:
+            # Clamp scroll_offset within valid range if user scrolled manually
+            scroll_offset = max(0, min(scroll_offset, max_scroll))
+
+        # Draw the log terminal with current scroll offset
+        draw_log_terminal(window, rolling_log, scroll_offset)
+    
         # BUTTON LOGIC
         for button in buttons:
             button.handle_event(event, mouse_pos, mouse_pressed)
@@ -417,12 +594,13 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
         clock.tick(60)  # Keep at 60 FPS for smooth display
         
         frame_count += 1
-        if frame_count == 600:
+        if frame_count == 10: # normally 600 is good speed
             current_time = time.time()
-            frames = 600 / (current_time - last_frame_time)
+            frames = 10 / (current_time - last_frame_time)
             print(f"FPS: {frames:.2f}")
             frame_count = 0
             last_frame_time = current_time
+            log(f"FPS: {frames:.3f}",log_queue)
     
     if recording and avi_recorder:
         avi_recorder.release()
