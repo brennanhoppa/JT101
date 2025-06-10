@@ -275,21 +275,23 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
     def openHelp():
         os.startfile("C:\\Users\\JellyTracker\\Desktop\\HelpDoc.pdf")
 
+    onOffColors = [(50, 50, 100),(0, 150, 255)]
+    calColors = [(50, 50, 100),(38, 75, 139),(25, 100, 178),(13, 125, 216),(0, 150, 255)]
     buttons = [
-       Button(370, 570, 150, 50, "Home", lambda: homing_set(homing_button)),
-       Button(370, 630, 150, 50, "Home w EC", lambda: homing_set_with_error(homing_error_button)),
-       Button(370, 690, 150, 50, "Steps Cal", lambda: stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,is_jf_mode)),
+       Button(370, 570, 150, 50, "Home", lambda: homing_set(homing_button), get_color=lambda: onOffColors[homing_button.value]),
+       Button(370, 630, 150, 50, "Home w EC", lambda: homing_set_with_error(homing_error_button),get_color=lambda: onOffColors[homing_error_button.value]),
+       Button(370, 690, 150, 50, "Steps Cal", lambda: stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,is_jf_mode),get_color=lambda: calColors[step_to_mm_checking.value]),
        Button(370, 750, 150, 50, "Change Mode", lambda: change_mode(is_jf_mode,x_pos,y_pos,step_size)),
        Button(530, 570, 150, 50, "Keybinds", lambda: keyBindsControl(keybinds_flag)),
-       Button(530, 630, 150, 50, "Record", lambda: recordingHelper()),
+       Button(530, 630, 150, 50, "Record", lambda: recordingHelper(),get_color=lambda: onOffColors[recording]),
        Button(530, 690, 150, 50, "Save Video", lambda: saveHelper()),
-       Button(530, 750, 150, 50, "Tracking", lambda: trackingHelper()),
-       Button(690, 570, 150, 50, "Tracking Motors", lambda: trackingMotors()),
-       Button(690, 630, 150, 50, "Make Border", lambda: borderHelper(is_jf_mode)),
+       Button(530, 750, 150, 50, "Tracking", lambda: trackingHelper(), get_color=lambda: onOffColors[tracking]),
+       Button(690, 570, 150, 50, "Tracking Motors", lambda: trackingMotors(),get_color=lambda: onOffColors[motors]),
+       Button(690, 630, 150, 50, "Make Border", lambda: borderHelper(is_jf_mode),get_color=lambda: onOffColors[boundary_making]),
        Button(690, 690, 150, 50, "Cancel Border", lambda: borderCancelHelper()),
-       Button(690, 750, 150, 50, "Show Border", lambda: borderShowHelper()),
+       Button(690, 750, 150, 50, "Show Border", lambda: borderShowHelper(),get_color=lambda: onOffColors[show_boundary]),
        Button(850, 570, 150, 50, "Load Border", lambda: borderLoadHelper()),
-       Button(850, 630, 150, 50, "Pixels Cal", lambda: pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode)),
+       Button(850, 630, 150, 50, "Pixels Cal", lambda: pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode),get_color=lambda: calColors[pixelsCal_flag.value]),
        Button(850, 690, 150, 50, "Help", lambda: openHelp()),       
     ]  
 

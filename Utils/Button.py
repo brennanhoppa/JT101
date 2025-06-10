@@ -1,14 +1,13 @@
 import pygame
 
 class Button:
-    def __init__(self, x, y, width, height, text, callback=None):
+    def __init__(self, x, y, width, height, text, callback=None, get_color=None):
         self.rect = pygame.Rect(x, y, width, height)
         self.text = text
         self.callback = callback
+        self.get_color = get_color
 
-        self.base_color = (0, 0, 255)
-        self.hover_color = (100, 100, 255)
-        self.active_color = (0, 200, 0)
+        self.base_color = (50, 50, 100)
 
         self.font = pygame.font.SysFont(None, 28)
         self.text_surf = self.font.render(text, True, (255, 255, 255))
@@ -35,10 +34,15 @@ class Button:
 
     def draw(self, surface):
         mouse_pos = pygame.mouse.get_pos()
+
+        base_color = self.get_color() if self.get_color else self.base_color
+
+        # If hovering, apply dimming effect
         if self.rect.collidepoint(mouse_pos):
-            color = self.active_color if self.mouse_down_inside else self.hover_color
+            dim_factor = 1.3 if self.mouse_down_inside else 0.7
+            color = tuple(min(255, round(c * dim_factor)) for c in base_color)
         else:
-            color = self.base_color
+            color = base_color
 
         pygame.draw.rect(surface, color, self.rect, border_radius=8)
         surface.blit(self.text_surf, self.text_rect)
