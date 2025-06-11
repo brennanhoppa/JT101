@@ -447,7 +447,8 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
                     running = False
                     terminate_event.set()
                     running_flag.value = False
-            
+                    break
+                
             elif event.type == pygame.MOUSEWHEEL:
                 font = pygame.font.SysFont("consolas", 16)
                 max_width = 400 - 2 * 10 - 8
