@@ -5,6 +5,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 import cv2 #type: ignore
 import time
+import io
 from ultralytics import YOLO # type: ignore
 from Utils.CONSTANTS import CONSTANTS
 from Utils.log import log
@@ -24,7 +25,23 @@ HALF_PRECISION = True  # Enable FP16 inference if supported
 modelJF = YOLO(MODEL_PATH_JF)
 modelLarvae = YOLO(MODEL_PATH_LARVAE)
 
-def detect_jellyfish(frame, detect_light, is_jf_mode, log_queue):
+def run_yolo_with_output(model, frame_resized, **kwargs):
+    log_stream = io.StringIO()
+    handler = logging.StreamHandler(log_stream)
+    
+    # Use the ultralytics logger, not root
+    yolo_logger = logging.getLogger('ultralytics')
+    yolo_logger.addHandler(handler)
+    yolo_logger.setLevel(logging.INFO)
+
+    try:
+        results = model.predict(frame_resized, **kwargs)
+    finally:
+        yolo_logger.removeHandler(handler)
+
+    return results, log_stream.getvalue()
+
+def detect_jellyfish(frame, detect_light, is_jf_mode, log_queue, verbose):
     """
     Uses the YOLO model to detect jellyfish in a given frame.
     
@@ -88,23 +105,17 @@ def detect_jellyfish(frame, detect_light, is_jf_mode, log_queue):
         frame_for_inference = cv2.cvtColor(equalized_ycbcr_frame, cv2.COLOR_YCrCb2BGR)
 
     # Perform object detection using the YOLO model
-    if is_jf_mode.value == 1:
-        results = modelJF.predict(
-            frame_resized,
-            imgsz=IMG_SIZE,
-            conf=CONF_THRESHOLD,
-            iou=IOU_THRESHOLD,
-            half=HALF_PRECISION
-        )
+    if verbose == False:
+        if is_jf_mode.value == 1:
+            results = modelJF.predict(frame_resized,imgsz=IMG_SIZE,conf=CONF_THRESHOLD,iou=IOU_THRESHOLD,half=HALF_PRECISION,verbose=False)
+        else:
+            results = modelLarvae.predict(frame_for_inference,imgsz=IMG_SIZE,conf=CONF_THRESHOLD,iou=IOU_THRESHOLD,half=HALF_PRECISION,verbose=False)
     else:
-        results = modelLarvae.predict(
-            frame_for_inference,
-            imgsz=IMG_SIZE,
-            conf=CONF_THRESHOLD,
-            iou=IOU_THRESHOLD,
-            half=HALF_PRECISION
-        )
-
+        if is_jf_mode.value == 1:
+            results, log_output = run_yolo_with_output(modelJF,frame_resized,imgsz=IMG_SIZE,conf=CONF_THRESHOLD,iou=IOU_THRESHOLD,half=HALF_PRECISION,verbose=True)
+        else:
+            results, log_output = run_yolo_with_output(modelLarvae,frame_resized,imgsz=IMG_SIZE,conf=CONF_THRESHOLD,iou=IOU_THRESHOLD,half=HALF_PRECISION,verbose=True)
+        log(log_output,log_queue)
 
     original_height, original_width = frame.shape[:2]
     # Find the box with the highest confidence

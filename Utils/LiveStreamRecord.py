@@ -31,6 +31,7 @@ motors = False
 boundary_making = False
 shared_image = None
 avi_recorder = None
+verbose = False
 
 boundary = []
 # or write filename to load in a boundary
@@ -67,9 +68,11 @@ def ensure_dir(directory):
         os.makedirs(directory)
 
 class RollingLog:
-    def __init__(self, max_lines=300):
+    def __init__(self, max_lines=300, font=None, max_width=None):
         self.lines = []
         self.max_lines = max_lines
+        self.font = font or pygame.font.SysFont("consolas", 16)
+        self.max_width = max_width or 462 # default width
 
     def append(self, line):
         self.lines.append(line)
@@ -79,10 +82,7 @@ class RollingLog:
     def get_visible_lines(self, start_index, num_lines):
         return self.lines[start_index:start_index + num_lines]
 
-    def total_lines(self, font=pygame.font.SysFont("consolas", 16), max_width=(400 - 2 * 10 - 8)):
-        if font is None or max_width is None:
-            return len(self.lines)  # fallback
-
+    def total_lines(self):
         count = 0
         for line in self.lines:
             i = 0
@@ -90,40 +90,45 @@ class RollingLog:
                 j = i + 1
                 while j <= len(line):
                     slice = line[i:j]
-                    width = font.render(slice, True, (0, 0, 0)).get_width()
-                    if width > max_width:
+                    width = self.font.render(slice, True, (0, 0, 0)).get_width()
+                    if width > self.max_width:
                         break
                     j += 1
                 count += 1
                 i = j - 1
         return count
-    
+
     def clear(self):
         self.lines.clear()
 
-def draw_log_terminal(surface, rolling_log, scroll_offset=0, column_width=400, margin=10, top=50,
+    def update_width(self, new_width):
+        self.max_width = new_width
+
+def draw_log_terminal(surface, rolling_log, scroll_offset=0, margin=10, top=50,
                       line_height=18, bg_color=(0, 0, 0, 180), text_color=(255, 255, 255),
                       font_size=16, scrollbar_width=8):
 
     font = pygame.font.SysFont("consolas", font_size)
     screen_width = surface.get_width()
     screen_height = surface.get_height()
+    column_start_x = 970
+    column_width = screen_width - column_start_x
     panel_height = screen_height - top
 
     # Draw translucent background
     panel_surface = pygame.Surface((column_width, panel_height), pygame.SRCALPHA)
     panel_surface.fill(bg_color)
-    surface.blit(panel_surface, (screen_width - column_width, 0))
+    surface.blit(panel_surface, (column_start_x, 0))
     
-    separator_rect = pygame.Rect(screen_width - column_width, 0, 2, screen_height)
+    separator_rect = pygame.Rect(column_start_x, 0, 2, screen_height)
     pygame.draw.rect(surface, (150, 150, 150), separator_rect)
-    horiz_bar = pygame.Rect(screen_width - column_width, 35, screen_width-column_width, 2)
+    horiz_bar = pygame.Rect(column_start_x, 35, screen_width-column_width, 2)
     pygame.draw.rect(surface, (150,150,150), horiz_bar)
 
     label_surf = font.render("Terminal", True, (255, 255, 255))
-    surface.blit(label_surf, (screen_width - column_width + margin, 10))
+    surface.blit(label_surf, (column_start_x + margin, 10))
 
-    x = screen_width - column_width + margin
+    x = column_start_x + margin
     y = top
 
     # Calculate how many lines fit in the panel
@@ -242,7 +247,7 @@ def imageacq(cam,log_queue):
 
 
 def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_jf_mode,log_queue):
-    global running, tracking, motors, recording, step_tracking_data
+    global running, tracking, motors, recording, step_tracking_data,verbose
     last_tracking_time = time.time()
     
     while running:
@@ -270,7 +275,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                     # detect_light = True # testing mode - returns x,y of brightest spot in frame
 
                     # Use YOLO to detect jellyfish position
-                    flashlight_pos, (x1,x2,y1,y2) = detect_jellyfish(image, detect_light, is_jf_mode,log_queue)
+                    flashlight_pos, (x1,x2,y1,y2) = detect_jellyfish(image, detect_light, is_jf_mode,log_queue,verbose)
                     timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-2] 
                     if flashlight_pos:
                         # Calculate deltas
@@ -304,7 +309,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
         time.sleep(0.001)  # Sleep briefly to prevent excessive CPU usage
 
 def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_button,homing_error_button,log_queue):
-    global running, shared_image, chosenAviType, recording, tracking, motors, boundary_making, boundary, show_boundary, avi_recorder, step_tracking_data, start_time
+    global running, shared_image, chosenAviType, recording, tracking, motors, boundary_making, boundary, show_boundary, avi_recorder, step_tracking_data, start_time, verbose
       
     # Initialize webcam
     cap = cv2.VideoCapture(0)  # Use default webcam (index 0)
@@ -392,12 +397,17 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
         nonlocal crosshair_x, crosshair_y
         crosshair_x,crosshair_y = pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,width,height,is_jf_mode, log_queue)
 
+    def verboseHelper():
+        global verbose
+        verbose = not verbose
+
     def openHelp():
         os.startfile("C:\\Users\\JellyTracker\\Desktop\\HelpDoc.pdf")
 
     rolling_log = RollingLog()
     def clear_log_callback(rolling_log):
         rolling_log.clear()
+        log("New Terminal:",log_queue)
     button_x = window.get_width() - 130  # inside terminal panel left margin
     button_y = 5
     button_width = 120
@@ -406,21 +416,22 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
     onOffColors = [(50, 50, 100),(0, 150, 255)]
     calColors = [(50, 50, 100),(38, 75, 139),(25, 100, 178),(13, 125, 216),(0, 150, 255)]
     buttons = [
-       Button(370, 570, 150, 50, "Home", lambda: homing_set(homing_button), get_color=lambda: onOffColors[homing_button.value]),
-       Button(370, 630, 150, 50, "Home w EC", lambda: homing_set_with_error(homing_error_button),get_color=lambda: onOffColors[homing_error_button.value]),
-       Button(370, 690, 150, 50, "Steps Cal", lambda: stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,is_jf_mode, log_queue),get_color=lambda: calColors[step_to_mm_checking.value]),
-       Button(370, 750, 150, 50, "Change Mode", lambda: change_mode(is_jf_mode,x_pos,y_pos,step_size,log_queue)),
-       Button(530, 570, 150, 50, "Keybinds", lambda: keyBindsControl(keybinds_flag,log_queue)),
-       Button(530, 630, 150, 50, "Record", lambda: recordingHelper(log_queue),get_color=lambda: onOffColors[recording]),
-       Button(530, 690, 150, 50, "Save Video", lambda: saveHelper(log_queue)),
-       Button(530, 750, 150, 50, "Tracking", lambda: trackingHelper(), get_color=lambda: onOffColors[tracking]),
-       Button(690, 570, 150, 50, "Tracking Motors", lambda: trackingMotors(),get_color=lambda: onOffColors[motors]),
-       Button(690, 630, 150, 50, "Make Border", lambda: borderHelper(is_jf_mode, log_queue),get_color=lambda: onOffColors[boundary_making]),
-       Button(690, 690, 150, 50, "Cancel Border", lambda: borderCancelHelper(log_queue)),
-       Button(690, 750, 150, 50, "Show Border", lambda: borderShowHelper(),get_color=lambda: onOffColors[show_boundary]),
-       Button(850, 570, 150, 50, "Load Border", lambda: borderLoadHelper()),
-       Button(850, 630, 150, 50, "Pixels Cal", lambda: pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode, log_queue),get_color=lambda: calColors[pixelsCal_flag.value]),
-       Button(850, 690, 150, 50, "Help", lambda: openHelp()),       
+       Button(330, 570, 150, 50, "Home", lambda: homing_set(homing_button), get_color=lambda: onOffColors[homing_button.value]),
+       Button(330, 630, 150, 50, "Home w EC", lambda: homing_set_with_error(homing_error_button),get_color=lambda: onOffColors[homing_error_button.value]),
+       Button(330, 690, 150, 50, "Steps Cal", lambda: stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,is_jf_mode, log_queue),get_color=lambda: calColors[step_to_mm_checking.value]),
+       Button(330, 750, 150, 50, "Change Mode", lambda: change_mode(is_jf_mode,x_pos,y_pos,step_size,log_queue)),
+       Button(490, 570, 150, 50, "Keybinds", lambda: keyBindsControl(keybinds_flag,log_queue)),
+       Button(490, 630, 150, 50, "Record", lambda: recordingHelper(log_queue),get_color=lambda: onOffColors[recording]),
+       Button(490, 690, 150, 50, "Save Video", lambda: saveHelper(log_queue)),
+       Button(490, 750, 150, 50, "Tracking", lambda: trackingHelper(), get_color=lambda: onOffColors[tracking]),
+       Button(650, 570, 150, 50, "Motors4Track", lambda: trackingMotors(),get_color=lambda: onOffColors[motors]),
+       Button(650, 630, 150, 50, "Make Border", lambda: borderHelper(is_jf_mode, log_queue),get_color=lambda: onOffColors[boundary_making]),
+       Button(650, 690, 150, 50, "Cancel Border", lambda: borderCancelHelper(log_queue)),
+       Button(650, 750, 150, 50, "Show Border", lambda: borderShowHelper(),get_color=lambda: onOffColors[show_boundary]),
+       Button(810, 570, 150, 50, "Load Border", lambda: borderLoadHelper()),
+       Button(810, 630, 150, 50, "Pixels Cal", lambda: pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode, log_queue),get_color=lambda: calColors[pixelsCal_flag.value]),
+       Button(810, 690, 150, 50, "TrackVerbose", lambda: verboseHelper(),get_color=lambda: onOffColors[verbose]),
+       Button(810, 750, 150, 50, "Help", lambda: openHelp()),       
        Button(button_x, button_y, button_width, button_height,
                         "Clear Term", lambda: clear_log_callback(rolling_log),
                         get_color=lambda: (255, 50, 50))  # red button
@@ -430,6 +441,12 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
     is_dragging_scrollbar = False
     user_scrolled_up = False
 
+    column_start_x = 970
+    scrollbar_width = 8
+    margin = 10
+    column_width = window.get_width() - column_start_x
+    max_width = column_width - 2 * margin - scrollbar_width
+    print("HERE:", max_width)
     while running:
         window.fill((0, 0, 0))  # Clear full window
 
@@ -448,11 +465,10 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
                     terminate_event.set()
                     running_flag.value = False
                     break
-                
+
             elif event.type == pygame.MOUSEWHEEL:
                 font = pygame.font.SysFont("consolas", 16)
-                max_width = 400 - 2 * 10 - 8
-                total_lines = rolling_log.total_lines(font, max_width)
+                total_lines = rolling_log.total_lines()
                 visible_lines = (window.get_height() - 50) // 18
                 max_scroll = max(0, total_lines - visible_lines)
 
@@ -467,8 +483,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
                 panel_height = window.get_height()
 
                 font = pygame.font.SysFont("consolas", 16)
-                max_width = 400 - 2 * 10 - 8
-                total_lines = rolling_log.total_lines(font, max_width)
+                total_lines = rolling_log.total_lines()
                 visible_lines = (panel_height - 50) // 18
 
                 if total_lines <= visible_lines:
@@ -491,8 +506,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
                 delta_y = mouse_y - drag_start_y
 
                 font = pygame.font.SysFont("consolas", 16)
-                max_width = 400 - 2 * 10 - 8
-                total_lines = rolling_log.total_lines(font, max_width)
+                total_lines = rolling_log.total_lines()
                 visible_lines = (window.get_height() - 50) // 18
                 max_scroll = max(0, total_lines - visible_lines)
 
@@ -528,9 +542,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
 
        # Auto-scroll logic
         font = pygame.font.SysFont("consolas", 16)
-        max_width = 400 - 2 * 10 - 8  # column_width - 2 * margin - scrollbar_width
-
-        total_lines = rolling_log.total_lines(font, max_width)
+        total_lines = rolling_log.total_lines()
         visible_lines = (window.get_height() - 50) // 18  # same as draw_log_terminal
         max_scroll = max(0, total_lines - visible_lines)
 
@@ -588,9 +600,9 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
                     pygame.draw.circle(window, (0, 255, 0), flashlight_pos, 10)
                     pygame.draw.circle(window, (0, 255, 255), (x1,y1), 10)
                     pygame.draw.circle(window, (0, 255, 255), (x2,y2), 10)
-
+                    trackingFoundSomething = True
             except queue.Empty:
-                pass
+                trackingFoundSomething = False
 
             if show_boundary: 
                 if boundary != []: # boundary is currently in steps
@@ -612,22 +624,44 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
             elapsed_seconds = int(current_time.total_seconds())
             hours, remainder = divmod(elapsed_seconds, 3600)
             minutes, seconds = divmod(remainder, 60)
+            if recording:
+                pygame.draw.circle(window, (255, 0, 0), (width-20,20), 8)
+
+            # Determine status values
+            if tracking:
+                if trackingFoundSomething:
+                    tracking_status = "Tracking On | Status: [OK]"
+                else:
+                    tracking_status = "Tracking On | Status: [FAIL]" 
+            else:
+                tracking_status = "Tracking Off"
+
             status_text = (
-                    f"{'Recording' if recording else 'Not Recording'} | "
-                    f"{'Tracking' if tracking else 'Not Tracking'}\n"
-                    f"{'Motors on with Tracking' if motors else 'Motors off with Tracking'}\n"
-                    f"{'Boundary Visualization: On' if show_boundary else 'Boundary Visualization: Off'}\n"
-                    f"Duration: {hours:02}:{minutes:02}:{seconds:02}\n"
-                    f"Mode: {mode_string(is_jf_mode)}"
-                )
+                f"{'● Recording' if recording else 'Not Recording'}\n"
+                f"Duration: {hours:02}:{minutes:02}:{seconds:02}\n"
+                f"{tracking_status}\n"
+                f" \n"
+                f"{'Tracking Motors: On' if motors else 'Tracking Motors: Off'}\n"
+                f"{'Boundary Visualization: On' if show_boundary else 'Boundary Visualization: Off'}\n"
+                f"Mode: {mode_string(is_jf_mode)}"
+            )
 
             lines = status_text.split('\n')
             y_offset = 570
+
             for line in lines:
-                line_surface = font.render(line, True, (255, 0, 0) if recording else (0, 255, 0))
+                if "Recording" in line:
+                    color = (255, 80, 80) if recording else (173, 216, 230)  # red if recording else light blue
+                elif "[OK]" in line:
+                    color = (0, 180, 0)  # green
+                elif "[FAIL]" in line:
+                    color = (180, 0, 0)  # red
+                else:
+                    color = (173, 216, 230)  # light blue for everything else
+
+                line_surface = font.render(line, True, color)
                 window.blit(line_surface, (10, y_offset))
-                y_offset += font.get_linesize()  # Move to next line
-            
+                y_offset += font.get_linesize()
             pygame.display.flip()
         
         clock.tick(60)  # Keep at 60 FPS for smooth display
@@ -638,7 +672,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
             frames = 600 / (current_time - last_frame_time)
             frame_count = 0
             last_frame_time = current_time
-            log(f"FPS: {frames:.3f}",log_queue)
+            log(f"FPS: {frames:.1f}",log_queue)
     
     if recording and avi_recorder:
         avi_recorder.release()
