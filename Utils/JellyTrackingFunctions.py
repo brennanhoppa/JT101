@@ -6,7 +6,6 @@ logger = logging.getLogger(__name__)
 import cv2 #type: ignore
 import time
 from ultralytics import YOLO # type: ignore
-import threading
 from Utils.CONSTANTS import CONSTANTS
 from Utils.log import log
 
