@@ -4,8 +4,10 @@ from datetime import datetime
 import cv2 #type: ignore
 from Utils.Boundaries import save_boundaries, boundary_to_mm_from_steps
 from Utils.CALIBRATIONPIECE_MM import CALIBRATIONPIECE_MM
-from Utils.CONSTANTS import CONSTANTS
+from Utils.CONSTANTS import CONSTANTS, AviType
 from Utils.log import log
+from Utils import states
+import os
 
 def homingSteps(is_jf_mode, command_queue,homing_flag,x_pos,y_pos,log_queue):
     if is_jf_mode.value == 0: # means larvae mode
@@ -166,11 +168,6 @@ def keyBindsControl(keybinds_flag,log_queue):
     keybinds_flag.value = not keybinds_flag.value
     log(f"-----Turning arrow motor control {'on' if keybinds_flag.value else 'off'}.-----",log_queue)
     # time.sleep(0.2)
-
-class AviType:
-    UNCOMPRESSED = 0
-    MJPG = 1
-    H264 = 2
     
 def recordingStart(recording,chosenAviType,fps,width,height,log_queue):
     recording = True
@@ -262,3 +259,42 @@ def change_mode(is_jf_mode,x_pos,y_pos,step_size,log_queue):
     else:
         log("Error, mode is incorrect value",log_queue)
     time.sleep(0.2)  # Short delay to prevent multiple triggers
+
+
+# Button press direct functions
+def homing_set(homing_button):
+        homing_button.value = 1
+    
+def homing_set_with_error(homing_error_button):
+    homing_error_button.value = 1
+
+def saveHelper(log_queue, timestamp, step_tracking_data):
+    if states.recording:
+        states.recording = recordingSave(states.recording,states.avi_recorder,timestamp,step_tracking_data,log_queue)
+        states.start_time = datetime.now() 
+
+def trackingHelper(log_queue):
+    states.tracking = not states.tracking
+    log(f"*Tracking turned {'on' if states.tracking else 'off'}*",log_queue)
+
+def trackingMotors(log_queue):
+    states.motors = not states.motors
+    log(f"*Motors controlled by tracking turned {'on' if states.motors else 'off'}*",log_queue)
+
+def borderShowHelper():
+        states.show_boundary = not states.show_boundary
+
+def verboseHelper(log_queue):
+    states.verbose = not states.verbose
+    if states.verbose:
+        log("^^^ Turning on the verbose descriptions of output from tracking model. Only use for debugging. ^^^",log_queue)
+    else:
+        log("^^^ Turning off verbose mode ^^^", log_queue)
+
+def openHelp(log_queue):
+    os.startfile("C:\\Users\\JellyTracker\\Desktop\\HelpDoc.pdf")
+    log("!!!! Opening help document pdf on the desktop. !!!!", log_queue)
+
+def clear_log_callback(rolling_log, log_queue):
+    rolling_log.clear()
+    log("New Terminal:",log_queue)

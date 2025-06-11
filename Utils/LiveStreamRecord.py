@@ -9,29 +9,16 @@ from datetime import datetime
 import time
 from Utils.JellyTrackingFunctions import detect_jellyfish,calculate_movement, calculate_delta_Pixels, mm_to_pixels, pixels_to_mm, mm_to_steps, steps_to_mm, mode_string
 from Utils.ManualMotorInput import move
-from Utils.Boundaries import save_boundaries, boundary_to_steps, boundary_to_mm_from_steps, boundary_to_pixels_from_steps, load_boundaries
-# import PySpin # type: ignore
 import cv2 #type: ignore
-import tkinter as tk
-from tkinter import filedialog
-from Utils.ButtonPresses import recordingStart, AviType, recordingSave, boundaryControl, boundaryCancel,pixelsCalibration, keyBindsControl, change_mode, homingSteps, homingStepsWithErrorCheck, stepsCalibration
-from Utils.CONTROLS import CONTROLS
-from Utils.CALIBRATIONPIECE_MM import CALIBRATIONPIECE_MM
+from Utils.ButtonPresses import recordingStart, recordingSave, boundaryControl, boundaryCancel,pixelsCalibration, keyBindsControl, change_mode, stepsCalibration
 from Utils.Button import Button
 from Utils.savePopUp import popup_save_recording
 from Utils.log import log
-import textwrap
-
-NUM_IMAGES = 300
-name = 'TESTBINNING2'
-running = True
-recording = False
-tracking = False
-motors = False
-boundary_making = False
-shared_image = None
-avi_recorder = None
-verbose = False
+from Utils.RollingLog import RollingLog
+from Utils.LiveStreamUtilFuncs import ensure_dir, draw_log_terminal
+from Utils.Boundaries import load_boundary
+from Utils import states
+from Utils.ButtonPresses import homing_set, homing_set_with_error, saveHelper, trackingHelper, trackingMotors, borderShowHelper, verboseHelper, openHelp, clear_log_callback
 
 boundary = []
 # or write filename to load in a boundary
@@ -39,8 +26,6 @@ boundary = []
 # boundary_filename = "C:\\Users\\JellyTracker\\Desktop\\JellyFishTrackingPC-main\\saved_boundaries_mm\\new_bounds.csv"
 # boundary_mm = load_boundaries(boundary_filename)
 # boundary = boundary_to_steps(boundary_mm)
-
-show_boundary = False
 
 # Tracking settings
 TRACKING_INTERVAL = 1 / 50  # 50Hz tracking rate
@@ -50,12 +35,7 @@ image_queue = queue.Queue(maxsize=5)
 tracking_result_queue = queue.Queue(maxsize=5)
 
 # Step tracking
-# cumulative_steps = {'x': 0, 'y': 0}
 step_tracking_data = []
-
-chosenAviType = AviType.H264
-start_time = datetime.now()
-avi_filename = ""
 
 def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag,step_size,step_to_mm_checking,homing_button,homing_error_button,log_queue):
     if main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_button,homing_error_button,log_queue):
@@ -63,167 +43,15 @@ def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,p
     else:
         sys.exit(1)
 
-def ensure_dir(directory):
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-
-class RollingLog:
-    def __init__(self, max_lines=300, font=None, max_width=None):
-        self.lines = []
-        self.max_lines = max_lines
-        self.font = font or pygame.font.SysFont("consolas", 16)
-        self.max_width = max_width or 462 # default width
-
-    def append(self, line):
-        self.lines.append(line)
-        while len(self.lines) > self.max_lines:
-            self.lines.pop(0)
-
-    def get_visible_lines(self, start_index, num_lines):
-        return self.lines[start_index:start_index + num_lines]
-
-    def total_lines(self):
-        count = 0
-        for line in self.lines:
-            i = 0
-            while i < len(line):
-                j = i + 1
-                while j <= len(line):
-                    slice = line[i:j]
-                    width = self.font.render(slice, True, (0, 0, 0)).get_width()
-                    if width > self.max_width:
-                        break
-                    j += 1
-                count += 1
-                i = j - 1
-        return count
-
-    def clear(self):
-        self.lines.clear()
-
-    def update_width(self, new_width):
-        self.max_width = new_width
-
-def draw_log_terminal(surface, rolling_log, scroll_offset=0, margin=10, top=50,
-                      line_height=18, bg_color=(0, 0, 0, 180), text_color=(255, 255, 255),
-                      font_size=16, scrollbar_width=8):
-
-    font = pygame.font.SysFont("consolas", font_size)
-    screen_width = surface.get_width()
-    screen_height = surface.get_height()
-    column_start_x = 970
-    column_width = screen_width - column_start_x
-    panel_height = screen_height - top
-
-    # Draw translucent background
-    panel_surface = pygame.Surface((column_width, panel_height), pygame.SRCALPHA)
-    panel_surface.fill(bg_color)
-    surface.blit(panel_surface, (column_start_x, 0))
-    
-    separator_rect = pygame.Rect(column_start_x, 0, 2, screen_height)
-    pygame.draw.rect(surface, (150, 150, 150), separator_rect)
-    horiz_bar = pygame.Rect(column_start_x, 35, screen_width-column_width, 2)
-    pygame.draw.rect(surface, (150,150,150), horiz_bar)
-
-    label_surf = font.render("Terminal", True, (255, 255, 255))
-    surface.blit(label_surf, (column_start_x + margin, 10))
-
-    x = column_start_x + margin
-    y = top
-
-    # Calculate how many lines fit in the panel
-    visible_lines_count = panel_height // line_height
-    total_lines = rolling_log.total_lines()
-
-    # Clamp scroll_offset
-    max_scroll = max(0, total_lines - visible_lines_count)
-    scroll_offset = max(0, min(scroll_offset, max_scroll))
-
-    # Get visible lines
-    lines = rolling_log.get_visible_lines(scroll_offset, visible_lines_count)
-
-    for line in lines:
-        i = 0
-        while i < len(line):
-            max_width = column_width - 2 * margin - scrollbar_width
-            j = i + 1
-            while j <= len(line):
-                slice = line[i:j]
-                width = font.render(slice, True, text_color).get_width()
-                if width > max_width:
-                    # Render up to character before it exceeds
-                    if j == i + 1:
-                        # Even one character doesn't fit (very narrow terminal)
-                        slice = line[i:j]
-                    else:
-                        slice = line[i:j-1]
-                        j -= 1
-                    break
-                j += 1
-
-            text_surf = font.render(slice, True, text_color)
-            surface.blit(text_surf, (x, y))
-            y += line_height
-            i = j
-
-
-    # Draw the scrollbar
-    if total_lines > visible_lines_count:
-        # Scrollbar track starts at y = 35 (the horiz_bar position) and ends at bottom
-        scrollbar_track_top = 35
-        scrollbar_track_bottom = screen_height
-        scrollbar_track_height = scrollbar_track_bottom - scrollbar_track_top
-
-        scrollbar_height = int((visible_lines_count / total_lines) * scrollbar_track_height)
-        max_scroll_offset = total_lines - visible_lines_count
-
-        if max_scroll_offset > 0:
-            scrollbar_pos = int((scroll_offset / max_scroll_offset) * (scrollbar_track_height - scrollbar_height))
-        else:
-            scrollbar_pos = 0  # no scrolling needed
-
-        scrollbar_rect = pygame.Rect(
-            screen_width - scrollbar_width,
-            scrollbar_track_top + scrollbar_pos,
-            scrollbar_width,
-            scrollbar_height
-        )
-        pygame.draw.rect(surface, (180, 180, 180), scrollbar_rect)
-
-
-def webcam_image_to_pygame(frame):
-    # Convert BGR to RGB for pygame
-    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    # Convert to contiguous array
-    rgb_frame = np.ascontiguousarray(rgb_frame.astype(np.uint8))
-    # Create pygame surface
-    return pygame.surfarray.make_surface(rgb_frame.swapaxes(0, 1))
-
-def load_boundary(is_jf_mode, log_queue):
-    root = tk.Tk()
-    root.withdraw()
-    file_path = filedialog.askopenfilename(title="Select a File", filetypes=[("CSV files", "*.csv"), ("All Files", "*.*")])
-    if file_path:  # If a file was selected
-        log(f"Selected file: {file_path}",log_queue)
-        try:
-            boundary_mm = load_boundaries(file_path)
-            return boundary_to_steps(boundary_mm,is_jf_mode)
-        except:
-            log('Incorrect file loaded',log_queue)
-    else:
-        log("No file selected.",log_queue)
-        return []
-
 def imageacq(cam,log_queue):
-    global running, shared_image, recording, avi_recorder
-    while running:
+    while states.running:
         try:
             ret, frame = cam.read()
             if ret:
                 # Convert for display
                 rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 # Save frame for display
-                shared_image = frame
+                states.shared_image = frame
                 # Put in queue for tracking
                 if isinstance(frame, np.ndarray):
                     try:
@@ -242,16 +70,16 @@ def imageacq(cam,log_queue):
             log(f'Error in image acquisition: {ex}',log_queue)
     
     # Clean up video writer if it exists
-    if avi_recorder is not None:
-        avi_recorder.release()
-
+    if states.avi_recorder is not None:
+        states.avi_recorder.release()
 
 def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_jf_mode,log_queue):
-    global running, tracking, motors, recording, step_tracking_data,verbose
+    global step_tracking_data
+    
     last_tracking_time = time.time()
     
-    while running:
-        if tracking:
+    while states.running:
+        if states.tracking:
             try:
                 current_time = time.time()
                 if current_time - last_tracking_time >= TRACKING_INTERVAL:
@@ -275,12 +103,12 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                     # detect_light = True # testing mode - returns x,y of brightest spot in frame
 
                     # Use YOLO to detect jellyfish position
-                    flashlight_pos, (x1,x2,y1,y2) = detect_jellyfish(image, detect_light, is_jf_mode,log_queue,verbose)
+                    flashlight_pos, (x1,x2,y1,y2) = detect_jellyfish(image, detect_light, is_jf_mode,log_queue,states.verbose)
                     timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-2] 
                     if flashlight_pos:
                         # Calculate deltas
                         dx, dy = calculate_delta_Pixels(flashlight_pos, center_x, center_y)
-                        if recording:
+                        if states.recording:
                             # x_pos + dx thing and y !!!!!!!!!!!!!!
                             # mm position of jf in the global coords
                             x = steps_to_mm(x_pos.value, is_jf_mode)
@@ -288,14 +116,14 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                             x -= dx # matching to the inverting of the x axis with the camera
                             y += dy # same as above
                             step_tracking_data.append((x, y, timestamp))                        
-                        if motors:
+                        if states.motors:
                             step_x, step_y = calculate_movement(dx,dy,is_jf_mode)
                             # Send movement command
                             x_pos, y_pos = move(x_pos, y_pos, int(-1*round(step_x*1.3,0)), int(round(step_y*1.3,0)), command_queue,is_jf_mode)
                             
                         # Communicate tracking results for display
                         tracking_result_queue.put((flashlight_pos,(x1,x2,y1,y2)), block=False)
-                    elif recording:    
+                    elif states.recording:    
                         step_tracking_data.append((None, None, timestamp))
 
                     # Update tracking timestamp
@@ -309,8 +137,8 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
         time.sleep(0.001)  # Sleep briefly to prevent excessive CPU usage
 
 def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_button,homing_error_button,log_queue):
-    global running, shared_image, chosenAviType, recording, tracking, motors, boundary_making, boundary, show_boundary, avi_recorder, step_tracking_data, start_time, verbose
-      
+    global boundary, step_tracking_data
+
     # Initialize webcam
     cap = cv2.VideoCapture(0)  # Use default webcam (index 0)
     if not cap.isOpened():
@@ -347,49 +175,20 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
     crosshair_y = height // 2
     move_delay = 2  # How many frames to wait between moves
     move_counter = 0  # Frame counter
-
-    video_writer = None
     
-    def homing_set(homing_button):
-        homing_button.value = 1
-    
-    def homing_set_with_error(homing_error_button):
-        homing_error_button.value = 1
-
     def recordingHelper(log_queue):
-        global recording, avi_recorder, step_tracking_data, timestamp, start_time,avi_filename
-        if not recording:
-            recording,avi_recorder,step_tracking_data,timestamp,avi_filename = recordingStart(recording,chosenAviType,fps,width,height,log_queue)
-            start_time = datetime.now()
+        global step_tracking_data, timestamp, avi_filename
+        if not states.recording:
+            states.recording,states.avi_recorder,step_tracking_data,timestamp,avi_filename = recordingStart(states.recording,states.chosenAviType,fps,width,height,log_queue)
+            states.start_time = datetime.now()
 
-    def saveHelper(log_queue):
-        global recording, start_time
-        if recording:
-            recording = recordingSave(recording,avi_recorder,timestamp,step_tracking_data,log_queue)
-            start_time = datetime.now() 
-    
-    def trackingHelper(log_queue):
-        global tracking
-        tracking = not tracking
-        log(f"*Tracking turned {'on' if tracking else 'off'}*",log_queue)
-
-    def trackingMotors(log_queue):
-        global motors
-        motors = not motors
-        log(f"*Motors controlled by tracking turned {'on' if motors else 'off'}*",log_queue)
-
-    
     def borderHelper(is_jf_mode,log_queue):
-        global boundary, boundary_making
-        boundary_making,boundary = boundaryControl(boundary_making,boundary,is_jf_mode,log_queue)
+        global boundary
+        states.boundary_making,boundary = boundaryControl(states.boundary_making,boundary,is_jf_mode,log_queue)
 
     def borderCancelHelper(log_queue):
-        global boundary, boundary_making
-        boundary_making, boundary = boundaryCancel(boundary_making, boundary, log_queue)
-
-    def borderShowHelper():
-        global show_boundary
-        show_boundary = not show_boundary
+        global boundary
+        states.boundary_making, boundary = boundaryCancel(states.boundary_making, boundary, log_queue)
 
     def borderLoadHelper():
         global boundary
@@ -400,52 +199,40 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
         nonlocal crosshair_x, crosshair_y
         crosshair_x,crosshair_y = pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,width,height,is_jf_mode, log_queue)
 
-    def verboseHelper(log_queue):
-        global verbose
-        verbose = not verbose
-        if verbose:
-            log("^^^ Turning on the verbose descriptions of output from tracking model. Only use for debugging. ^^^",log_queue)
-        else:
-            log("^^^ Turning off verbose mode ^^^", log_queue)
-    def openHelp(log_queue):
-        os.startfile("C:\\Users\\JellyTracker\\Desktop\\HelpDoc.pdf")
-        log("!!!! Opening help document pdf on the desktop. !!!!", log_queue)
     rolling_log = RollingLog()
-    def clear_log_callback(rolling_log):
-        rolling_log.clear()
-        log("New Terminal:",log_queue)
     button_x = window.get_width() - 130  # inside terminal panel left margin
     button_y = 5
     button_width = 120
     button_height = 20
-
     onOffColors = [(50, 50, 100),(0, 150, 255)]
     calColors = [(50, 50, 100),(38, 75, 139),(25, 100, 178),(13, 125, 216),(0, 150, 255)]
+
     buttons = [
-       Button(330, 570, 150, 50, "Record", lambda: recordingHelper(log_queue),get_color=lambda: onOffColors[recording]),
-       Button(330, 630, 150, 50, "Tracking", lambda: trackingHelper(log_queue), get_color=lambda: onOffColors[tracking]),
-       Button(330, 690, 150, 50, "Motors on for Tracking", lambda: trackingMotors(log_queue),get_color=lambda: onOffColors[motors]),
+       Button(330, 570, 150, 50, "Record", lambda: recordingHelper(log_queue),get_color=lambda: onOffColors[states.recording]),
+       Button(330, 630, 150, 50, "Tracking", lambda: trackingHelper(log_queue), get_color=lambda: onOffColors[states.tracking]),
+       Button(330, 690, 150, 50, "Motors on for Tracking", lambda: trackingMotors(log_queue),get_color=lambda: onOffColors[states.motors]),
        Button(330, 750, 150, 50, "Arrow Manual Control", lambda: keyBindsControl(keybinds_flag,log_queue), get_color=lambda: onOffColors[not keybinds_flag.value]),
        
-       Button(490, 570, 150, 50, "Save Video", lambda: saveHelper(log_queue)),
+       Button(490, 570, 150, 50, "Save Video", lambda: saveHelper(log_queue, timestamp, step_tracking_data)),
        Button(490, 630, 150, 50, "Home", lambda: homing_set(homing_button), get_color=lambda: onOffColors[homing_button.value]),
        Button(490, 690, 150, 50, "Home with Error Check", lambda: homing_set_with_error(homing_error_button),get_color=lambda: onOffColors[homing_error_button.value]),
        Button(490, 750, 150, 50, "Help", lambda: openHelp(log_queue)),       
        
-       Button(650, 570, 150, 50, "Make Border", lambda: borderHelper(is_jf_mode, log_queue),get_color=lambda: onOffColors[boundary_making]),
+       Button(650, 570, 150, 50, "Make Border", lambda: borderHelper(is_jf_mode, log_queue),get_color=lambda: onOffColors[states.boundary_making]),
        Button(650, 630, 150, 50, "Cancel Border", lambda: borderCancelHelper(log_queue)),
-       Button(650, 690, 150, 50, "Show Border", lambda: borderShowHelper(),get_color=lambda: onOffColors[show_boundary]),
+       Button(650, 690, 150, 50, "Show Border", lambda: borderShowHelper(),get_color=lambda: onOffColors[states.show_boundary]),
        Button(650, 750, 150, 50, "Load Border", lambda: borderLoadHelper()),
        
        Button(810, 570, 150, 50, "Steps Calibration", lambda: stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,is_jf_mode, log_queue),get_color=lambda: calColors[step_to_mm_checking.value]),
        Button(810, 630, 150, 50, "Pixels Calibration", lambda: pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode, log_queue),get_color=lambda: calColors[pixelsCal_flag.value]),
        Button(810, 690, 150, 50, "Change Mode", lambda: change_mode(is_jf_mode,x_pos,y_pos,step_size,log_queue)),
-       Button(810, 750, 150, 50, "Tracking Verbose", lambda: verboseHelper(log_queue),get_color=lambda: onOffColors[verbose]),
+       Button(810, 750, 150, 50, "Tracking Verbose", lambda: verboseHelper(log_queue),get_color=lambda: onOffColors[states.verbose]),
        
        Button(button_x, button_y, button_width, button_height,
-                        "Clear Term", lambda: clear_log_callback(rolling_log),
+                        "Clear Term", lambda: clear_log_callback(rolling_log,log_queue),
                         get_color=lambda: (255, 50, 50))  # red button
-    ]  
+    ]
+    
     scroll_offset = 0
     scroll_speed = 3
     is_dragging_scrollbar = False
@@ -457,21 +244,21 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
     column_width = window.get_width() - column_start_x
     max_width = column_width - 2 * margin - scrollbar_width
 
-    while running:
+    while states.running:
         window.fill((0, 0, 0))  # Clear full window
 
         mouse_pos = pygame.mouse.get_pos()
         mouse_pressed = pygame.mouse.get_pressed()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                if recording:
-                    cont, recording = popup_save_recording(window, font, recordingSave, avi_recorder, timestamp, step_tracking_data, recording, avi_filename, log_queue)
+                if states.recording:
+                    cont, states.recording = popup_save_recording(window, font, recordingSave, states.avi_recorder, timestamp, step_tracking_data, states.recording, avi_filename, log_queue)
                     if not cont:
-                        running = False
+                        states.running = False
                         terminate_event.set()
                         running_flag.value = False
                 else:
-                    running = False
+                    states.running = False
                     terminate_event.set()
                     running_flag.value = False
                     break
@@ -570,15 +357,15 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
             button.handle_event(event, mouse_pos, mouse_pressed)
             button.draw(window)
 
-        if boundary_making:
+        if states.boundary_making:
             boundary.append((x_pos.value,y_pos.value))
-        if shared_image is not None:
+        if states.shared_image is not None:
             # Handle recording
-            if recording and avi_recorder is not None:
-                avi_recorder.write(shared_image)
+            if states.recording and states.avi_recorder is not None:
+                states.avi_recorder.write(states.shared_image)
 
             # Convert webcam image for pygame display
-            rgb_frame = cv2.cvtColor(shared_image, cv2.COLOR_BGR2RGB)
+            rgb_frame = cv2.cvtColor(states.shared_image, cv2.COLOR_BGR2RGB)
             height, width, channels = rgb_frame.shape
             py_image = pygame.surfarray.make_surface(rgb_frame.swapaxes(0, 1))
             # py_image = pygame.transform.scale(py_image, (window_width, window_height))
@@ -614,7 +401,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
             except queue.Empty:
                 trackingFoundSomething = False
 
-            if show_boundary: 
+            if states.show_boundary: 
                 if boundary != []: # boundary is currently in steps
                     xs, ys = x_pos.value, y_pos.value
                     dx = mm_to_steps(pixels_to_mm(width//2, is_jf_mode), is_jf_mode)
@@ -630,15 +417,15 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
                         pygame.draw.circle(window, (0, 0, 255), (b[0], b[1]), 5)  
     
 
-            current_time = datetime.now() - start_time  # This is a timedelta object
+            current_time = datetime.now() - states.start_time  # This is a timedelta object
             elapsed_seconds = int(current_time.total_seconds())
             hours, remainder = divmod(elapsed_seconds, 3600)
             minutes, seconds = divmod(remainder, 60)
-            if recording:
+            if states.recording:
                 pygame.draw.circle(window, (255, 0, 0), (width-20,20), 8)
 
             # Determine status values
-            if tracking:
+            if states.tracking:
                 if trackingFoundSomething:
                     tracking_status = "Tracking On | Status: [OK]"
                 else:
@@ -647,12 +434,12 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
                 tracking_status = "Tracking Off"
 
             status_text = (
-                f"{'● Recording' if recording else 'Not Recording'}\n"
+                f"{'● Recording' if states.recording else 'Not Recording'}\n"
                 f"Duration: {hours:02}:{minutes:02}:{seconds:02}\n"
                 f"{tracking_status}\n"
                 f" \n"
-                f"{'Tracking Motors: On' if motors else 'Tracking Motors: Off'}\n"
-                f"{'Boundary Visualization: On' if show_boundary else 'Boundary Visualization: Off'}\n"
+                f"{'Tracking Motors: On' if states.motors else 'Tracking Motors: Off'}\n"
+                f"{'Boundary Visualization: On' if states.show_boundary else 'Boundary Visualization: Off'}\n"
                 f"Mode: {mode_string(is_jf_mode)}"
             )
 
@@ -661,7 +448,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
 
             for line in lines:
                 if ("Recording" in line) or ("Duration" in line):
-                    color = (255, 80, 80) if recording else (173, 216, 230)  # red if recording else light blue
+                    color = (255, 80, 80) if states.recording else (173, 216, 230)  # red if recording else light blue
                 elif "[OK]" in line:
                     color = (0, 180, 0)  # green
                 elif "[FAIL]" in line:
@@ -684,9 +471,9 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
             last_frame_time = current_time
             log(f"FPS: {frames:.1f}",log_queue)
     
-    if recording and avi_recorder:
-        avi_recorder.release()
-        avi_recorder = None
+    if states.recording and states.avi_recorder:
+        states.avi_recorder.release()
+        states.avi_recorder = None
     
     acq_thread.join()
     tracking_thread.join()

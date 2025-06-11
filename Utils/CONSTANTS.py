@@ -15,3 +15,7 @@ CONSTANTS["Lmaxes"] = tuple(int(x * step_ratio) for x in CONSTANTS["JFmaxes"])
 CONSTANTS["JFStepsPerMm"] = CONSTANTS["JFStepPerRev"] / CONSTANTS["LeadScrewMm"]  # default b/c 2000 steps per rev, 8mm lead on the screw, also note step_angle = 0.18 deg
 CONSTANTS["LStepsPerMm"] = CONSTANTS["LStepPerRev"] / CONSTANTS["LeadScrewMm"]  # default b/c 12800 steps per rev, 8mm lead on the screw, also note step_angle = 0.028125 deg
 
+class AviType:
+    UNCOMPRESSED = 0
+    MJPG = 1
+    H264 = 2

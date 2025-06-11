@@ -7,6 +7,9 @@ import logging
 logging.getLogger('matplotlib').setLevel(logging.ERROR)
 from Utils.log import log
 import matplotlib.pyplot as plt
+import tkinter as tk
+from tkinter import filedialog
+
 # boundaries
 # saved as csv file w/ 2 columns, x,y in mm
 # load in as list of (x,y) points in mm
@@ -21,6 +24,21 @@ def save_boundaries(filename, points,log_queue):
         for x, y in points:
             f.write(f"{x},{y}\n")
     log(f"Boundaries saved to {filename}",log_queue)
+
+def load_boundary(is_jf_mode, log_queue):
+    root = tk.Tk()
+    root.withdraw()
+    file_path = filedialog.askopenfilename(title="Select a File", filetypes=[("CSV files", "*.csv"), ("All Files", "*.*")])
+    if file_path:  # If a file was selected
+        log(f"Selected file: {file_path}",log_queue)
+        try:
+            boundary_mm = load_boundaries(file_path)
+            return boundary_to_steps(boundary_mm,is_jf_mode)
+        except:
+            log('Incorrect file loaded',log_queue)
+    else:
+        log("No file selected.",log_queue)
+        return []
 
 def load_boundaries(filename):
     """Load boundary points from a CSV file.
