@@ -95,9 +95,9 @@ HomingResult homeAxis() {
   homeSetY = false;
 
   // Set speed, acceleration, and step size for homing process
-  int homingSpeed = 40000;       // Max speed during homing
+  int homingSpeed = 20000;       // Max speed during homing
   int homingAcceleration = 22000; // Acceleration during homing
-  int homingSteps = 2000;         // Steps to move during homing
+  int homingSteps = 1000;         // Steps to move during homing
 
   // Apply homing settings to both steppers
   stepperX.setMaxSpeed(homingSpeed);
@@ -108,6 +108,26 @@ HomingResult homeAxis() {
   Serial.println("Homing mode started");
   int startX = stepperX.currentPosition(); // Get starting position
   int startY = stepperY.currentPosition(); // Get starting position
+  int endX = 0;
+  int endY = 0;
+  
+   // Pre-check for already pressed switches
+  if (digitalRead(X_LIMIT_SWITCH_PIN) == LOW) {
+    Serial.println("X-axis already on limit switch");
+    homeSetX = true;
+    stepperX.setCurrentPosition(0);
+    cumulativeTargetX = 0;
+    endX = 0;
+  }
+
+  if (digitalRead(Y_LIMIT_SWITCH_PIN) == LOW) {
+    Serial.println("Y-axis already on limit switch");
+    homeSetY = true;
+    stepperY.setCurrentPosition(0);
+    cumulativeTargetY = 0;
+    endY = 0;
+  }
+  
   // Continuously move both axes until their respective limit switches are hit
   while (!homeSetX || !homeSetY) {
     // If the X-axis hasn't reached the limit switch, move it
@@ -118,6 +138,7 @@ HomingResult homeAxis() {
       if (digitalRead(X_LIMIT_SWITCH_PIN) == LOW) {
         delay(1); // Wait 1ms for stability
         if (digitalRead(X_LIMIT_SWITCH_PIN) == LOW) { 
+          endX = stepperX.currentPosition(); // Get final position
           stepperX.setCurrentPosition(0);
           cumulativeTargetX = 0;
           Serial.println("X-axis limit switch hit");
@@ -134,6 +155,7 @@ HomingResult homeAxis() {
       if (digitalRead(Y_LIMIT_SWITCH_PIN) == LOW) {
         delay(1); // Wait 1ms for stability
         if (digitalRead(Y_LIMIT_SWITCH_PIN) == LOW) { 
+          endY = stepperY.currentPosition(); // Get final position
           stepperY.setCurrentPosition(0);
           cumulativeTargetY = 0;
           Serial.println("Y-axis limit switch hit");
@@ -143,9 +165,7 @@ HomingResult homeAxis() {
       }
     }
   }
-  int endX = stepperX.currentPosition(); // Get final position
   result.stepsX += abs(endX - startX); // Count only actual steps taken
-  int endY = stepperY.currentPosition(); // Get final position
   result.stepsY += abs(endY - startY); // Count only actual steps taken
 
   Serial.println("Homing complete for both axes");

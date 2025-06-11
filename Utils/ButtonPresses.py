@@ -14,7 +14,7 @@ def homingSteps(is_jf_mode, command_queue,homing_flag,x_pos,y_pos,log_queue):
     else:
         command_queue.put('HOMING\n')
         homing_flag.value = True
-        log("Homing process started...",log_queue)
+        log("*****Homing process started...*****",log_queue)
         while homing_flag.value:
             time.sleep(0.1)
         x_pos.value, y_pos.value = 0, 0
@@ -25,11 +25,10 @@ def homingStepsWithErrorCheck(is_jf_mode,command_queue,homing_flag,x_pos,y_pos,l
     else:
         command_queue.put(f'ERRORCHECK_{x_pos.value}_{y_pos.value}\n')
         homing_flag.value = True
-        log("Error process starting...",log_queue)
+        log("*****Error process starting...*****",log_queue)
         while homing_flag.value:
             time.sleep(0.1)
         x_pos.value, y_pos.value = 0, 0
-        log("Error Check Completed.",log_queue)
 
 start_loc = (0,0)
 steps_per_mm_list = []

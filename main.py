@@ -66,7 +66,7 @@ def wait_for_homing_completion(ser, log_queue):
             response = ser.readline().decode('utf-8').strip()
             log(f"Arduino: {response}",log_queue)
             if response == "Homing complete":
-                log("Homing completed successfully.",log_queue)
+                log("*****Homing completed successfully.*****",log_queue)
                 break
         else:
             time.sleep(0.1)
@@ -81,15 +81,13 @@ def wait_for_errorcheck_completion(ser,is_jf_mode, log_queue):
             log(f"Arduino: {response}",log_queue)
             if "X Error in Motor Steps:" in response:
                 x_error_steps = int(response.split(":")[1].strip())
-                log(f"X Error stored: {x_error_steps}",log_queue)
             if "Y Error in Motor Steps:" in response:
                 y_error_steps = int(response.split(":")[1].strip())
-                log(f"Y Error stored: {y_error_steps}",log_queue)
             if response == "Error check complete.":
                 x_error_mm = JellyTrackingFunctions.steps_to_mm(x_error_steps,is_jf_mode)
                 y_error_mm = JellyTrackingFunctions.steps_to_mm(y_error_steps,is_jf_mode)
                 log(f"X Error [mm]: {x_error_mm}, Y Error [mm]: {y_error_mm}",log_queue)
-                log("Error check complete.",log_queue)
+                log("*****Error check complete.*****",log_queue)
                 break
         else:
             time.sleep(0.1)

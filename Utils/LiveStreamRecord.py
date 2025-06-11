@@ -446,7 +446,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
     margin = 10
     column_width = window.get_width() - column_start_x
     max_width = column_width - 2 * margin - scrollbar_width
-    print("HERE:", max_width)
+
     while running:
         window.fill((0, 0, 0))  # Clear full window
 
@@ -650,7 +650,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
             y_offset = 570
 
             for line in lines:
-                if "Recording" in line:
+                if ("Recording" in line) or ("Duration" in line):
                     color = (255, 80, 80) if recording else (173, 216, 230)  # red if recording else light blue
                 elif "[OK]" in line:
                     color = (0, 180, 0)  # green
