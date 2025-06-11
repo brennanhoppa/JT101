@@ -1,4 +1,3 @@
-import subprocess
 import multiprocessing
 import time
 import os
@@ -10,7 +9,6 @@ logging.getLogger('matplotlib').setLevel(logging.ERROR)
 import Utils.JellyTrackingFunctions as JellyTrackingFunctions
 from Utils.ManualMotorInput import run_motor_input
 from Utils.LiveStreamRecord import run_live_stream_record
-from Utils.CONTROLS import CONTROLS
 from Utils.CONSTANTS import CONSTANTS
 from Utils.log import log
 log_queue = multiprocessing.Queue()
@@ -30,7 +28,6 @@ def get_x_y(log_queue):
                 x_pos, y_pos = int(x_pos), int(y_pos)  # Convert to integers
             else:
                 raise ValueError("Incorrect formatting")
-
     except (FileNotFoundError, ValueError) as e:
         log(f"Error reading {file_path}: {e}",log_queue)
         x_pos, y_pos = 0,0
@@ -101,7 +98,6 @@ def serial_process(command_queue,homing_flag,terminate_event,is_jf_mode, log_que
         log(f"Serial connection failed: {e}",log_queue)
         terminate_event.set()  # Signal other processes to terminate
         return  # Exit this process
-
     while True:    
         command = command_queue.get()
         
@@ -157,5 +153,4 @@ if __name__ == "__main__":
 
     command_queue.put("EXIT")
     serial_proc.join()
-
     print("Both scripts have finished executing.")

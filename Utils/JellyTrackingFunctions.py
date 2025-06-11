@@ -1,6 +1,5 @@
 import numpy as np
 import logging
-# Logging setup
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 import cv2 #type: ignore
@@ -246,30 +245,6 @@ def detect_flashlight(image_ptr):
             largest_centroid = (int(np.mean(x)), int(np.mean(y)))
     
     return largest_centroid
-
-# def calculate_movement(flashlight_pos, center_x, center_y):
-#     if not flashlight_pos:
-#         return None, None
-
-#     fx, fy = flashlight_pos
-#     dx = fx - center_x
-#     dy = center_y - fy  # Invert y-axis to match Cartesian coordinates
-
-#     # Ignore very small movements
-#     if abs(dx) < DEAD_ZONE and abs(dy) < DEAD_ZONE:
-#         return None, None
-
-#     # Calculate step sizes with adjusted sensitivity
-#     step_x = int(np.clip(dx * MOVE_MULTIPLIER, -MAX_STEP_SIZE, MAX_STEP_SIZE))
-#     step_y = int(np.clip(dy * MOVE_MULTIPLIER, -MAX_STEP_SIZE, MAX_STEP_SIZE))
-
-#     # Ensure minimum step size for quicker response
-#     if 0 < abs(step_x) < MIN_STEP_SIZE:
-#         step_x = MIN_STEP_SIZE if step_x > 0 else -MIN_STEP_SIZE
-#     if 0 < abs(step_y) < MIN_STEP_SIZE:
-#         step_y = MIN_STEP_SIZE if step_y > 0 else -MIN_STEP_SIZE
-
-#     return step_x, step_y
 
 def track_cumulative_steps(step_x, step_y, cumulative_steps, recording):
     if recording:

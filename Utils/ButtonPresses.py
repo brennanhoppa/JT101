@@ -2,8 +2,7 @@
 import time
 from datetime import datetime
 import cv2 #type: ignore
-from Utils.Boundaries import save_boundaries, boundary_to_steps, boundary_to_mm_from_steps, boundary_to_pixels_from_steps, load_boundaries
-from Utils.CONTROLS import CONTROLS
+from Utils.Boundaries import save_boundaries, boundary_to_mm_from_steps
 from Utils.CALIBRATIONPIECE_MM import CALIBRATIONPIECE_MM
 from Utils.CONSTANTS import CONSTANTS
 from Utils.log import log
@@ -169,9 +168,9 @@ def keyBindsControl(keybinds_flag,log_queue):
     # time.sleep(0.2)
 
 class AviType:
-        UNCOMPRESSED = 0
-        MJPG = 1
-        H264 = 2
+    UNCOMPRESSED = 0
+    MJPG = 1
+    H264 = 2
     
 def recordingStart(recording,chosenAviType,fps,width,height,log_queue):
     recording = True

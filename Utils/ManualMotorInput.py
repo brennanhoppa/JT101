@@ -1,9 +1,7 @@
 import keyboard # type: ignore
 import time
 import Utils.JellyTrackingFunctions as JellyTrackingFunctions
-import os
-from Utils.ButtonPresses import stepsCalibration, homingSteps, homingStepsWithErrorCheck,keyBindsControl, change_mode
-from Utils.CONTROLS import CONTROLS
+from Utils.ButtonPresses import homingSteps, homingStepsWithErrorCheck
 from Utils.CONSTANTS import CONSTANTS
 from Utils.log import log
 
@@ -39,7 +37,6 @@ def move(x_pos, y_pos, x_direction, y_direction, command_queue, is_jf_mode, log_
         if msg:
             if abs(time.time() % 0.25) < 0.01:
                 log(f"{msg}. Pos: X={x_pos.value}, Y={y_pos.value}", log_queue)
-
         return x_pos, y_pos
 
 def save_position(x_pos, y_pos, file_path,log_queue):
@@ -50,7 +47,6 @@ def save_position(x_pos, y_pos, file_path,log_queue):
     except Exception as e:
         log(f"Error writing to {file_path}: {e}",log_queue)
 
-
 def save_mode(mode, file_path,log_queue):
     try:
         with open(file_path, "w") as file:
@@ -59,13 +55,11 @@ def save_mode(mode, file_path,log_queue):
     except Exception as e:
         log(f"Error writing to {file_path}: {e}",log_queue)
 
-
 def run_motor_input(x_pos,y_pos,file_path_xy,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode,file_path_mode,terminate_event,running_flag, step_size,homing_button,homing_error_button,log_queue):
     # Main loop for reading input and controlling motors
     try:
         while True:
             x_dir, y_dir = 0, 0
-            
             if keybinds_flag.value:
                 # Check for arrow key inputs
                 if pixelsCal_flag.value == 0 or pixelsCal_flag.value == 1:
@@ -77,7 +71,6 @@ def run_motor_input(x_pos,y_pos,file_path_xy,command_queue,homing_flag,keybinds_
                         x_dir = -step_size.value
                     if keyboard.is_pressed('right'):
                         x_dir = step_size.value
-                
                     # Move if any direction is pressed
                     if x_dir != 0 or y_dir != 0:
                         x_pos, y_pos = move(x_pos, y_pos, x_dir, y_dir, command_queue,is_jf_mode, log_queue)
@@ -99,7 +92,6 @@ def run_motor_input(x_pos,y_pos,file_path_xy,command_queue,homing_flag,keybinds_
         save_mode(is_jf_mode, file_path_mode,log_queue)
         log("Program terminated by user",log_queue)
 
-        
     finally:
         save_position(x_pos,y_pos,file_path_xy,log_queue)
         save_mode(is_jf_mode, file_path_mode,log_queue)
