@@ -3,7 +3,7 @@ import os
 from Utils.Button import Button
 pygame.init()
 
-def popup_save_recording(window, font, recordingSave, avi_recorder, timestamp, step_tracking_data, recording, avi_filename):
+def popup_save_recording(window, font, recordingSave, avi_recorder, timestamp, step_tracking_data, recording, avi_filename, log_queue):
     popup_width, popup_height = 400, 150
     window_width, window_height = window.get_size()
     popup_rect = pygame.Rect(
@@ -40,12 +40,11 @@ def popup_save_recording(window, font, recordingSave, avi_recorder, timestamp, s
 
         if result["choice"] == "yes":
             recording = recordingSave(recording=recording, avi_recorder=avi_recorder,
-                                       timestamp=timestamp, step_tracking_data=step_tracking_data)
+                                       timestamp=timestamp, step_tracking_data=step_tracking_data, log_queue=log_queue)
             return False, recording
         elif result["choice"] == "no":
             if os.path.exists(avi_filename):
                 os.remove(avi_filename)
-                print("Nothing saved")
             return False, recording
 
         # Dim background

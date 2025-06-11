@@ -5,13 +5,13 @@ except:
 import logging
 # Logging setup
 logging.getLogger('matplotlib').setLevel(logging.ERROR)
-
+from Utils.log import log
 import matplotlib.pyplot as plt
 # boundaries
 # saved as csv file w/ 2 columns, x,y in mm
 # load in as list of (x,y) points in mm
 
-def save_boundaries(filename, points):
+def save_boundaries(filename, points,log_queue):
     """Save boundary points to a CSV file.
     saved in mm,mm
     """
@@ -20,7 +20,7 @@ def save_boundaries(filename, points):
         f.write("x,y\n")
         for x, y in points:
             f.write(f"{x},{y}\n")
-    print(f"Boundaries saved to {filename}")
+    log(f"Boundaries saved to {filename}",log_queue)
 
 def load_boundaries(filename):
     """Load boundary points from a CSV file.

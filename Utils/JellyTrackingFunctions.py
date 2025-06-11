@@ -8,6 +8,7 @@ import time
 from ultralytics import YOLO # type: ignore
 import threading
 from Utils.CONSTANTS import CONSTANTS
+from Utils.log import log
 
 # Constants
 DEAD_ZONE = 20  # Minimum movement threshold to ignore small movements
@@ -24,7 +25,7 @@ HALF_PRECISION = True  # Enable FP16 inference if supported
 modelJF = YOLO(MODEL_PATH_JF)
 modelLarvae = YOLO(MODEL_PATH_LARVAE)
 
-def detect_jellyfish(frame, detect_light, is_jf_mode):
+def detect_jellyfish(frame, detect_light, is_jf_mode, log_queue):
     """
     Uses the YOLO model to detect jellyfish in a given frame.
     
@@ -33,19 +34,19 @@ def detect_jellyfish(frame, detect_light, is_jf_mode):
     """
     # Check if the frame is valid
     if frame is None:
-        print("Warning: Frame is None, skipping detection.")
+        log("Warning: Frame is None, skipping detection.",log_queue)
         return None
     
     # Ensure the frame is a NumPy array
     if not isinstance(frame, np.ndarray):
-        print("Warning: Frame is not a valid NumPy array.")
+        log("Warning: Frame is not a valid NumPy array.",log_queue)
         return None
 
     # Resize frame for faster processing
     try:
         frame_resized = cv2.resize(frame, (IMG_SIZE, IMG_SIZE))
     except cv2.error as e:
-        print(f"Error during resize: {e}")
+        log(f"Error during resize: {e}",log_queue)
         return None
 
     if detect_light:
@@ -70,7 +71,6 @@ def detect_jellyfish(frame, detect_light, is_jf_mode):
             return None 
         cx = int(M['m10'] / M['m00'])
         cy = int(M['m01'] / M['m00'])
-        # print(f'made to the end, cx:{cx}, cy:{cy}')
         return (cx, cy), (0,0,0,0)
     
     if is_jf_mode.value == 0: # larvae tracking
@@ -269,10 +269,3 @@ def track_cumulative_steps(step_x, step_y, cumulative_steps, recording):
         timestamp = time.time()
         return (cumulative_steps['x'], cumulative_steps['y'], timestamp)
     return None
-
-def save_tracking_data(filename, step_tracking_data):
-    with open(filename, 'w') as f:
-        f.write("x,y,t\n")
-        for x, y, t in step_tracking_data:
-            f.write(f"{x},{y},{t}\n")
-    print(f"Tracking data saved to {filename}")

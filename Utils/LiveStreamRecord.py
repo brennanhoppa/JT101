@@ -79,8 +79,24 @@ class RollingLog:
     def get_visible_lines(self, start_index, num_lines):
         return self.lines[start_index:start_index + num_lines]
 
-    def total_lines(self):
-        return len(self.lines)
+    def total_lines(self, font=pygame.font.SysFont("consolas", 16), max_width=(400 - 2 * 10 - 8)):
+        if font is None or max_width is None:
+            return len(self.lines)  # fallback
+
+        count = 0
+        for line in self.lines:
+            i = 0
+            while i < len(line):
+                j = i + 1
+                while j <= len(line):
+                    slice = line[i:j]
+                    width = font.render(slice, True, (0, 0, 0)).get_width()
+                    if width > max_width:
+                        break
+                    j += 1
+                count += 1
+                i = j - 1
+        return count
     
     def clear(self):
         self.lines.clear()
@@ -111,7 +127,7 @@ def draw_log_terminal(surface, rolling_log, scroll_offset=0, column_width=400, m
     y = top
 
     # Calculate how many lines fit in the panel
-    visible_lines_count = (panel_height - top) // line_height
+    visible_lines_count = panel_height // line_height
     total_lines = rolling_log.total_lines()
 
     # Clamp scroll_offset
@@ -148,11 +164,22 @@ def draw_log_terminal(surface, rolling_log, scroll_offset=0, column_width=400, m
 
     # Draw the scrollbar
     if total_lines > visible_lines_count:
-        scrollbar_height = int((visible_lines_count / total_lines) * panel_height)
-        scrollbar_pos = int((scroll_offset / total_lines) * panel_height)
+        # Scrollbar track starts at y = 35 (the horiz_bar position) and ends at bottom
+        scrollbar_track_top = 35
+        scrollbar_track_bottom = screen_height
+        scrollbar_track_height = scrollbar_track_bottom - scrollbar_track_top
+
+        scrollbar_height = int((visible_lines_count / total_lines) * scrollbar_track_height)
+        max_scroll_offset = total_lines - visible_lines_count
+
+        if max_scroll_offset > 0:
+            scrollbar_pos = int((scroll_offset / max_scroll_offset) * (scrollbar_track_height - scrollbar_height))
+        else:
+            scrollbar_pos = 0  # no scrolling needed
+
         scrollbar_rect = pygame.Rect(
             screen_width - scrollbar_width,
-            scrollbar_pos,
+            scrollbar_track_top + scrollbar_pos,
             scrollbar_width,
             scrollbar_height
         )
@@ -243,7 +270,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                     # detect_light = True # testing mode - returns x,y of brightest spot in frame
 
                     # Use YOLO to detect jellyfish position
-                    flashlight_pos, (x1,x2,y1,y2) = detect_jellyfish(image, detect_light, is_jf_mode)
+                    flashlight_pos, (x1,x2,y1,y2) = detect_jellyfish(image, detect_light, is_jf_mode,log_queue)
                     timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-2] 
                     if flashlight_pos:
                         # Calculate deltas
@@ -324,16 +351,16 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
     def homing_set_with_error(homing_error_button):
         homing_error_button.value = 1
 
-    def recordingHelper():
+    def recordingHelper(log_queue):
         global recording, avi_recorder, step_tracking_data, timestamp, start_time,avi_filename
         if not recording:
-            recording,avi_recorder,step_tracking_data,timestamp,avi_filename = recordingStart(recording,chosenAviType,fps,width,height)
+            recording,avi_recorder,step_tracking_data,timestamp,avi_filename = recordingStart(recording,chosenAviType,fps,width,height,log_queue)
             start_time = datetime.now()
 
-    def saveHelper():
+    def saveHelper(log_queue):
         global recording, start_time
         if recording:
-            recording = recordingSave(recording,avi_recorder,timestamp,step_tracking_data)
+            recording = recordingSave(recording,avi_recorder,timestamp,step_tracking_data,log_queue)
             start_time = datetime.now() 
     
     def trackingHelper():
@@ -344,13 +371,13 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
         global motors
         motors = not motors
     
-    def borderHelper(is_jf_mode):
+    def borderHelper(is_jf_mode,log_queue):
         global boundary, boundary_making
-        boundary_making,boundary = boundaryControl(boundary_making,boundary,is_jf_mode)
+        boundary_making,boundary = boundaryControl(boundary_making,boundary,is_jf_mode,log_queue)
 
-    def borderCancelHelper():
+    def borderCancelHelper(log_queue):
         global boundary, boundary_making
-        boundary_making, boundary = boundaryCancel(boundary_making, boundary)
+        boundary_making, boundary = boundaryCancel(boundary_making, boundary, log_queue)
 
     def borderShowHelper():
         global show_boundary
@@ -361,9 +388,9 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
         nonlocal log_queue
         boundary = load_boundary(is_jf_mode, log_queue)
 
-    def pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode):
+    def pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode, log_queue):
         nonlocal crosshair_x, crosshair_y
-        crosshair_x,crosshair_y = pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,width,height,is_jf_mode)
+        crosshair_x,crosshair_y = pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,width,height,is_jf_mode, log_queue)
 
     def openHelp():
         os.startfile("C:\\Users\\JellyTracker\\Desktop\\HelpDoc.pdf")
@@ -381,18 +408,18 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
     buttons = [
        Button(370, 570, 150, 50, "Home", lambda: homing_set(homing_button), get_color=lambda: onOffColors[homing_button.value]),
        Button(370, 630, 150, 50, "Home w EC", lambda: homing_set_with_error(homing_error_button),get_color=lambda: onOffColors[homing_error_button.value]),
-       Button(370, 690, 150, 50, "Steps Cal", lambda: stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,is_jf_mode),get_color=lambda: calColors[step_to_mm_checking.value]),
-       Button(370, 750, 150, 50, "Change Mode", lambda: change_mode(is_jf_mode,x_pos,y_pos,step_size)),
-       Button(530, 570, 150, 50, "Keybinds", lambda: keyBindsControl(keybinds_flag)),
-       Button(530, 630, 150, 50, "Record", lambda: recordingHelper(),get_color=lambda: onOffColors[recording]),
-       Button(530, 690, 150, 50, "Save Video", lambda: saveHelper()),
+       Button(370, 690, 150, 50, "Steps Cal", lambda: stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,is_jf_mode, log_queue),get_color=lambda: calColors[step_to_mm_checking.value]),
+       Button(370, 750, 150, 50, "Change Mode", lambda: change_mode(is_jf_mode,x_pos,y_pos,step_size,log_queue)),
+       Button(530, 570, 150, 50, "Keybinds", lambda: keyBindsControl(keybinds_flag,log_queue)),
+       Button(530, 630, 150, 50, "Record", lambda: recordingHelper(log_queue),get_color=lambda: onOffColors[recording]),
+       Button(530, 690, 150, 50, "Save Video", lambda: saveHelper(log_queue)),
        Button(530, 750, 150, 50, "Tracking", lambda: trackingHelper(), get_color=lambda: onOffColors[tracking]),
        Button(690, 570, 150, 50, "Tracking Motors", lambda: trackingMotors(),get_color=lambda: onOffColors[motors]),
-       Button(690, 630, 150, 50, "Make Border", lambda: borderHelper(is_jf_mode),get_color=lambda: onOffColors[boundary_making]),
-       Button(690, 690, 150, 50, "Cancel Border", lambda: borderCancelHelper()),
+       Button(690, 630, 150, 50, "Make Border", lambda: borderHelper(is_jf_mode, log_queue),get_color=lambda: onOffColors[boundary_making]),
+       Button(690, 690, 150, 50, "Cancel Border", lambda: borderCancelHelper(log_queue)),
        Button(690, 750, 150, 50, "Show Border", lambda: borderShowHelper(),get_color=lambda: onOffColors[show_boundary]),
        Button(850, 570, 150, 50, "Load Border", lambda: borderLoadHelper()),
-       Button(850, 630, 150, 50, "Pixels Cal", lambda: pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode),get_color=lambda: calColors[pixelsCal_flag.value]),
+       Button(850, 630, 150, 50, "Pixels Cal", lambda: pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode, log_queue),get_color=lambda: calColors[pixelsCal_flag.value]),
        Button(850, 690, 150, 50, "Help", lambda: openHelp()),       
        Button(button_x, button_y, button_width, button_height,
                         "Clear Term", lambda: clear_log_callback(rolling_log),
@@ -411,7 +438,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 if recording:
-                    cont, recording = popup_save_recording(window, font, recordingSave, avi_recorder, timestamp, step_tracking_data, recording, avi_filename)
+                    cont, recording = popup_save_recording(window, font, recordingSave, avi_recorder, timestamp, step_tracking_data, recording, avi_filename, log_queue)
                     if not cont:
                         running = False
                         terminate_event.set()
@@ -422,31 +449,34 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
                     running_flag.value = False
             
             elif event.type == pygame.MOUSEWHEEL:
-                scroll_offset -= event.y * scroll_speed
-                user_scrolled_up = True  # User has manually scrolled
-                # Clamp scroll_offset here if you want immediate clamping
-                total_lines = rolling_log.total_lines()
-                visible_lines = window.get_height() // 18
+                font = pygame.font.SysFont("consolas", 16)
+                max_width = 400 - 2 * 10 - 8
+                total_lines = rolling_log.total_lines(font, max_width)
+                visible_lines = (window.get_height() - 50) // 18
                 max_scroll = max(0, total_lines - visible_lines)
+
+                scroll_offset -= event.y * scroll_speed
                 scroll_offset = max(0, min(scroll_offset, max_scroll))
+                user_scrolled_up = scroll_offset < max_scroll
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_x, mouse_y = pygame.mouse.get_pos()
-                scrollbar_x = window.get_width() - 8  # scrollbar left edge
+                scrollbar_x = window.get_width() - 8  # Scrollbar left edge
                 scrollbar_width = 8
                 panel_height = window.get_height()
 
-                total_lines = rolling_log.total_lines()
-                visible_lines = panel_height // 18
-                if total_lines <= visible_lines:
-                    continue  # no scrollbar needed, so ignore click
+                font = pygame.font.SysFont("consolas", 16)
+                max_width = 400 - 2 * 10 - 8
+                total_lines = rolling_log.total_lines(font, max_width)
+                visible_lines = (panel_height - 50) // 18
 
+                if total_lines <= visible_lines:
+                    continue
                 scrollbar_height = int((visible_lines / total_lines) * panel_height)
                 scrollbar_track_height = panel_height - scrollbar_height
                 scrollbar_pos = int((scroll_offset / max(1, total_lines - visible_lines)) * scrollbar_track_height)
 
                 scrollbar_rect = pygame.Rect(scrollbar_x, scrollbar_pos, scrollbar_width, scrollbar_height)
-
                 if scrollbar_rect.collidepoint(mouse_x, mouse_y):
                     is_dragging_scrollbar = True
                     drag_start_y = mouse_y
@@ -458,21 +488,22 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
             elif event.type == pygame.MOUSEMOTION and is_dragging_scrollbar:
                 mouse_y = pygame.mouse.get_pos()[1]
                 delta_y = mouse_y - drag_start_y
-                user_scrolled_up = True
 
-                total_lines = rolling_log.total_lines()
-                visible_lines = window.get_height() // 18
+                font = pygame.font.SysFont("consolas", 16)
+                max_width = 400 - 2 * 10 - 8
+                total_lines = rolling_log.total_lines(font, max_width)
+                visible_lines = (window.get_height() - 50) // 18
                 max_scroll = max(0, total_lines - visible_lines)
 
-                # Scrollbar track height minus thumb height is the drag range
                 panel_height = window.get_height()
                 scrollbar_height = int((visible_lines / total_lines) * panel_height)
                 scrollbar_track_height = panel_height - scrollbar_height
 
                 if scrollbar_track_height > 0:
-                    # Convert drag delta to scroll offset proportionally
-                    scroll_offset = drag_start_offset + int((delta_y / scrollbar_track_height) * max_scroll)
+                    proportion = delta_y / scrollbar_track_height
+                    scroll_offset = drag_start_offset + int(proportion * max_scroll)
                     scroll_offset = max(0, min(scroll_offset, max_scroll))
+                    user_scrolled_up = scroll_offset < max_scroll
 
                 
         if pixelsCal_flag.value in (2,3):
@@ -495,8 +526,11 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
                 rolling_log.append(msg)
 
        # Auto-scroll logic
-        total_lines = rolling_log.total_lines()
-        visible_lines = window.get_height() // 18
+        font = pygame.font.SysFont("consolas", 16)
+        max_width = 400 - 2 * 10 - 8  # column_width - 2 * margin - scrollbar_width
+
+        total_lines = rolling_log.total_lines(font, max_width)
+        visible_lines = (window.get_height() - 50) // 18  # same as draw_log_terminal
         max_scroll = max(0, total_lines - visible_lines)
 
         if not user_scrolled_up:

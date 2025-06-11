@@ -88,10 +88,10 @@ def run_motor_input(x_pos,y_pos,file_path_xy,command_queue,homing_flag,keybinds_
                 break
             # GUI buttons pressed
             if homing_button.value == 1:
-                homingSteps(is_jf_mode, command_queue,homing_flag,x_pos,y_pos)
+                homingSteps(is_jf_mode, command_queue,homing_flag,x_pos,y_pos, log_queue)
                 homing_button.value = 0
             if homing_error_button.value == 1:
-                homingStepsWithErrorCheck(is_jf_mode, command_queue,homing_flag,x_pos,y_pos)
+                homingStepsWithErrorCheck(is_jf_mode, command_queue,homing_flag,x_pos,y_pos, log_queue)
                 homing_error_button.value = 0
             
     except KeyboardInterrupt:
