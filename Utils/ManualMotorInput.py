@@ -5,8 +5,9 @@ import os
 from Utils.ButtonPresses import stepsCalibration, homingSteps, homingStepsWithErrorCheck,keyBindsControl, change_mode
 from Utils.CONTROLS import CONTROLS
 from Utils.CONSTANTS import CONSTANTS
+from Utils.log import log
 
-def move(x_pos, y_pos, x_direction, y_direction, command_queue, is_jf_mode):       
+def move(x_pos, y_pos, x_direction, y_direction, command_queue, is_jf_mode, log_queue):       
         # Calculate new positions
         new_x = x_pos.value + x_direction
         new_y = y_pos.value + y_direction
@@ -28,35 +29,38 @@ def move(x_pos, y_pos, x_direction, y_direction, command_queue, is_jf_mode):
             y_pos.value = new_y
             # send_command(ser, f'{"U" if y_direction > 0 else "D"}{abs(y_direction)}')
             command_queue.put(f'{"U" if y_direction > 0 else "D"}{abs(y_direction)}\n')
-        # Print current position or axis limit warnings
-        if x_valid and y_valid:
-            # print(f"Current position: X={JellyTrackingFunctions.steps_to_mm(x_pos,y_pos)}, Y={JellyTrackingFunctions.steps_to_mm(x_pos,y_pos)}")
-            # print(f"Position: X={x_pos.value}, Y={y_pos.value}")
-            pass
-        else:
-            if not x_valid:
-                print(f"X axis limit reached. Current position: X={x_pos.value}, Y={y_pos.value}")
-            if not y_valid:
-                print(f"Y axis limit reached. Current position: X={x_pos.value}, Y={y_pos.value}")
+        msg = None
+        if not x_valid and not y_valid:
+            msg = "Both limits hit"
+        elif not x_valid:
+            msg = "X limit hit"
+        elif not y_valid:
+            msg = "Y limit hit"
+        if msg:
+            if abs(time.time() % 0.25) < 0.01:
+                log(f"{msg}. Pos: X={x_pos.value}, Y={y_pos.value}", log_queue)
+
         return x_pos, y_pos
 
-def save_position(x_pos, y_pos, file_path):
+def save_position(x_pos, y_pos, file_path,log_queue):
     try:
         with open(file_path, "w") as file:
             file.write(f"{x_pos.value}, {y_pos.value}")
-        print(f"Updated location saved: {x_pos.value}, {y_pos.value}")
+        log(f"Updated location saved: {x_pos.value}, {y_pos.value}",log_queue)
     except Exception as e:
-        print(f"Error writing to {file_path}: {e}")
+        log(f"Error writing to {file_path}: {e}",log_queue)
 
-def save_mode(mode, file_path):
+
+def save_mode(mode, file_path,log_queue):
     try:
         with open(file_path, "w") as file:
             file.write(f"{mode.value} # 0 means larvae, 1 means jellyfish\n")
-        print(f"Updated mode saved: {JellyTrackingFunctions.mode_string(mode)}")
+        log(f"Updated mode saved: {JellyTrackingFunctions.mode_string(mode)}",log_queue)
     except Exception as e:
-        print(f"Error writing to {file_path}: {e}")
+        log(f"Error writing to {file_path}: {e}",log_queue)
 
-def run_motor_input(x_pos,y_pos,file_path_xy,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode,file_path_mode,terminate_event,running_flag, step_size,homing_button,homing_error_button):
+
+def run_motor_input(x_pos,y_pos,file_path_xy,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode,file_path_mode,terminate_event,running_flag, step_size,homing_button,homing_error_button,log_queue):
     # Main loop for reading input and controlling motors
     try:
         while True:
@@ -76,11 +80,11 @@ def run_motor_input(x_pos,y_pos,file_path_xy,command_queue,homing_flag,keybinds_
                 
                     # Move if any direction is pressed
                     if x_dir != 0 or y_dir != 0:
-                        x_pos, y_pos = move(x_pos, y_pos, x_dir, y_dir, command_queue,is_jf_mode)
+                        x_pos, y_pos = move(x_pos, y_pos, x_dir, y_dir, command_queue,is_jf_mode, log_queue)
                         time.sleep(.013)  # Small delay to prevent rapid commands
         
             if running_flag.value == False:
-                print('Stopping program.')
+                log('Stopping program.',log_queue)
                 break
             # GUI buttons pressed
             if homing_button.value == 1:
@@ -91,11 +95,12 @@ def run_motor_input(x_pos,y_pos,file_path_xy,command_queue,homing_flag,keybinds_
                 homing_error_button.value = 0
             
     except KeyboardInterrupt:
-        save_position(x_pos,y_pos,file_path_xy)
-        save_mode(is_jf_mode, file_path_mode)
-        print("Program terminated by user")
+        save_position(x_pos,y_pos,file_path_xy,log_queue)
+        save_mode(is_jf_mode, file_path_mode,log_queue)
+        log("Program terminated by user",log_queue)
+
         
     finally:
-        save_position(x_pos,y_pos,file_path_xy)
-        save_mode(is_jf_mode, file_path_mode)
-        print("Serial connection closed")
+        save_position(x_pos,y_pos,file_path_xy,log_queue)
+        save_mode(is_jf_mode, file_path_mode,log_queue)
+        log("Serial connection closed",log_queue)

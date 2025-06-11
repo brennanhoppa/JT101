@@ -20,6 +20,7 @@ from Utils.CALIBRATIONPIECE_MM import CALIBRATIONPIECE_MM
 from Utils.Button import Button
 from Utils.savePopUp import popup_save_recording
 from Utils.log import log
+import textwrap
 
 NUM_IMAGES = 300
 name = 'TESTBINNING2'
@@ -120,24 +121,30 @@ def draw_log_terminal(surface, rolling_log, scroll_offset=0, column_width=400, m
     # Get visible lines
     lines = rolling_log.get_visible_lines(scroll_offset, visible_lines_count)
 
-    # Draw the text
     for line in lines:
-        words = line.split()
-        wrapped_line = ""
-        for word in words:
-            test_line = f"{wrapped_line} {word}".strip()
-            test_surf = font.render(test_line, True, text_color)
-            if test_surf.get_width() < (column_width - 2 * margin - scrollbar_width):
-                wrapped_line = test_line
-            else:
-                text_surf = font.render(wrapped_line, True, text_color)
-                surface.blit(text_surf, (x, y))
-                y += line_height
-                wrapped_line = word
-        if wrapped_line:
-            text_surf = font.render(wrapped_line, True, text_color)
+        i = 0
+        while i < len(line):
+            max_width = column_width - 2 * margin - scrollbar_width
+            j = i + 1
+            while j <= len(line):
+                slice = line[i:j]
+                width = font.render(slice, True, text_color).get_width()
+                if width > max_width:
+                    # Render up to character before it exceeds
+                    if j == i + 1:
+                        # Even one character doesn't fit (very narrow terminal)
+                        slice = line[i:j]
+                    else:
+                        slice = line[i:j-1]
+                        j -= 1
+                    break
+                j += 1
+
+            text_surf = font.render(slice, True, text_color)
             surface.blit(text_surf, (x, y))
             y += line_height
+            i = j
+
 
     # Draw the scrollbar
     if total_lines > visible_lines_count:
@@ -160,34 +167,31 @@ def webcam_image_to_pygame(frame):
     # Create pygame surface
     return pygame.surfarray.make_surface(rgb_frame.swapaxes(0, 1))
 
-def load_boundary(is_jf_mode):
+def load_boundary(is_jf_mode, log_queue):
     root = tk.Tk()
     root.withdraw()
     file_path = filedialog.askopenfilename(title="Select a File", filetypes=[("CSV files", "*.csv"), ("All Files", "*.*")])
     if file_path:  # If a file was selected
-        print(f"Selected file: {file_path}")
+        log(f"Selected file: {file_path}",log_queue)
         try:
             boundary_mm = load_boundaries(file_path)
             return boundary_to_steps(boundary_mm,is_jf_mode)
         except:
-            print('Incorrect file loaded')
+            log('Incorrect file loaded',log_queue)
     else:
-        print("No file selected.")
+        log("No file selected.",log_queue)
         return []
 
-def imageacq(cam):
+def imageacq(cam,log_queue):
     global running, shared_image, recording, avi_recorder
-    
     while running:
         try:
             ret, frame = cam.read()
             if ret:
                 # Convert for display
                 rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                
                 # Save frame for display
                 shared_image = frame
-
                 # Put in queue for tracking
                 if isinstance(frame, np.ndarray):
                     try:
@@ -199,18 +203,18 @@ def imageacq(cam):
                         except queue.Empty:
                             pass
                 else:
-                    print("Warning: Frame conversion failed; not a valid NumPy array.")
+                    log("Warning: Frame conversion failed; not a valid NumPy array.",log_queue)
             else:
-                print("Failed to capture frame from webcam")
+                log("Failed to capture frame from webcam",log_queue)
         except Exception as ex:
-            print(f'Error in image acquisition: {ex}')
+            log(f'Error in image acquisition: {ex}',log_queue)
     
     # Clean up video writer if it exists
     if avi_recorder is not None:
         avi_recorder.release()
 
 
-def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_jf_mode):
+def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_jf_mode,log_queue):
     global running, tracking, motors, recording, step_tracking_data
     last_tracking_time = time.time()
     
@@ -223,12 +227,12 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
 
                     # Verify that the image is a valid NumPy array
                     if not isinstance(image, np.ndarray):
-                        print("Warning: Image from queue is not a valid NumPy array.")
+                        log("Warning: Image from queue is not a valid NumPy array.",log_queue)
                         continue
                     
                     # Check the shape consistency
                     if image.ndim != 3 or image.shape[2] != 3:
-                        print(f"Warning: Unexpected image shape {image.shape}, converting to RGB.")
+                        log(f"Warning: Unexpected image shape {image.shape}, converting to RGB.",log_queue)
                         if image.ndim == 2:  # Grayscale image
                             image = np.stack((image,) * 3, axis=-1)
                         else:
@@ -244,7 +248,6 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                     if flashlight_pos:
                         # Calculate deltas
                         dx, dy = calculate_delta_Pixels(flashlight_pos, center_x, center_y)
-                        # print(dx,dy)
                         if recording:
                             # x_pos + dx thing and y !!!!!!!!!!!!!!
                             # mm position of jf in the global coords
@@ -267,9 +270,10 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                     last_tracking_time = current_time
             except queue.Empty:
                 # Handle case where no frame is available
-                print("Warning: Frame queue is empty; skipping tracking update.")
+                log("Warning: Frame queue is empty; skipping tracking update.",log_queue)
             except Exception as e:
-                print(f"Error in tracking thread: {e}")
+                pass
+                # log(f"Error in tracking thread: {e}",log_queue)
         time.sleep(0.001)  # Sleep briefly to prevent excessive CPU usage
 
 def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_button,homing_error_button,log_queue):
@@ -278,7 +282,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
     # Initialize webcam
     cap = cv2.VideoCapture(0)  # Use default webcam (index 0)
     if not cap.isOpened():
-        print("Error: Could not open webcam")
+        log("Error: Could not open webcam",log_queue)
         return False
     
     # Get camera properties
@@ -295,10 +299,10 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
     ensure_dir('saved_tracking_videos')
     ensure_dir('saved_tracking_csvs')
     
-    acq_thread = threading.Thread(target=imageacq, args=(cap,))
+    acq_thread = threading.Thread(target=imageacq, args=(cap,log_queue))
     acq_thread.start()
     
-    tracking_thread = threading.Thread(target=active_tracking_thread, args=(width // 2, height // 2, command_queue, x_pos, y_pos, is_jf_mode))
+    tracking_thread = threading.Thread(target=active_tracking_thread, args=(width // 2, height // 2, command_queue, x_pos, y_pos, is_jf_mode,log_queue))
     tracking_thread.start()
     
     clock = pygame.time.Clock()
@@ -354,7 +358,8 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
 
     def borderLoadHelper():
         global boundary
-        boundary = load_boundary(is_jf_mode)
+        nonlocal log_queue
+        boundary = load_boundary(is_jf_mode, log_queue)
 
     def pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode):
         nonlocal crosshair_x, crosshair_y
@@ -396,7 +401,8 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
     scroll_offset = 0
     scroll_speed = 3
     is_dragging_scrollbar = False
-    
+    user_scrolled_up = False
+
     while running:
         window.fill((0, 0, 0))  # Clear full window
 
@@ -417,6 +423,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
             
             elif event.type == pygame.MOUSEWHEEL:
                 scroll_offset -= event.y * scroll_speed
+                user_scrolled_up = True  # User has manually scrolled
                 # Clamp scroll_offset here if you want immediate clamping
                 total_lines = rolling_log.total_lines()
                 visible_lines = window.get_height() // 18
@@ -451,6 +458,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
             elif event.type == pygame.MOUSEMOTION and is_dragging_scrollbar:
                 mouse_y = pygame.mouse.get_pos()[1]
                 delta_y = mouse_y - drag_start_y
+                user_scrolled_up = True
 
                 total_lines = rolling_log.total_lines()
                 visible_lines = window.get_height() // 18
@@ -486,20 +494,17 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
                 msg = log_queue.get()
                 rolling_log.append(msg)
 
-        # Calculate scrolling limits
+       # Auto-scroll logic
         total_lines = rolling_log.total_lines()
         visible_lines = window.get_height() // 18
         max_scroll = max(0, total_lines - visible_lines)
 
-        # Auto-scroll if near bottom
-        near_bottom_threshold = 3  # lines, you can tweak this
-
-        if scroll_offset >= max_scroll - near_bottom_threshold:
-            scroll_offset = max_scroll  # auto-scroll to bottom
+        if not user_scrolled_up:
+            scroll_offset = max_scroll  # Stick to bottom when new logs come in
         else:
-            # Clamp scroll_offset within valid range if user scrolled manually
-            scroll_offset = max(0, min(scroll_offset, max_scroll))
-
+            scroll_offset = min(scroll_offset, max_scroll)  # Clamp
+        if scroll_offset >= max_scroll - 1:  # Close enough to bottom
+            user_scrolled_up = False
         # Draw the log terminal with current scroll offset
         draw_log_terminal(window, rolling_log, scroll_offset)
     
@@ -518,7 +523,6 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
             # Convert webcam image for pygame display
             rgb_frame = cv2.cvtColor(shared_image, cv2.COLOR_BGR2RGB)
             height, width, channels = rgb_frame.shape
-            # print("Number of Channels:", channels)
             py_image = pygame.surfarray.make_surface(rgb_frame.swapaxes(0, 1))
             # py_image = pygame.transform.scale(py_image, (window_width, window_height))
             py_image_mirror = pygame.transform.flip(py_image, True, False) # mirrored to have live stream make more
@@ -594,10 +598,9 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
         clock.tick(60)  # Keep at 60 FPS for smooth display
         
         frame_count += 1
-        if frame_count == 10: # normally 600 is good speed
+        if frame_count == 600: # normally 600 is good speed
             current_time = time.time()
-            frames = 10 / (current_time - last_frame_time)
-            print(f"FPS: {frames:.2f}")
+            frames = 600 / (current_time - last_frame_time)
             frame_count = 0
             last_frame_time = current_time
             log(f"FPS: {frames:.3f}",log_queue)
