@@ -41,13 +41,13 @@ def stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,is_jf_mode,log
     time.sleep(0.2)  # Short delay to prevent multiple triggers
     if step_to_mm_checking.value == 1:
         if len(steps_per_mm_list)==0 and is_jf_mode.value==1:
-            log(f'Move center camera x to the end of the length of the calibration piece, and press {CONTROLS["steps_to_mm"][0]} again. ',log_queue)
+            log(f'*Move center camera cross to the end of the length of the calibration piece, and click Steps Cal button again.',log_queue)
         elif len(steps_per_mm_list)==1 and is_jf_mode.value==1:
-            log(f'Move center camera x to the end of the width of the calibration piece, and press {CONTROLS["steps_to_mm"][0]} again. ',log_queue)
+            log(f'*Move center camera cross to the end of the width of the calibration piece, and click Steps Cal button again.',log_queue)
         elif len(steps_per_mm_list)==0 and is_jf_mode.value==0:
-            log(f'Move center camera x to one edge of the calibration piece, and press {CONTROLS["steps_to_mm"][0]} again. ',log_queue)
+            log(f'*Move center camera cross to one edge of the calibration piece, and click Steps Cal button again. ',log_queue)
         else:
-            log(f'Move center camera x to one edge of the calibration piece, and press {CONTROLS["steps_to_mm"][0]} again. ',log_queue)
+            log(f'*Move center camera cross to one edge of the calibration piece, and click Steps Cal button again. ',log_queue)
         step_size.value = 10 # normal is 95, try this / experiment 
         start_loc = (x_pos.value, y_pos.value)
         step_to_mm_checking.value = 2
@@ -73,12 +73,13 @@ def stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,is_jf_mode,log
                 log(f"Average Ratio of Steps/mm: {round(avg_ratio,2)}",log_queue)
                 log(f"Average Error: {round(avg_error,3)}%",log_queue)
                 log("If average percent error larger than 5 percent, consider changing theoretical steps/mm ratio (which is used as the conversion factor for saved data). ",log_queue)
+                log("*****Steps Calibration Complete*****",log_queue)
                 step_to_mm_checking.value = 0
                 steps_per_mm_list = []
                 step_size.value = CONSTANTS["JellyStepSizeManual"] if is_jf_mode.value == 1 else CONSTANTS["LarvaeStepSizeManual"]
             else:
                 step_to_mm_checking.value += 1
-                log(f'Press {CONTROLS["steps_to_mm"][0]} again to measure the other dimension',log_queue)
+                log(f'*Click Steps Cal button again to measure the other dimension',log_queue)
         else:
             distance = CALIBRATIONPIECE_MM['Thickness']
             dim = 'Thickness'
@@ -98,20 +99,22 @@ def stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,is_jf_mode,log
                 log(f"Average Ratio of Steps/mm: {round(avg_ratio,2)}",log_queue)
                 log(f"Average Error: {round(avg_error,3)}%", log_queue)
                 log("If average percent error larger than 5 percent, consider changing theoretical steps/mm ratio (which is used as the conversion factor for saved data). ",log_queue)
+                log("*****Steps Calibration Complete*****",log_queue)
                 step_to_mm_checking.value = 0
                 steps_per_mm_list = []
                 step_size.value = CONSTANTS["JellyStepSizeManual"] if is_jf_mode.value == 1 else CONSTANTS["LarvaeStepSizeManual"]
             else:
                 step_to_mm_checking.value += 1
-                log(f'Press {CONTROLS["steps_to_mm"][0]} again to the thickness again',log_queue)
+                log(f'*Click Steps Cal button again to the thickness again',log_queue)
     else:
+        log("*****Steps Calibration Start*****",log_queue)
         if is_jf_mode.value == 1:
             if len(steps_per_mm_list)==0:
-                log(f'Move center camera x to the corner of calibration piece to measure the length of the piece. Press {CONTROLS["steps_to_mm"][0]} again when there.',log_queue)
+                log(f'*Move center camera cross to the corner of calibration piece to measure the length of the piece. Click Steps Cal button again when there.',log_queue)
             else:
-                log(f'Move center camera x to the corner of calibration piece to measure the width of the piece. Press {CONTROLS["steps_to_mm"][0]} again when there.',log_queue)
+                log(f'*Move center camera cross to the corner of calibration piece to measure the width of the piece. Click Steps Cal button again when there.',log_queue)
         else:
-            log(f'Move center camera x to one edge of calibration piece to measure the thickness. Press {CONTROLS["steps_to_mm"][0]} again when there.',log_queue)
+            log(f'*Move center camera cross to one edge of calibration piece to measure the thickness. Click Steps Cal button again when there.',log_queue)
         step_to_mm_checking.value = 1
         step_size.value = 10 # normal is 95, try this / experiment 
 
@@ -123,18 +126,19 @@ def pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,window_width,window
     else:
         pixels_to_mm_ratio = CONSTANTS["LPixelsPerMm"]
     if pixelsCal_flag.value == 0:
+        log('***** Pixels Calibration Mode *****',log_queue)
         if is_jf_mode.value == 1:
-            log(f'Move the camera so the entire width of calibration piece is within frame, then press {CONTROLS["pixels_to_mm"][0]} again.',log_queue)
+            log(f'*Move the camera so the entire width of calibration piece is within frame, then click the Pixels Cal button again.',log_queue)
         else:
-            log(f'Move the camera so the entire thickness of calibration piece is within frame, and the edge of it is visible, then press {CONTROLS["pixels_to_mm"][0]} again.',log_queue)
+            log(f'*Move the camera so the entire thickness of calibration piece is within frame, and the edge of it is visible, then click the Pixels Cal button again.',log_queue)
         pixelsCal_flag.value = 1
     elif pixelsCal_flag.value == 1:
-        log(f'Use arrow keys to move curser on screen to one corner of the calibration piece, then press {CONTROLS["pixels_to_mm"][0]} again.',log_queue)
+        log(f'*Use arrow keys to move curser on screen to one corner of the calibration piece, then click the Pixels Cal button again.',log_queue)
         pixelsCal_flag.value = 2 
     elif pixelsCal_flag.value == 2:
         pixel_start = (crosshair_x,crosshair_y)
         log(f'Crosshair initial position: ({crosshair_x}, {crosshair_y})',log_queue)
-        log(f'Use arrow keys to move curser on screen to the opposite corner of the width of the calibration piece, then press {CONTROLS["pixels_to_mm"][0]} again.',log_queue)
+        log(f'*Use arrow keys to move curser on screen to the opposite corner of the width of the calibration piece, then click the Pixels Cal button again.',log_queue)
         pixelsCal_flag.value = 3
     elif pixelsCal_flag.value == 3:
         pixel_end = (crosshair_x,crosshair_y)
@@ -153,6 +157,7 @@ def pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,window_width,window
         perror = round((ratio-pixels_to_mm_ratio)/pixels_to_mm_ratio*100,3)
         log(f'Percent Error from measured to stored value: {perror}%',log_queue)
         log(f'If percent error greater than 2% consider remeasuring and changing stored value.',log_queue)
+        log(f'***** Pixels Calibration Complete *****', log_queue)
         pixelsCal_flag.value = 0
         crosshair_x = window_width // 2
         crosshair_y = window_height // 2
@@ -160,7 +165,7 @@ def pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,window_width,window
 
 def keyBindsControl(keybinds_flag,log_queue):
     keybinds_flag.value = not keybinds_flag.value
-    log(f"Turning keybinds {'on' if keybinds_flag.value else 'off'}.",log_queue)
+    log(f"-----Turning arrow motor control {'on' if keybinds_flag.value else 'off'}.-----",log_queue)
     # time.sleep(0.2)
 
 class AviType:
@@ -186,7 +191,7 @@ def recordingStart(recording,chosenAviType,fps,width,height,log_queue):
     
     # Use original frame size from webcam, not the display size
     avi_recorder = cv2.VideoWriter(avi_filename, fourcc, fps, (width, height))
-    log(f"Recording started: {avi_filename}",log_queue)
+    log(f"$$$$$ Recording started at: {avi_filename} $$$$$",log_queue)
     # Reset step tracking data
     step_tracking_data = []
     return recording,avi_recorder,step_tracking_data,timestamp,avi_filename
@@ -196,14 +201,14 @@ def recordingSave(recording,avi_recorder,timestamp,step_tracking_data,log_queue)
     if avi_recorder:
         avi_recorder.release()
         avi_recorder = None
-    log("Recording stopped and saved",log_queue)
+    log("$$$$$ Recording stopped and saved $$$$$",log_queue)
     # Save tracking data
     tracking_filename = f'saved_tracking_csvs/JellyTracking_{timestamp}_tracking.csv'
     with open(tracking_filename, 'w') as f:
         f.write("x,y,t\n")
         for x, y, t in step_tracking_data:
             f.write(f"{x},{y},{t}\n")
-    log(f"Tracking data saved to {tracking_filename}",log_queue)
+    log(f"$$$$$ Tracking data saved to {tracking_filename} $$$$$",log_queue)
     return recording
 
 def boundaryControl(boundary_making, boundary,is_jf_mode,log_queue):
@@ -216,7 +221,7 @@ def boundaryControl(boundary_making, boundary,is_jf_mode,log_queue):
         save_boundaries(filename,boundary_to_mm_from_steps(boundary,is_jf_mode),log_queue)
         boundary_making = False
     else:
-        log('Boundary Making Mode turned On. Move to record boundary. Finish and save by pressing b again. Press x to cancel/start over.',log_queue)
+        log('Boundary Making Mode turned On. Move to record boundary. Finish and save by clicking Make Border button again. Click Cancel Border button to cancel and start over.',log_queue)
         boundary_making = True
         boundary = []
     return boundary_making, boundary

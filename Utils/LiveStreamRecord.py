@@ -368,13 +368,16 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
             recording = recordingSave(recording,avi_recorder,timestamp,step_tracking_data,log_queue)
             start_time = datetime.now() 
     
-    def trackingHelper():
+    def trackingHelper(log_queue):
         global tracking
         tracking = not tracking
+        log(f"*Tracking turned {'on' if tracking else 'off'}*",log_queue)
 
-    def trackingMotors():
+    def trackingMotors(log_queue):
         global motors
         motors = not motors
+        log(f"*Motors controlled by tracking turned {'on' if motors else 'off'}*",log_queue)
+
     
     def borderHelper(is_jf_mode,log_queue):
         global boundary, boundary_making
@@ -397,13 +400,16 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
         nonlocal crosshair_x, crosshair_y
         crosshair_x,crosshair_y = pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,width,height,is_jf_mode, log_queue)
 
-    def verboseHelper():
+    def verboseHelper(log_queue):
         global verbose
         verbose = not verbose
-
-    def openHelp():
+        if verbose:
+            log("^^^ Turning on the verbose descriptions of output from tracking model. Only use for debugging. ^^^",log_queue)
+        else:
+            log("^^^ Turning off verbose mode ^^^", log_queue)
+    def openHelp(log_queue):
         os.startfile("C:\\Users\\JellyTracker\\Desktop\\HelpDoc.pdf")
-
+        log("!!!! Opening help document pdf on the desktop. !!!!", log_queue)
     rolling_log = RollingLog()
     def clear_log_callback(rolling_log):
         rolling_log.clear()
@@ -416,22 +422,26 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
     onOffColors = [(50, 50, 100),(0, 150, 255)]
     calColors = [(50, 50, 100),(38, 75, 139),(25, 100, 178),(13, 125, 216),(0, 150, 255)]
     buttons = [
-       Button(330, 570, 150, 50, "Home", lambda: homing_set(homing_button), get_color=lambda: onOffColors[homing_button.value]),
-       Button(330, 630, 150, 50, "Home w EC", lambda: homing_set_with_error(homing_error_button),get_color=lambda: onOffColors[homing_error_button.value]),
-       Button(330, 690, 150, 50, "Steps Cal", lambda: stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,is_jf_mode, log_queue),get_color=lambda: calColors[step_to_mm_checking.value]),
-       Button(330, 750, 150, 50, "Change Mode", lambda: change_mode(is_jf_mode,x_pos,y_pos,step_size,log_queue)),
-       Button(490, 570, 150, 50, "Keybinds", lambda: keyBindsControl(keybinds_flag,log_queue)),
-       Button(490, 630, 150, 50, "Record", lambda: recordingHelper(log_queue),get_color=lambda: onOffColors[recording]),
-       Button(490, 690, 150, 50, "Save Video", lambda: saveHelper(log_queue)),
-       Button(490, 750, 150, 50, "Tracking", lambda: trackingHelper(), get_color=lambda: onOffColors[tracking]),
-       Button(650, 570, 150, 50, "Motors4Track", lambda: trackingMotors(),get_color=lambda: onOffColors[motors]),
-       Button(650, 630, 150, 50, "Make Border", lambda: borderHelper(is_jf_mode, log_queue),get_color=lambda: onOffColors[boundary_making]),
-       Button(650, 690, 150, 50, "Cancel Border", lambda: borderCancelHelper(log_queue)),
-       Button(650, 750, 150, 50, "Show Border", lambda: borderShowHelper(),get_color=lambda: onOffColors[show_boundary]),
-       Button(810, 570, 150, 50, "Load Border", lambda: borderLoadHelper()),
-       Button(810, 630, 150, 50, "Pixels Cal", lambda: pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode, log_queue),get_color=lambda: calColors[pixelsCal_flag.value]),
-       Button(810, 690, 150, 50, "TrackVerbose", lambda: verboseHelper(),get_color=lambda: onOffColors[verbose]),
-       Button(810, 750, 150, 50, "Help", lambda: openHelp()),       
+       Button(330, 570, 150, 50, "Record", lambda: recordingHelper(log_queue),get_color=lambda: onOffColors[recording]),
+       Button(330, 630, 150, 50, "Tracking", lambda: trackingHelper(log_queue), get_color=lambda: onOffColors[tracking]),
+       Button(330, 690, 150, 50, "Motors on for Tracking", lambda: trackingMotors(log_queue),get_color=lambda: onOffColors[motors]),
+       Button(330, 750, 150, 50, "Arrow Manual Control", lambda: keyBindsControl(keybinds_flag,log_queue), get_color=lambda: onOffColors[not keybinds_flag.value]),
+       
+       Button(490, 570, 150, 50, "Save Video", lambda: saveHelper(log_queue)),
+       Button(490, 630, 150, 50, "Home", lambda: homing_set(homing_button), get_color=lambda: onOffColors[homing_button.value]),
+       Button(490, 690, 150, 50, "Home with Error Check", lambda: homing_set_with_error(homing_error_button),get_color=lambda: onOffColors[homing_error_button.value]),
+       Button(490, 750, 150, 50, "Help", lambda: openHelp(log_queue)),       
+       
+       Button(650, 570, 150, 50, "Make Border", lambda: borderHelper(is_jf_mode, log_queue),get_color=lambda: onOffColors[boundary_making]),
+       Button(650, 630, 150, 50, "Cancel Border", lambda: borderCancelHelper(log_queue)),
+       Button(650, 690, 150, 50, "Show Border", lambda: borderShowHelper(),get_color=lambda: onOffColors[show_boundary]),
+       Button(650, 750, 150, 50, "Load Border", lambda: borderLoadHelper()),
+       
+       Button(810, 570, 150, 50, "Steps Calibration", lambda: stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,is_jf_mode, log_queue),get_color=lambda: calColors[step_to_mm_checking.value]),
+       Button(810, 630, 150, 50, "Pixels Calibration", lambda: pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode, log_queue),get_color=lambda: calColors[pixelsCal_flag.value]),
+       Button(810, 690, 150, 50, "Change Mode", lambda: change_mode(is_jf_mode,x_pos,y_pos,step_size,log_queue)),
+       Button(810, 750, 150, 50, "Tracking Verbose", lambda: verboseHelper(log_queue),get_color=lambda: onOffColors[verbose]),
+       
        Button(button_x, button_y, button_width, button_height,
                         "Clear Term", lambda: clear_log_callback(rolling_log),
                         get_color=lambda: (255, 50, 50))  # red button

@@ -6,10 +6,10 @@ class Button:
         self.text = text
         self.callback = callback
         self.get_color = get_color
-
+        self.text_color = (255,255,255)
         self.base_color = (50, 50, 100)
 
-        self.font = pygame.font.SysFont("consolas", 20)
+        self.font = pygame.font.SysFont("consolas", 16)
         if self.text == 'Clear Term':
             self.font = pygame.font.SysFont("consolas", 16)
         self.text_surf = self.font.render(text, True, (255, 255, 255))
@@ -36,15 +36,42 @@ class Button:
 
     def draw(self, surface):
         mouse_pos = pygame.mouse.get_pos()
-
         base_color = self.get_color() if self.get_color else self.base_color
 
-        # If hovering, apply dimming effect
+        # Hover effect
         if self.rect.collidepoint(mouse_pos):
             dim_factor = 1.3 if self.mouse_down_inside else 0.7
             color = tuple(min(255, round(c * dim_factor)) for c in base_color)
         else:
             color = base_color
 
+        # Draw the button rectangle
         pygame.draw.rect(surface, color, self.rect, border_radius=8)
-        surface.blit(self.text_surf, self.text_rect)
+
+        # --- Text wrapping ---
+        font = self.font  # assume self.font exists
+        padding = 10
+        max_text_width = self.rect.width - 2 * padding
+        words = self.text.split()
+        lines = []
+        current_line = ""
+
+        for word in words:
+            test_line = current_line + (" " if current_line else "") + word
+            if font.size(test_line)[0] <= max_text_width:
+                current_line = test_line
+            else:
+                lines.append(current_line)
+                current_line = word
+        if current_line:
+            lines.append(current_line)
+
+        # Render each line and blit centered vertically
+        line_height = font.get_height()
+        total_text_height = line_height * len(lines)
+        start_y = self.rect.centery - total_text_height // 2
+
+        for i, line in enumerate(lines):
+            text_surf = font.render(line, True, self.text_color)
+            text_rect = text_surf.get_rect(centerx=self.rect.centerx, y=start_y + i * line_height)
+            surface.blit(text_surf, text_rect)
