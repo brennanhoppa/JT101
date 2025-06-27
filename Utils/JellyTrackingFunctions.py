@@ -11,7 +11,7 @@ from Utils.log import log
 
 # Constants
 DEAD_ZONE = 20  # Minimum movement threshold to ignore small movements
-MOVE_MULTIPLIER = 0.7  # Factor to adjust sensitivity of movements
+MOVE_MULTIPLIER = 0.91  # Factor to adjust sensitivity of movements
 
 MODEL_PATH_JF = r"C:\Users\JellyTracker\Downloads\best (1).pt" # jf good model
 MODEL_PATH_LARVAE = r"C:\Users\JellyTracker\Desktop\TrainingPipeline\Foundational_Training\train_m_Larvae_seg\weights\best.pt" # larvae testing model
