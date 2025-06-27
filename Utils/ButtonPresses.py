@@ -221,36 +221,6 @@ def boundaryCancel(boundary_making, boundary,log_queue):
         pass
     return boundary_making, boundary
 
-def change_mode(is_jf_mode,x_pos,y_pos,step_size,log_queue):
-    step_size.value = 0
-    if is_jf_mode.value == 0: # switching from larvae to jf
-        is_jf_mode.value = 1
-        log("Move the microscope so it is all the way down on the platform.",log_queue)
-        log("Refocus microscope on corner border or other object.",log_queue)
-        log("Switch the motor controller switchs on both motors so switches 1,2,4,5 are on (3 and 6 off). This gives 2000 steps/revolution",log_queue)
-        log("Prepare boundary inside tank for jellyfish.",log_queue)
-        step_size.value = CONSTANTS['JellyStepSizeManual']
-        log(f"Initial Pos: X: {x_pos.value}, Y: {y_pos.value}",log_queue)
-        x_pos.value = int(x_pos.value * CONSTANTS['JFStepPerRev'] / CONSTANTS['LStepPerRev'])
-        y_pos.value = int(y_pos.value * CONSTANTS['JFStepPerRev'] / CONSTANTS['LStepPerRev'])
-        log(f"Final Pos: X: {x_pos.value}, Y: {y_pos.value}",log_queue)
-    elif is_jf_mode.value == 1: # switching from jf to larvae
-        is_jf_mode.value = 0
-        log("Move the microscope so it inside the tank boundary.",log_queue)
-        log("Move the microscope up on the platform to be the WD away from the glass. Use the 3d printed calibration piece (it's 0.407 inches thick).",log_queue)
-        log("Refocus microscope on corner border or other object.",log_queue)
-        log("Switch the motor controller switchs on both motors so switches 1,2,4,6 are on (3 and 5 off). This gives 12800 steps/revolution",log_queue)
-        log("Prepare boundary inside tank for larvae.",log_queue)
-        step_size.value = CONSTANTS['LarvaeStepSizeManual']
-        x_pos.value = int(x_pos.value / CONSTANTS['JFStepPerRev'] * CONSTANTS['LStepPerRev'])
-        y_pos.value = int(y_pos.value / CONSTANTS['JFStepPerRev'] * CONSTANTS['LStepPerRev'])
-        # NEED TO TURN ON TANK BOUNDARY / DON'T LET IT TURN ON IF NOT INSIDE THE TANK BOUNDARY
-        
-    else:
-        log("Error, mode is incorrect value",log_queue)
-    time.sleep(0.2)  # Short delay to prevent multiple triggers
-
-
 # Button press direct function
 def saveHelper(log_queue, timestamp, step_tracking_data):
     if states.recording:

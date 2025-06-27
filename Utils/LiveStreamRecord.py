@@ -10,7 +10,7 @@ import time
 from Utils.JellyTrackingFunctions import detect_jellyfish,calculate_movement, calculate_delta_Pixels, mm_to_pixels, pixels_to_mm, mm_to_steps, steps_to_mm, mode_string
 from Utils.ManualMotorInput import move
 import cv2 #type: ignore
-from Utils.ButtonPresses import recordingStart, recordingSave, boundaryControl, boundaryCancel,pixelsCalibration, keyBindsControl, change_mode, stepsCalibration
+from Utils.ButtonPresses import recordingStart, recordingSave, boundaryControl, boundaryCancel,pixelsCalibration, keyBindsControl, stepsCalibration
 from Utils.Button import Button
 from Utils.savePopUp import popup_save_recording
 from Utils.log import log
@@ -19,6 +19,7 @@ from Utils.LiveStreamUtilFuncs import ensure_dir, draw_log_terminal
 from Utils.Boundaries import load_boundary
 from Utils import states
 from Utils.ButtonPresses import homingStepsWithErrorCheck, saveHelper, trackingHelper, trackingMotors, borderShowHelper, verboseHelper, openHelp, clear_log_callback
+from Utils.changeModePopUp import changeModePopUp
 
 boundary = []
 # or write filename to load in a boundary
@@ -225,7 +226,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
        
        Button(810, 570, 150, 50, "Steps Calibration", lambda: stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,is_jf_mode, log_queue),get_color=lambda: calColors[step_to_mm_checking.value]),
        Button(810, 630, 150, 50, "Pixels Calibration", lambda: pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode, log_queue),get_color=lambda: calColors[pixelsCal_flag.value]),
-       Button(810, 690, 150, 50, "Change Mode", lambda: change_mode(is_jf_mode,x_pos,y_pos,step_size,log_queue)),
+       Button(810, 690, 150, 50, "Change Mode", lambda: changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font)),
        Button(810, 750, 150, 50, "", lambda: 1),
 
        Button(button_x, button_y, button_width, button_height,
