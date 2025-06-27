@@ -1,10 +1,10 @@
 CONSTANTS = {
     "LeadScrewMm": 8,
-    "JellyStepSizeManual": 95,
+    "JellyStepSizeManual": 75,  # was 95, testing
     "LarvaeStepSizeManual": 35,
     "JFStepPerRev": 2000, # set on motor controllers
     "LStepPerRev": 12800, # set on motor controllers
-    "JFmaxes": (214530, 210900),
+    "JFmaxes": (213300, 212550), # FIX THIS MAX
     "JFPixelsPerMm": 39.5, # for the jellyfish zoom on microscope, measured by calibration function
     "LPixelsPerMm": 437, # FIND IT NEW, 100 IS TOTAL GUESS
 }

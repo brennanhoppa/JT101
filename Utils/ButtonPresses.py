@@ -284,10 +284,11 @@ def trackingMotors(log_queue):
 def borderShowHelper():
         states.show_boundary = not states.show_boundary
 
-def verboseHelper(log_queue):
-    states.verbose = not states.verbose
-    if states.verbose:
-        log("^^^ Turning on the verbose descriptions of output from tracking model. Only use for debugging. ^^^",log_queue)
+def verboseHelper(log_queue,command_queue,verbose):
+    verbose.value = not verbose.value
+    command_queue.put('VERBOSE\n')
+    if verbose.value:
+        log("^^^ Turning on the verbose descriptions of output from tracking model and arduino. Only use for debugging. ^^^",log_queue)
     else:
         log("^^^ Turning off verbose mode ^^^", log_queue)
 

@@ -104,7 +104,7 @@ def detect_jellyfish(frame, detect_light, is_jf_mode, log_queue, verbose):
         frame_for_inference = cv2.cvtColor(equalized_ycbcr_frame, cv2.COLOR_YCrCb2BGR)
 
     # Perform object detection using the YOLO model
-    if verbose == False:
+    if verbose.value == False:
         if is_jf_mode.value == 1:
             results = modelJF.predict(frame_resized,imgsz=IMG_SIZE,conf=CONF_THRESHOLD,iou=IOU_THRESHOLD,half=HALF_PRECISION,verbose=False)
         else:

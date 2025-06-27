@@ -8,7 +8,6 @@ motors = False
 boundary_making = False
 shared_image = None
 avi_recorder = None
-verbose = False
 show_boundary = False
 chosenAviType = AviType.H264
 start_time = datetime.now()

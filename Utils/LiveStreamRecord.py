@@ -37,8 +37,8 @@ tracking_result_queue = queue.Queue(maxsize=5)
 # Step tracking
 step_tracking_data = []
 
-def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag,step_size,step_to_mm_checking,homing_button,homing_error_button,log_queue):
-    if main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_button,homing_error_button,log_queue):
+def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag,step_size,step_to_mm_checking,homing_button,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose):
+    if main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_button,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose):
         sys.exit(0)
     else:
         sys.exit(1)
@@ -73,7 +73,7 @@ def imageacq(cam,log_queue):
     if states.avi_recorder is not None:
         states.avi_recorder.release()
 
-def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_jf_mode,log_queue):
+def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose):
     global step_tracking_data
     
     last_tracking_time = time.time()
@@ -103,7 +103,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                     # detect_light = True # testing mode - returns x,y of brightest spot in frame
 
                     # Use YOLO to detect jellyfish position
-                    flashlight_pos, (x1,x2,y1,y2) = detect_jellyfish(image, detect_light, is_jf_mode,log_queue,states.verbose)
+                    flashlight_pos, (x1,x2,y1,y2) = detect_jellyfish(image, detect_light, is_jf_mode,log_queue,verbose)
                     timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-2] 
                     if flashlight_pos:
                         # Calculate deltas
@@ -119,7 +119,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                         if states.motors:
                             step_x, step_y = calculate_movement(dx,dy,is_jf_mode)
                             # Send movement command
-                            x_pos, y_pos = move(x_pos, y_pos, int(-1*round(step_x*1.3,0)), int(round(step_y*1.3,0)), command_queue,is_jf_mode)
+                            x_pos, y_pos = move(x_pos, y_pos, int(-1*round(step_x*1.3,0)), int(round(step_y*1.3,0)), command_queue,is_jf_mode,x_invalid_flag, y_invalid_flag)
                             
                         # Communicate tracking results for display
                         tracking_result_queue.put((flashlight_pos,(x1,x2,y1,y2)), block=False)
@@ -136,7 +136,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                 # log(f"Error in tracking thread: {e}",log_queue)
         time.sleep(0.001)  # Sleep briefly to prevent excessive CPU usage
 
-def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_button,homing_error_button,log_queue):
+def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_button,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose):
     global boundary, step_tracking_data
 
     # Initialize webcam
@@ -162,7 +162,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
     acq_thread = threading.Thread(target=imageacq, args=(cap,log_queue))
     acq_thread.start()
     
-    tracking_thread = threading.Thread(target=active_tracking_thread, args=(width // 2, height // 2, command_queue, x_pos, y_pos, is_jf_mode,log_queue))
+    tracking_thread = threading.Thread(target=active_tracking_thread, args=(width // 2, height // 2, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose))
     tracking_thread.start()
     
     clock = pygame.time.Clock()
@@ -226,7 +226,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
        Button(810, 570, 150, 50, "Steps Calibration", lambda: stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,is_jf_mode, log_queue),get_color=lambda: calColors[step_to_mm_checking.value]),
        Button(810, 630, 150, 50, "Pixels Calibration", lambda: pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode, log_queue),get_color=lambda: calColors[pixelsCal_flag.value]),
        Button(810, 690, 150, 50, "Change Mode", lambda: change_mode(is_jf_mode,x_pos,y_pos,step_size,log_queue)),
-       Button(810, 750, 150, 50, "Tracking Verbose", lambda: verboseHelper(log_queue),get_color=lambda: onOffColors[states.verbose]),
+       Button(810, 750, 150, 50, "Verbose Mode", lambda: verboseHelper(log_queue,command_queue,verbose),get_color=lambda: onOffColors[verbose.value]),
        
        Button(button_x, button_y, button_width, button_height,
                         "Clear Term", lambda: clear_log_callback(rolling_log,log_queue),
