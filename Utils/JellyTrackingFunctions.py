@@ -145,7 +145,7 @@ def detect_jellyfish(frame, detect_light, is_jf_mode, log_queue, verbose):
         return (center_x, center_y),(x1,x2,y1,y2)
 
     # No jellyfish detected
-    return None, None
+    return None, (None, None, None, None)
 
 def mode_string(mode):
     if mode.value == 0:

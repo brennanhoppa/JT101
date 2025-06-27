@@ -20,6 +20,7 @@ from Utils.Boundaries import load_boundary
 from Utils import states
 from Utils.ButtonPresses import homingStepsWithErrorCheck, saveHelper, trackingHelper, trackingMotors, borderShowHelper, verboseHelper, openHelp, clear_log_callback
 from Utils.changeModePopUp import changeModePopUp
+from multiprocessing import Manager
 
 boundary = []
 # or write filename to load in a boundary
@@ -34,9 +35,6 @@ TRACKING_INTERVAL = 1 / 50  # 50Hz tracking rate
 # Queue for inter-thread communication
 image_queue = queue.Queue(maxsize=5)
 tracking_result_queue = queue.Queue(maxsize=5)
-
-# Step tracking
-step_tracking_data = []
 
 def run_live_stream_record(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag,step_size,step_to_mm_checking,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose):
     if main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose):
@@ -74,11 +72,8 @@ def imageacq(cam,log_queue):
     if states.avi_recorder is not None:
         states.avi_recorder.release()
 
-def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose):
-    global step_tracking_data
-    
+def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,step_tracking_data):    
     last_tracking_time = time.time()
-    
     while states.running:
         if states.tracking:
             try:
@@ -138,7 +133,10 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
         time.sleep(0.001)  # Sleep briefly to prevent excessive CPU usage
 
 def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking, homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose):
-    global boundary, step_tracking_data
+    global boundary
+
+    manager = Manager()
+    step_tracking_data = manager.list()
 
     # Initialize webcam
     cap = cv2.VideoCapture(0)  # Use default webcam (index 0)
@@ -163,7 +161,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     acq_thread = threading.Thread(target=imageacq, args=(cap,log_queue))
     acq_thread.start()
     
-    tracking_thread = threading.Thread(target=active_tracking_thread, args=(width // 2, height // 2, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose))
+    tracking_thread = threading.Thread(target=active_tracking_thread, args=(width // 2, height // 2, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,step_tracking_data))
     tracking_thread.start()
     
     clock = pygame.time.Clock()
@@ -177,10 +175,10 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     move_delay = 2  # How many frames to wait between moves
     move_counter = 0  # Frame counter
     
-    def recordingHelper(log_queue):
-        global step_tracking_data, timestamp, avi_filename
+    def recordingHelper(log_queue,step_tracking_data):
+        global timestamp, avi_filename
         if not states.recording:
-            states.recording,states.avi_recorder,step_tracking_data,timestamp,avi_filename = recordingStart(states.recording,states.chosenAviType,fps,width,height,log_queue)
+            states.recording,states.avi_recorder,timestamp,avi_filename = recordingStart(states.recording,states.chosenAviType,fps,width,height,log_queue,step_tracking_data)
             states.start_time = datetime.now()
 
     def borderHelper(is_jf_mode,log_queue):
@@ -209,7 +207,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     calColors = [(50, 50, 100),(38, 75, 139),(25, 100, 178),(13, 125, 216),(0, 150, 255)]
 
     buttons = [
-       Button(330, 570, 150, 50, "Record", lambda: recordingHelper(log_queue),get_color=lambda: onOffColors[states.recording]),
+       Button(330, 570, 150, 50, "Record", lambda: recordingHelper(log_queue,step_tracking_data),get_color=lambda: onOffColors[states.recording]),
        Button(330, 630, 150, 50, "Tracking", lambda: trackingHelper(log_queue), get_color=lambda: onOffColors[states.tracking]),
        Button(330, 690, 150, 50, "Motors on for Tracking", lambda: trackingMotors(log_queue),get_color=lambda: onOffColors[states.motors]),
        Button(330, 750, 150, 50, "Arrow Manual Control", lambda: keyBindsControl(keybinds_flag,log_queue), get_color=lambda: onOffColors[not keybinds_flag.value]),
