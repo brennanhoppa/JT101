@@ -77,7 +77,7 @@ def wait_for_errorcheck_completion(ser,is_jf_mode, log_queue):
         else:
             time.sleep(0.1)
 
-def serial_process(command_queue,homing_flag,terminate_event,is_jf_mode, log_queue, x_invalid_flag, y_invalid_flag, x_pos, y_pos,verbose):
+def serial_process(command_queue,homing_error_button,terminate_event,is_jf_mode, log_queue, x_invalid_flag, y_invalid_flag, x_pos, y_pos,verbose):
     try:
         ser = serial.Serial('COM5', 500000, timeout=5)
         time.sleep(3)
@@ -133,7 +133,7 @@ def serial_process(command_queue,homing_flag,terminate_event,is_jf_mode, log_que
             if command.startswith('ERRORCHECK'):
                 ser.write(command.encode())
                 wait_for_errorcheck_completion(ser, is_jf_mode, log_queue)
-                homing_flag.value = False
+                homing_error_button.value = 0
                 continue
 
             if command == "EXIT":
@@ -160,7 +160,6 @@ if __name__ == "__main__":
     x_pos = multiprocessing.Value('i', x_pos)
     y_pos = multiprocessing.Value('i', y_pos)
     command_queue = multiprocessing.Queue()
-    homing_flag = multiprocessing.Value('b', False)  # 'b' for boolean type
     homing_error_button = multiprocessing.Value('i', 0)  
     keybinds_flag = multiprocessing.Value('b', True)  # 'b' for boolean type
     pixelsCal_flag = multiprocessing.Value('i', 0) # integer, starting at 0
@@ -170,10 +169,10 @@ if __name__ == "__main__":
     y_invalid_flag = multiprocessing.Value('i', 0)
     verbose = multiprocessing.Value('b', False)
 
-    serial_proc = multiprocessing.Process(target=serial_process,args=(command_queue,homing_flag,terminate_event,is_jf_mode, log_queue, x_invalid_flag, y_invalid_flag, x_pos, y_pos,verbose))
+    serial_proc = multiprocessing.Process(target=serial_process,args=(command_queue,homing_error_button,terminate_event,is_jf_mode, log_queue, x_invalid_flag, y_invalid_flag, x_pos, y_pos,verbose))
     serial_proc.start()
-    motor_process = multiprocessing.Process(target=run_motor_input, args=(x_pos, y_pos, file_path_xy, command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode,file_path_mode,terminate_event,running_flag, step_size,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag))
-    live_stream_process = multiprocessing.Process(target=run_live_stream_record, args=(x_pos, y_pos, command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose))
+    motor_process = multiprocessing.Process(target=run_motor_input, args=(x_pos, y_pos, file_path_xy, command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode,file_path_mode,terminate_event,running_flag, step_size,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag))
+    live_stream_process = multiprocessing.Process(target=run_live_stream_record, args=(x_pos, y_pos, command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose))
     
     if terminate_event.is_set():
         sys.exit(0)  

@@ -9,14 +9,15 @@ from Utils.log import log
 from Utils import states
 import os
 
-def homingStepsWithErrorCheck(is_jf_mode,command_queue,homing_flag,x_pos,y_pos,log_queue):
+def homingStepsWithErrorCheck(homing_error_button, is_jf_mode,command_queue,x_pos,y_pos,log_queue):
+    
     if is_jf_mode.value == 0: # means larvae mode
         log("Cannot home and error check in larvae mode, need to switch to jellyfish mode.",log_queue)
     else:
         command_queue.put(f'ERRORCHECK_{x_pos.value}_{y_pos.value}\n')
-        homing_flag.value = True
+        homing_error_button.value = 1
         log("*****Homing and Error process starting...*****",log_queue)
-        while homing_flag.value:
+        while homing_error_button.value == 1:
             time.sleep(0.1)
         x_pos.value, y_pos.value = 0, 0
 
@@ -251,9 +252,6 @@ def change_mode(is_jf_mode,x_pos,y_pos,step_size,log_queue):
 
 
 # Button press direct function
-def homing_set_with_error(homing_error_button):
-    homing_error_button.value = 1
-
 def saveHelper(log_queue, timestamp, step_tracking_data):
     if states.recording:
         states.recording = recordingSave(states.recording,states.avi_recorder,timestamp,step_tracking_data,log_queue)

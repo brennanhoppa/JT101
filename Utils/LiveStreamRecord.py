@@ -18,7 +18,7 @@ from Utils.RollingLog import RollingLog
 from Utils.LiveStreamUtilFuncs import ensure_dir, draw_log_terminal
 from Utils.Boundaries import load_boundary
 from Utils import states
-from Utils.ButtonPresses import homing_set_with_error, saveHelper, trackingHelper, trackingMotors, borderShowHelper, verboseHelper, openHelp, clear_log_callback
+from Utils.ButtonPresses import homingStepsWithErrorCheck, saveHelper, trackingHelper, trackingMotors, borderShowHelper, verboseHelper, openHelp, clear_log_callback
 
 boundary = []
 # or write filename to load in a boundary
@@ -37,8 +37,8 @@ tracking_result_queue = queue.Queue(maxsize=5)
 # Step tracking
 step_tracking_data = []
 
-def run_live_stream_record(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag,step_size,step_to_mm_checking,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose):
-    if main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose):
+def run_live_stream_record(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag,step_size,step_to_mm_checking,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose):
+    if main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose):
         sys.exit(0)
     else:
         sys.exit(1)
@@ -136,7 +136,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                 # log(f"Error in tracking thread: {e}",log_queue)
         time.sleep(0.001)  # Sleep briefly to prevent excessive CPU usage
 
-def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking, homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose):
+def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking, homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose):
     global boundary, step_tracking_data
 
     # Initialize webcam
@@ -214,7 +214,7 @@ def main(x_pos,y_pos,command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_j
        Button(330, 750, 150, 50, "Arrow Manual Control", lambda: keyBindsControl(keybinds_flag,log_queue), get_color=lambda: onOffColors[not keybinds_flag.value]),
        
        Button(490, 570, 150, 50, "Save Video", lambda: saveHelper(log_queue, timestamp, step_tracking_data)),
-       Button(490, 630, 150, 50, "Home with Error Check", lambda: homing_set_with_error(homing_error_button),get_color=lambda: onOffColors[homing_error_button.value]),
+       Button(490, 630, 150, 50, "Home with Error Check", lambda: homingStepsWithErrorCheck(homing_error_button, is_jf_mode, command_queue,x_pos,y_pos, log_queue),get_color=lambda: onOffColors[homing_error_button.value]),
        Button(490, 690, 150, 50, "Help", lambda: openHelp(log_queue)),       
        Button(490, 750, 150, 50, "Verbose Mode", lambda: verboseHelper(log_queue,command_queue,verbose),get_color=lambda: onOffColors[verbose.value]),
 
