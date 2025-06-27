@@ -196,7 +196,8 @@ def calculate_movement(dx,dy,is_jf_mode):
         step_x = 0
     if abs(dy) < DEAD_ZONE:
         step_y = 0
-
+        
+    step_x, step_y = int(-1*round(step_x,0)), int(round(step_y,0))
     return step_x, step_y
 
 def steps_to_mm(steps, is_jf_mode):

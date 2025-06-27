@@ -119,7 +119,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                         if states.motors:
                             step_x, step_y = calculate_movement(dx,dy,is_jf_mode)
                             # Send movement command
-                            x_pos, y_pos = move(x_pos, y_pos, int(-1*round(step_x,0)), int(round(step_y,0)), command_queue,is_jf_mode,x_invalid_flag, y_invalid_flag)
+                            x_pos, y_pos = move(x_pos, y_pos, step_x, step_y, command_queue,is_jf_mode,x_invalid_flag, y_invalid_flag)
                             
                         # Communicate tracking results for display
                         tracking_result_queue.put((flashlight_pos,(x1,x2,y1,y2)), block=False)
