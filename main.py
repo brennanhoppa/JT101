@@ -56,19 +56,6 @@ def get_mode(log_queue):
         log("Assuming jellyfish mode. If incorrect microscope position, restart and edit jf_or_larvae_mode.txt file",log_queue) 
     return mode, file_path
 
-# Function to wait for the Arduino to confirm that homing is complete
-def wait_for_homing_completion(ser, log_queue):
-    log("Waiting for homing to complete...",log_queue)
-    while True:
-        if ser.in_waiting > 0:
-            response = ser.readline().decode('utf-8').strip()
-            log(f"Arduino: {response}",log_queue)
-            if response == "Homing complete":
-                log("*****Homing completed successfully.*****",log_queue)
-                break
-        else:
-            time.sleep(0.1)
-
 def wait_for_errorcheck_completion(ser,is_jf_mode, log_queue):
     log("Waiting for error check to complete...",log_queue)
     x_error_steps, y_error_steps = None, None
@@ -85,7 +72,7 @@ def wait_for_errorcheck_completion(ser,is_jf_mode, log_queue):
                 x_error_mm = JellyTrackingFunctions.steps_to_mm(x_error_steps,is_jf_mode)
                 y_error_mm = JellyTrackingFunctions.steps_to_mm(y_error_steps,is_jf_mode)
                 log(f"X Error [mm]: {x_error_mm}, Y Error [mm]: {y_error_mm}",log_queue)
-                log("*****Error check complete.*****",log_queue)
+                log("*****Homing and Error check complete.*****",log_queue)
                 break
         else:
             time.sleep(0.1)
@@ -143,12 +130,6 @@ def serial_process(command_queue,homing_flag,terminate_event,is_jf_mode, log_que
             except queue.Empty:
                 continue  # No command yet, go back to top of loop
 
-            if command == 'HOMING\n':
-                ser.write(command.encode())
-                wait_for_homing_completion(ser, log_queue)
-                homing_flag.value = False
-                continue
-
             if command.startswith('ERRORCHECK'):
                 ser.write(command.encode())
                 wait_for_errorcheck_completion(ser, is_jf_mode, log_queue)
@@ -180,7 +161,6 @@ if __name__ == "__main__":
     y_pos = multiprocessing.Value('i', y_pos)
     command_queue = multiprocessing.Queue()
     homing_flag = multiprocessing.Value('b', False)  # 'b' for boolean type
-    homing_button = multiprocessing.Value('i', 0)  
     homing_error_button = multiprocessing.Value('i', 0)  
     keybinds_flag = multiprocessing.Value('b', True)  # 'b' for boolean type
     pixelsCal_flag = multiprocessing.Value('i', 0) # integer, starting at 0
@@ -192,8 +172,8 @@ if __name__ == "__main__":
 
     serial_proc = multiprocessing.Process(target=serial_process,args=(command_queue,homing_flag,terminate_event,is_jf_mode, log_queue, x_invalid_flag, y_invalid_flag, x_pos, y_pos,verbose))
     serial_proc.start()
-    motor_process = multiprocessing.Process(target=run_motor_input, args=(x_pos, y_pos, file_path_xy, command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode,file_path_mode,terminate_event,running_flag, step_size, homing_button,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag))
-    live_stream_process = multiprocessing.Process(target=run_live_stream_record, args=(x_pos, y_pos, command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_button,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose))
+    motor_process = multiprocessing.Process(target=run_motor_input, args=(x_pos, y_pos, file_path_xy, command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode,file_path_mode,terminate_event,running_flag, step_size,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag))
+    live_stream_process = multiprocessing.Process(target=run_live_stream_record, args=(x_pos, y_pos, command_queue,homing_flag,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose))
     
     if terminate_event.is_set():
         sys.exit(0)  
