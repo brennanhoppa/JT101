@@ -1,7 +1,7 @@
 import pygame
 
 class Button:
-    def __init__(self, x, y, width, height, text, callback=None, get_color=None, text_dependence=None, text_if_true=None, text_if_false=None):
+    def __init__(self, x, y, width, height, text, callback=None, get_color=None, text_dependence=None, text_if_true=None, text_if_false=None,  visible=True, get_visible=None):
         self.rect = pygame.Rect(x, y, width, height)
         self.text = text
         self.callback = callback
@@ -9,6 +9,8 @@ class Button:
         self.text_dependence = text_dependence
         self.text_if_true = text_if_true
         self.text_if_false = text_if_false
+        self.get_visible = get_visible
+        self.visible = visible
 
         self.text_color = (255,255,255)
         self.base_color = (50, 50, 100)
@@ -21,6 +23,11 @@ class Button:
 
         self.mouse_down_inside = False
         self.prev_mouse_pressed = False
+
+    def is_visible(self):
+        if self.get_visible:
+            return self.get_visible()
+        return self.visible
 
     def handle_event(self, event, mouse_pos, mouse_pressed):
         # Detect mouse press start
@@ -54,7 +61,7 @@ class Button:
 
         # --- Text wrapping ---
         font = self.font  # assume self.font exists
-        padding = 10
+        padding = 5
         max_text_width = self.rect.width - 2 * padding
         dynamic_text = self.text
         if self.text_dependence:
@@ -77,12 +84,15 @@ class Button:
         if current_line:
             lines.append(current_line)
 
-        # Render each line and blit centered vertically
-        line_height = font.get_height()
-        total_text_height = line_height * len(lines)
-        start_y = self.rect.centery - total_text_height // 2
+        # Render each line separately and compute real total text height
+        text_surfs = [font.render(line, True, self.text_color) for line in lines]
+        line_heights = [surf.get_height() for surf in text_surfs]
+        total_text_height = sum(line_heights)
 
-        for i, line in enumerate(lines):
-            text_surf = font.render(line, True, self.text_color)
-            text_rect = text_surf.get_rect(centerx=self.rect.centerx, y=start_y + i * line_height)
-            surface.blit(text_surf, text_rect)
+        start_y = self.rect.top + (self.rect.height - total_text_height) / 2
+
+        y = start_y
+        for surf, h in zip(text_surfs, line_heights):
+            text_rect = surf.get_rect(centerx=self.rect.centerx, y=y)
+            surface.blit(surf, text_rect)
+            y += h

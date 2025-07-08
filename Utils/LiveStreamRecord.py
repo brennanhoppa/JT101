@@ -36,8 +36,8 @@ TRACKING_INTERVAL = 1 / 50  # 50Hz tracking rate
 image_queue = queue.Queue(maxsize=5)
 tracking_result_queue = queue.Queue(maxsize=5)
 
-def run_live_stream_record(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag,step_size,step_to_mm_checking,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose,testingMode,recording):
-    if main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose,testingMode,recording):
+def run_live_stream_record(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag,step_size,step_to_mm_checking,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose,testingMode,recording,tracking,motors):
+    if main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose,testingMode,recording,tracking,motors):
         sys.exit(0)
     else:
         sys.exit(1)
@@ -72,10 +72,10 @@ def imageacq(cam,log_queue):
     if states.avi_recorder is not None:
         states.avi_recorder.release()
 
-def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,step_tracking_data,recording):    
+def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,step_tracking_data,recording, tracking,motors):    
     last_tracking_time = time.time()
     while states.running:
-        if states.tracking:
+        if tracking.value:
             try:
                 current_time = time.time()
                 if current_time - last_tracking_time >= TRACKING_INTERVAL:
@@ -112,7 +112,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                             x -= pixels_to_mm(dx,is_jf_mode) # matching to the inverting of the x axis with the camera
                             y += pixels_to_mm(dy,is_jf_mode) # same as above
                             step_tracking_data.append((x, y, timestamp))                        
-                        if states.motors:
+                        if motors.value:
                             step_x, step_y = calculate_movement(dx,dy,is_jf_mode)
                             # Send movement command
                             x_pos, y_pos = move(x_pos, y_pos, step_x, step_y, command_queue,is_jf_mode,x_invalid_flag, y_invalid_flag)
@@ -132,7 +132,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                 # log(f"Error in tracking thread: {e}",log_queue)
         time.sleep(0.001)  # Sleep briefly to prevent excessive CPU usage
 
-def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking, homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose,testingMode,recording):
+def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking, homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose,testingMode,recording,tracking,motors):
     global boundary
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     manager = Manager()
@@ -161,7 +161,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     acq_thread = threading.Thread(target=imageacq, args=(cap,log_queue))
     acq_thread.start()
     
-    tracking_thread = threading.Thread(target=active_tracking_thread, args=(width // 2, height // 2, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,step_tracking_data,recording))
+    tracking_thread = threading.Thread(target=active_tracking_thread, args=(width // 2, height // 2, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,step_tracking_data,recording, tracking, motors))
     tracking_thread.start()
     
     clock = pygame.time.Clock()
@@ -218,12 +218,21 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     calColors = [(50, 50, 100),(38, 75, 139),(25, 100, 178),(13, 125, 216),(0, 150, 255)]
 
     buttons = [
-       Button(330, 570, 150, 50, "Start Recording", lambda: recordingHelper(log_queue,step_tracking_data,recording),get_color=lambda: RecordingColors[recording.value],text_dependence=recording,text_if_true="Delete Recording",text_if_false="Start Recording"),
-       Button(330, 630, 150, 50, "Tracking", lambda: trackingHelper(log_queue), get_color=lambda: onOffColors[states.tracking]),
-       Button(330, 690, 150, 50, "Motors on for Tracking", lambda: trackingMotors(log_queue),get_color=lambda: onOffColors[states.motors]),
-       Button(330, 750, 150, 50, "Arrow Manual Control", lambda: keyBindsControl(keybinds_flag,log_queue), get_color=lambda: onOffColors[not keybinds_flag.value]),
+       Button(330, 570, 150, 50, "Start Recording", lambda: recordingHelper(log_queue,step_tracking_data,recording),get_color=lambda: RecordingColors[recording.value],text_dependence=recording,text_if_true="Delete Recording",text_if_false="Start Recording", get_visible=lambda: not recording.value),
+       Button(330, 570, 70, 50, "Save", 
+           lambda: saveHelper(log_queue, timestamp, step_tracking_data, recording),
+           get_color=lambda: (80, 200, 80),
+           get_visible=lambda: recording.value),
+       Button(410, 570, 70, 50, "Delete", 
+           lambda: recordingHelper(log_queue,step_tracking_data,recording),
+           get_color=lambda: (255, 80, 80),
+           get_visible=lambda: recording.value),
        
-       Button(490, 570, 150, 50, "Save Recording", lambda: saveHelper(log_queue, timestamp, step_tracking_data, recording), get_color=lambda: saverColors[recording.value]),
+       Button(330, 630, 150, 50, "Turn Tracking On", lambda: trackingHelper(tracking, log_queue), get_color=lambda: onOffColors[tracking.value], text_dependence=tracking,text_if_true="Tracking On",text_if_false="Tracking Off" ),
+       Button(330, 690, 150, 50, "Motors on for Tracking", lambda: trackingMotors(motors,log_queue),get_color=lambda: onOffColors[motors.value], text_dependence=motors,text_if_true="Tracking Motors On",text_if_false="Tracking Motors Off"),
+       Button(330, 750, 150, 50, "Arrow Manual Control", lambda: keyBindsControl(keybinds_flag,log_queue), get_color=lambda: onOffColors[not keybinds_flag.value], text_dependence=keybinds_flag,text_if_true="Motors Arrow Control On",text_if_false="Motors Arrow Control Off"),
+       
+       Button(490, 570, 150, 50, "", lambda: 1, get_color=None),
        Button(490, 630, 150, 50, "Home with Error Check", lambda: homingStepsWithErrorCheck(homing_error_button, is_jf_mode, command_queue,x_pos,y_pos, log_queue),get_color=lambda: onOffColors[homing_error_button.value]),
        Button(490, 690, 150, 50, "Help", lambda: openHelp(log_queue)),       
        Button(490, 750, 150, 50, "Verbose Mode", lambda: verboseHelper(log_queue,command_queue,verbose),get_color=lambda: onOffColors[verbose.value]),
@@ -369,8 +378,9 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     
         # BUTTON LOGIC
         for button in buttons:
-            button.handle_event(event, mouse_pos, mouse_pressed)
-            button.draw(window)
+            if button.is_visible():
+                button.handle_event(event, mouse_pos, mouse_pressed)
+                button.draw(window)
 
         if states.boundary_making:
             boundary.append((x_pos.value,y_pos.value))
@@ -440,7 +450,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
                 pygame.draw.circle(window, (255, 0, 0), (width-20,20), 8)
 
             # Determine status values
-            if states.tracking:
+            if tracking.value:
                 if trackingFoundSomething:
                     tracking_status = "Tracking On | Status: [OK]"
                 else:
@@ -453,7 +463,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
                 f"Duration: {hours:02}:{minutes:02}:{seconds:02}\n"
                 f"{tracking_status}\n"
                 f" \n"
-                f"{'Tracking Motors: On' if states.motors else 'Tracking Motors: Off'}\n"
+                f"{'Tracking Motors: On' if motors.value else 'Tracking Motors: Off'}\n"
                 f"{'Boundary Visualization: On' if states.show_boundary else 'Boundary Visualization: Off'}\n"
                 f"Mode: {mode_string(is_jf_mode)}\n"
                 f"{f'X Pos (steps): {x_pos.value}' if verbose.value else ''}\n"

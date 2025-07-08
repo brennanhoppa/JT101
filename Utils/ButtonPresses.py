@@ -6,6 +6,7 @@ from Utils.Boundaries import save_boundaries, boundary_to_mm_from_steps
 from Utils.CALIBRATIONPIECE_MM import CALIBRATIONPIECE_MM
 from Utils.CONSTANTS import CONSTANTS, AviType
 from Utils.log import log
+import webbrowser
 from Utils import states
 import os
 
@@ -226,13 +227,13 @@ def saveHelper(log_queue, timestamp, step_tracking_data, recording):
         recordingSave(recording,states.avi_recorder,timestamp,step_tracking_data,log_queue)
         states.start_time = datetime.now() 
 
-def trackingHelper(log_queue):
-    states.tracking = not states.tracking
-    log(f"*Tracking turned {'on' if states.tracking else 'off'}*",log_queue)
+def trackingHelper(tracking, log_queue):
+    tracking.value = not tracking.value
+    log(f"*Tracking turned {'on' if tracking.value else 'off'}*",log_queue)
 
-def trackingMotors(log_queue):
-    states.motors = not states.motors
-    log(f"*Motors controlled by tracking turned {'on' if states.motors else 'off'}*",log_queue)
+def trackingMotors(motors, log_queue):
+    motors.value = not motors.value
+    log(f"*Motors controlled by tracking turned {'on' if motors.value else 'off'}*",log_queue)
 
 def borderShowHelper():
         states.show_boundary = not states.show_boundary
@@ -253,7 +254,7 @@ def testingHelper(log_queue,testingMode):
         log("**Testing Mode off**", log_queue)
 
 def openHelp(log_queue):
-    os.startfile("C:\\Users\\JellyTracker\\Desktop\\HelpDoc.pdf")
+    webbrowser.open("https://docs.google.com/document/d/1KBQ-LmBlyk6xcm9JkfM5uCkn3D8vZ4zREsdYrj_VqAM/edit?usp=sharing")
     log("!!!! Opening help document pdf on the desktop. !!!!", log_queue)
 
 def clear_log_callback(rolling_log, log_queue):
