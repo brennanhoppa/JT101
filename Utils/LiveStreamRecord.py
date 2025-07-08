@@ -109,8 +109,8 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                             # mm position of jf in the global coords
                             x = steps_to_mm(x_pos.value, is_jf_mode)
                             y = steps_to_mm(y_pos.value, is_jf_mode)
-                            x -= dx # matching to the inverting of the x axis with the camera
-                            y += dy # same as above
+                            x -= pixels_to_mm(dx,is_jf_mode) # matching to the inverting of the x axis with the camera
+                            y += pixels_to_mm(dy,is_jf_mode) # same as above
                             step_tracking_data.append((x, y, timestamp))                        
                         if states.motors:
                             step_x, step_y = calculate_movement(dx,dy,is_jf_mode)
