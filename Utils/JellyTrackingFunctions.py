@@ -6,8 +6,12 @@ import cv2 #type: ignore
 import time
 import io
 from ultralytics import YOLO # type: ignore
-from Utils.CONSTANTS import CONSTANTS
-from Utils.log import log
+try:
+    from Utils.CONSTANTS import CONSTANTS
+    from Utils.log import log
+except:
+    from CONSTANTS import CONSTANTS
+    from log import log
 
 # Constants
 DEAD_ZONE = 20  # Minimum movement threshold to ignore small movements

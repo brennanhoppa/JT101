@@ -134,6 +134,7 @@ def serial_process(command_queue,homing_error_button,terminate_event,is_jf_mode,
                 ser.write(command.encode())
                 wait_for_errorcheck_completion(ser, is_jf_mode, log_queue)
                 homing_error_button.value = 0
+                x_pos.value, y_pos.value = 0, 0
                 continue
 
             if command == "EXIT":

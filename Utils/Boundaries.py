@@ -1,11 +1,13 @@
 try:
     from Utils.JellyTrackingFunctions import pixels_to_mm, mm_to_steps, mm_to_pixels, steps_to_mm
+    from Utils.log import log
 except:
     from JellyTrackingFunctions import pixels_to_mm, mm_to_steps, mm_to_pixels, steps_to_mm
+    from log import log
 import logging
 # Logging setup
 logging.getLogger('matplotlib').setLevel(logging.ERROR)
-from Utils.log import log
+
 import matplotlib.pyplot as plt
 import tkinter as tk
 from tkinter import filedialog
@@ -86,7 +88,7 @@ def plot_boundary(boundary):
     plt.show()
 
 # Example usage
-# file_path = "C:\\Users\\JellyTracker\\Desktop\\JellyFishTrackingPC-main\\saved_boundaries_mm\\testingbounds123.csv"
+# file_path = "C:\\Users\\JellyTracker\\Desktop\\JellyFishTrackingPC-main\\saved_boundaries_mm\\new_boundary_20250708_120232.csv"
 # loaded_boundaries = load_boundaries(file_path)
 
 # plot_boundary(loaded_boundaries)

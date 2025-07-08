@@ -224,7 +224,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
        
        Button(810, 570, 150, 50, "Steps Calibration", lambda: stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,is_jf_mode, log_queue),get_color=lambda: calColors[step_to_mm_checking.value]),
        Button(810, 630, 150, 50, "Pixels Calibration", lambda: pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode, log_queue),get_color=lambda: calColors[pixelsCal_flag.value]),
-       Button(810, 690, 150, 50, "Change Mode", lambda: changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font)),
+       Button(810, 690, 150, 50, "Change Mode", lambda: changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, homing_error_button, command_queue, x_invalid_flag, y_invalid_flag)),
        Button(810, 750, 150, 50, "", lambda: 1),
 
        Button(button_x, button_y, button_width, button_height,
@@ -439,7 +439,9 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
                 f" \n"
                 f"{'Tracking Motors: On' if states.motors else 'Tracking Motors: Off'}\n"
                 f"{'Boundary Visualization: On' if states.show_boundary else 'Boundary Visualization: Off'}\n"
-                f"Mode: {mode_string(is_jf_mode)}"
+                f"Mode: {mode_string(is_jf_mode)}\n"
+                f"{f'X Pos (steps): {x_pos.value}' if verbose.value else ''}\n"
+                f"{f'Y Pos (steps): {y_pos.value}' if verbose.value else ''}\n"
             )
 
             lines = status_text.split('\n')
