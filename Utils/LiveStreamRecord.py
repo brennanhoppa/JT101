@@ -243,6 +243,9 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     column_width = window.get_width() - column_start_x
     max_width = column_width - 2 * margin - scrollbar_width
 
+    with open("ready.txt", "w") as f:
+        f.write("ready")
+
     while states.running:
         window.fill((0, 0, 0))  # Clear full window
 
@@ -256,10 +259,12 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
                         states.running = False
                         terminate_event.set()
                         running_flag.value = False
+                        os.remove("ready.txt")
                 else:
                     states.running = False
                     terminate_event.set()
                     running_flag.value = False
+                    os.remove("ready.txt")
                     break
 
             elif event.type == pygame.MOUSEWHEEL:
@@ -478,6 +483,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     
     acq_thread.join()
     tracking_thread.join()
+    os.remove("ready.txt")
     cap.release()
     pygame.quit()
     print("Done")
