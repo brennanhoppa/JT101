@@ -30,7 +30,7 @@ def popup_save_recording(window, font, recordingSave, avi_recorder, timestamp, s
     while running_popup:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                return False, recording
+                return False
 
             mouse_pos = pygame.mouse.get_pos()
             mouse_pressed = pygame.mouse.get_pressed()
@@ -39,13 +39,15 @@ def popup_save_recording(window, font, recordingSave, avi_recorder, timestamp, s
             no_button.handle_event(event, mouse_pos, mouse_pressed)
 
         if result["choice"] == "yes":
-            recording = recordingSave(recording=recording, avi_recorder=avi_recorder,
-                                       timestamp=timestamp, step_tracking_data=step_tracking_data, log_queue=log_queue)
-            return False, recording
+            recordingSave(recording, avi_recorder,timestamp,step_tracking_data,log_queue)
+            return False
         elif result["choice"] == "no":
+            if avi_recorder:
+                avi_recorder.release()
+                avi_recorder = None
             if os.path.exists(avi_filename):
                 os.remove(avi_filename)
-            return False, recording
+            return False
 
         # Dim background
         dim_overlay = pygame.Surface((window_width, window_height), pygame.SRCALPHA)
@@ -68,4 +70,4 @@ def popup_save_recording(window, font, recordingSave, avi_recorder, timestamp, s
         pygame.display.flip()
         clock.tick(30)
 
-    return True, recording
+    return True

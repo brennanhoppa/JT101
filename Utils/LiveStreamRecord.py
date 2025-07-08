@@ -18,7 +18,7 @@ from Utils.RollingLog import RollingLog
 from Utils.LiveStreamUtilFuncs import ensure_dir, draw_log_terminal
 from Utils.Boundaries import load_boundary
 from Utils import states
-from Utils.ButtonPresses import homingStepsWithErrorCheck, saveHelper, trackingHelper, trackingMotors, borderShowHelper, verboseHelper, openHelp, clear_log_callback
+from Utils.ButtonPresses import homingStepsWithErrorCheck, saveHelper, trackingHelper, trackingMotors, borderShowHelper, testingHelper, verboseHelper, openHelp, clear_log_callback
 from Utils.changeModePopUp import changeModePopUp
 from multiprocessing import Manager
 
@@ -36,8 +36,8 @@ TRACKING_INTERVAL = 1 / 50  # 50Hz tracking rate
 image_queue = queue.Queue(maxsize=5)
 tracking_result_queue = queue.Queue(maxsize=5)
 
-def run_live_stream_record(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag,step_size,step_to_mm_checking,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose):
-    if main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose):
+def run_live_stream_record(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag,step_size,step_to_mm_checking,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose,testingMode,recording):
+    if main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose,testingMode,recording):
         sys.exit(0)
     else:
         sys.exit(1)
@@ -72,7 +72,7 @@ def imageacq(cam,log_queue):
     if states.avi_recorder is not None:
         states.avi_recorder.release()
 
-def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,step_tracking_data):    
+def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,step_tracking_data,recording):    
     last_tracking_time = time.time()
     while states.running:
         if states.tracking:
@@ -104,7 +104,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                     if flashlight_pos:
                         # Calculate deltas
                         dx, dy = calculate_delta_Pixels(flashlight_pos, center_x, center_y)
-                        if states.recording:
+                        if recording.value:
                             # x_pos + dx thing and y !!!!!!!!!!!!!!
                             # mm position of jf in the global coords
                             x = steps_to_mm(x_pos.value, is_jf_mode)
@@ -119,7 +119,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                             
                         # Communicate tracking results for display
                         tracking_result_queue.put((flashlight_pos,(x1,x2,y1,y2)), block=False)
-                    elif states.recording:    
+                    elif recording.value:    
                         step_tracking_data.append((None, None, timestamp))
 
                     # Update tracking timestamp
@@ -132,9 +132,9 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                 # log(f"Error in tracking thread: {e}",log_queue)
         time.sleep(0.001)  # Sleep briefly to prevent excessive CPU usage
 
-def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking, homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose):
+def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking, homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose,testingMode,recording):
     global boundary
-
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     manager = Manager()
     step_tracking_data = manager.list()
 
@@ -161,7 +161,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     acq_thread = threading.Thread(target=imageacq, args=(cap,log_queue))
     acq_thread.start()
     
-    tracking_thread = threading.Thread(target=active_tracking_thread, args=(width // 2, height // 2, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,step_tracking_data))
+    tracking_thread = threading.Thread(target=active_tracking_thread, args=(width // 2, height // 2, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,step_tracking_data,recording))
     tracking_thread.start()
     
     clock = pygame.time.Clock()
@@ -175,11 +175,20 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     move_delay = 2  # How many frames to wait between moves
     move_counter = 0  # Frame counter
     
-    def recordingHelper(log_queue,step_tracking_data):
+    def recordingHelper(log_queue,step_tracking_data,recording):
         global timestamp, avi_filename
-        if not states.recording:
-            states.recording,states.avi_recorder,timestamp,avi_filename = recordingStart(states.recording,states.chosenAviType,fps,width,height,log_queue,step_tracking_data)
+        if not recording.value:
+            states.avi_recorder,timestamp,avi_filename = recordingStart(recording,states.chosenAviType,fps,width,height,log_queue,step_tracking_data)
             states.start_time = datetime.now()
+        elif recording.value:
+            if states.avi_recorder:
+                states.avi_recorder.release()
+                states.avi_recorder = None
+            if os.path.exists(avi_filename):
+                os.remove(avi_filename)
+            recording.value = False
+            states.start_time = datetime.now()
+
 
     def borderHelper(is_jf_mode,log_queue):
         global boundary
@@ -204,15 +213,17 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     button_width = 120
     button_height = 20
     onOffColors = [(50, 50, 100),(0, 150, 255)]
+    RecordingColors =  [(50, 50, 100),(255, 80, 80)]
+    saverColors = [(50, 50, 100),(80, 200, 80)]
     calColors = [(50, 50, 100),(38, 75, 139),(25, 100, 178),(13, 125, 216),(0, 150, 255)]
 
     buttons = [
-       Button(330, 570, 150, 50, "Record", lambda: recordingHelper(log_queue,step_tracking_data),get_color=lambda: onOffColors[states.recording]),
+       Button(330, 570, 150, 50, "Start Recording", lambda: recordingHelper(log_queue,step_tracking_data,recording),get_color=lambda: RecordingColors[recording.value],text_dependence=recording,text_if_true="Delete Recording",text_if_false="Start Recording"),
        Button(330, 630, 150, 50, "Tracking", lambda: trackingHelper(log_queue), get_color=lambda: onOffColors[states.tracking]),
        Button(330, 690, 150, 50, "Motors on for Tracking", lambda: trackingMotors(log_queue),get_color=lambda: onOffColors[states.motors]),
        Button(330, 750, 150, 50, "Arrow Manual Control", lambda: keyBindsControl(keybinds_flag,log_queue), get_color=lambda: onOffColors[not keybinds_flag.value]),
        
-       Button(490, 570, 150, 50, "Save Video", lambda: saveHelper(log_queue, timestamp, step_tracking_data)),
+       Button(490, 570, 150, 50, "Save Recording", lambda: saveHelper(log_queue, timestamp, step_tracking_data, recording), get_color=lambda: saverColors[recording.value]),
        Button(490, 630, 150, 50, "Home with Error Check", lambda: homingStepsWithErrorCheck(homing_error_button, is_jf_mode, command_queue,x_pos,y_pos, log_queue),get_color=lambda: onOffColors[homing_error_button.value]),
        Button(490, 690, 150, 50, "Help", lambda: openHelp(log_queue)),       
        Button(490, 750, 150, 50, "Verbose Mode", lambda: verboseHelper(log_queue,command_queue,verbose),get_color=lambda: onOffColors[verbose.value]),
@@ -225,7 +236,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
        Button(810, 570, 150, 50, "Steps Calibration", lambda: stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,is_jf_mode, log_queue),get_color=lambda: calColors[step_to_mm_checking.value]),
        Button(810, 630, 150, 50, "Pixels Calibration", lambda: pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode, log_queue),get_color=lambda: calColors[pixelsCal_flag.value]),
        Button(810, 690, 150, 50, "Change Mode", lambda: changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, homing_error_button, command_queue, x_invalid_flag, y_invalid_flag)),
-       Button(810, 750, 150, 50, "", lambda: 1),
+       Button(810, 750, 150, 50, "Testing Function", lambda: testingHelper(log_queue,testingMode), get_color=lambda: onOffColors[testingMode.value]),
 
        Button(button_x, button_y, button_width, button_height,
                         "Clear Term", lambda: clear_log_callback(rolling_log,log_queue),
@@ -253,8 +264,8 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
         mouse_pressed = pygame.mouse.get_pressed()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                if states.recording:
-                    cont, states.recording = popup_save_recording(window, font, recordingSave, states.avi_recorder, timestamp, step_tracking_data, states.recording, avi_filename, log_queue)
+                if recording.value:
+                    cont = popup_save_recording(window, font, recordingSave, states.avi_recorder, timestamp, step_tracking_data, recording, avi_filename, log_queue)
                     if not cont:
                         states.running = False
                         terminate_event.set()
@@ -365,7 +376,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
             boundary.append((x_pos.value,y_pos.value))
         if states.shared_image is not None:
             # Handle recording
-            if states.recording and states.avi_recorder is not None:
+            if recording.value and states.avi_recorder is not None:
                 states.avi_recorder.write(states.shared_image)
 
             # Convert webcam image for pygame display
@@ -425,7 +436,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
             elapsed_seconds = int(current_time.total_seconds())
             hours, remainder = divmod(elapsed_seconds, 3600)
             minutes, seconds = divmod(remainder, 60)
-            if states.recording:
+            if recording.value:
                 pygame.draw.circle(window, (255, 0, 0), (width-20,20), 8)
 
             # Determine status values
@@ -438,7 +449,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
                 tracking_status = "Tracking Off"
 
             status_text = (
-                f"{'● Recording' if states.recording else 'Not Recording'}\n"
+                f"{'● Recording' if recording.value else 'Not Recording'}\n"
                 f"Duration: {hours:02}:{minutes:02}:{seconds:02}\n"
                 f"{tracking_status}\n"
                 f" \n"
@@ -454,7 +465,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
 
             for line in lines:
                 if ("Recording" in line) or ("Duration" in line):
-                    color = (255, 80, 80) if states.recording else (173, 216, 230)  # red if recording else light blue
+                    color = (255, 80, 80) if recording.value else (173, 216, 230)  # red if recording else light blue
                 elif "[OK]" in line:
                     color = (0, 180, 0)  # green
                 elif "[FAIL]" in line:
@@ -477,13 +488,12 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
             last_frame_time = current_time
             log(f"FPS: {frames:.1f}",log_queue)
     
-    if states.recording and states.avi_recorder:
+    if recording.value and states.avi_recorder:
         states.avi_recorder.release()
         states.avi_recorder = None
     
     acq_thread.join()
     tracking_thread.join()
-    os.remove("ready.txt")
     cap.release()
     pygame.quit()
     print("Done")

@@ -1,11 +1,15 @@
 import pygame
 
 class Button:
-    def __init__(self, x, y, width, height, text, callback=None, get_color=None):
+    def __init__(self, x, y, width, height, text, callback=None, get_color=None, text_dependence=None, text_if_true=None, text_if_false=None):
         self.rect = pygame.Rect(x, y, width, height)
         self.text = text
         self.callback = callback
         self.get_color = get_color
+        self.text_dependence = text_dependence
+        self.text_if_true = text_if_true
+        self.text_if_false = text_if_false
+
         self.text_color = (255,255,255)
         self.base_color = (50, 50, 100)
 
@@ -52,7 +56,14 @@ class Button:
         font = self.font  # assume self.font exists
         padding = 10
         max_text_width = self.rect.width - 2 * padding
-        words = self.text.split()
+        dynamic_text = self.text
+        if self.text_dependence:
+            if self.text_dependence.value:
+                dynamic_text = self.text_if_true
+            else:
+                dynamic_text = self.text_if_false
+
+        words = dynamic_text.split()
         lines = []
         current_line = ""
 

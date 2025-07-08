@@ -1,5 +1,5 @@
 import keyboard # type: ignore
-import time
+import time, random
 import Utils.JellyTrackingFunctions as JellyTrackingFunctions
 from Utils.ButtonPresses import homingStepsWithErrorCheck
 from Utils.CONSTANTS import CONSTANTS
@@ -52,7 +52,7 @@ def save_mode(mode, file_path,log_queue):
     except Exception as e:
         log(f"Error writing to {file_path}: {e}",log_queue)
 
-def run_motor_input(x_pos,y_pos,file_path_xy,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode,file_path_mode,terminate_event,running_flag, step_size,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag):
+def run_motor_input(x_pos,y_pos,file_path_xy,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode,file_path_mode,terminate_event,running_flag, step_size,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,testingMode,verbose):
     # Main loop for reading input and controlling motors
     try:
         while True:
@@ -72,7 +72,18 @@ def run_motor_input(x_pos,y_pos,file_path_xy,command_queue,keybinds_flag,pixelsC
                     if x_dir != 0 or y_dir != 0:
                         x_pos, y_pos = move(x_pos, y_pos, x_dir, y_dir, command_queue,is_jf_mode, log_queue, x_invalid_flag, y_invalid_flag)
                         time.sleep(.013)  # Small delay to prevent rapid commands
-        
+
+            if testingMode.value:
+                
+                # code for random movements
+                xMove = random.randint(-100, 100)
+                yMove = random.randint(-100, 100)
+                move(x_pos,y_pos,xMove,yMove,command_queue,is_jf_mode, log_queue, x_invalid_flag, y_invalid_flag)
+                if verbose.value:
+                    # log(f"Move (x,y) [steps]: ({xMove}, {yMove})",log_queue)
+                    pass
+                time.sleep(0.013)
+
             if running_flag.value == False:
                 log('Stopping program.',log_queue)
                 break                

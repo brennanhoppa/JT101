@@ -157,7 +157,7 @@ def keyBindsControl(keybinds_flag,log_queue):
     # time.sleep(0.2)
     
 def recordingStart(recording,chosenAviType,fps,width,height,log_queue,step_tracking_data):
-    recording = True
+    recording.value = True
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     avi_filename = f'saved_tracking_videos/JellyTracking_{timestamp}'
 
@@ -170,17 +170,18 @@ def recordingStart(recording,chosenAviType,fps,width,height,log_queue,step_track
         fourcc = cv2.VideoWriter_fourcc('I', '4', '2', '0')
     elif chosenAviType == AviType.H264:
         avi_filename += '.mp4'
-        fourcc = cv2.VideoWriter_fourcc('H', '2', '6', '4')
+        fourcc = cv2.VideoWriter_fourcc('H','2','6','4')
+
     
     # Use original frame size from webcam, not the display size
     avi_recorder = cv2.VideoWriter(avi_filename, fourcc, fps, (width, height))
     log(f"$$$$$ Recording started at: {avi_filename} $$$$$",log_queue)
     # Reset step tracking data
     step_tracking_data[:] = []
-    return recording,avi_recorder,timestamp,avi_filename
+    return avi_recorder,timestamp,avi_filename
 
 def recordingSave(recording,avi_recorder,timestamp,step_tracking_data,log_queue):
-    recording = False
+    recording.value = False
     if avi_recorder:
         avi_recorder.release()
         avi_recorder = None
@@ -193,7 +194,7 @@ def recordingSave(recording,avi_recorder,timestamp,step_tracking_data,log_queue)
         for x, y, t in local_steps:
             f.write(f"{x},{y},{t}\n")
     log(f"$$$$$ Tracking data saved to {tracking_filename} $$$$$",log_queue)
-    return recording
+    return None
 
 def boundaryControl(boundary_making, boundary,is_jf_mode,log_queue):
     if boundary_making:
@@ -220,9 +221,9 @@ def boundaryCancel(boundary_making, boundary,log_queue):
     return boundary_making, boundary
 
 # Button press direct function
-def saveHelper(log_queue, timestamp, step_tracking_data):
-    if states.recording:
-        states.recording = recordingSave(states.recording,states.avi_recorder,timestamp,step_tracking_data,log_queue)
+def saveHelper(log_queue, timestamp, step_tracking_data, recording):
+    if recording.value:
+        recordingSave(recording,states.avi_recorder,timestamp,step_tracking_data,log_queue)
         states.start_time = datetime.now() 
 
 def trackingHelper(log_queue):
@@ -243,6 +244,13 @@ def verboseHelper(log_queue,command_queue,verbose):
         log("^^^ Turning on the verbose descriptions of output from tracking model and arduino. Only use for debugging. ^^^",log_queue)
     else:
         log("^^^ Turning off verbose mode ^^^", log_queue)
+
+def testingHelper(log_queue,testingMode):
+    testingMode.value = not testingMode.value
+    if testingMode.value:
+        log("**Turning Testing Mode on!**",log_queue)
+    else:
+        log("**Testing Mode off**", log_queue)
 
 def openHelp(log_queue):
     os.startfile("C:\\Users\\JellyTracker\\Desktop\\HelpDoc.pdf")
