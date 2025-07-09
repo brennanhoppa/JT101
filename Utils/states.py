@@ -7,5 +7,6 @@ shared_image = None
 avi_recorder = None
 show_boundary = False
 chosenAviType = AviType.H264
+# chosenAviType = AviType.MJPG
 start_time = datetime.now()
 avi_filename = ""

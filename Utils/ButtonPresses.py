@@ -8,6 +8,7 @@ from Utils.CONSTANTS import CONSTANTS, AviType
 from Utils.log import log
 import webbrowser
 from Utils import states
+from Utils.nvenc_video_writer import NvencVideoWriter
 import os
 
 def homingStepsWithErrorCheck(homing_error_button, is_jf_mode,command_queue,x_pos,y_pos,log_queue):
@@ -160,22 +161,32 @@ def keyBindsControl(keybinds_flag,log_queue):
 def recordingStart(recording,chosenAviType,fps,width,height,log_queue,step_tracking_data):
     recording.value = True
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    avi_filename = f'saved_tracking_videos/JellyTracking_{timestamp}'
+    avi_filename = f'saved_tracking_videos/JellyTracking_{timestamp}.mp4'
 
-    # Create video writer with more reliable settings
-    if chosenAviType == AviType.MJPG:
-        avi_filename += '.avi'
-        fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
-    elif chosenAviType == AviType.UNCOMPRESSED:
-        avi_filename += '.avi'
-        fourcc = cv2.VideoWriter_fourcc('I', '4', '2', '0')
-    elif chosenAviType == AviType.H264:
-        avi_filename += '.mp4'
-        fourcc = cv2.VideoWriter_fourcc('H','2','6','4')
+    # # Create video writer with more reliable settings
+    # if chosenAviType == AviType.MJPG:
+    #     avi_filename += '.avi'
+    #     fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
+    # elif chosenAviType == AviType.UNCOMPRESSED:
+    #     avi_filename += '.avi'
+    #     fourcc = cv2.VideoWriter_fourcc('I', '4', '2', '0')
+    # elif chosenAviType == AviType.H264:
+    #     avi_filename += '.mp4'
+    #     fourcc = cv2.VideoWriter_fourcc('H','2','6','4')
+    #  # Use original frame size from webcam, not the display size
+    # avi_recorder = cv2.VideoWriter(avi_filename, fourcc, fps, (width, height))
 
-    
-    # Use original frame size from webcam, not the display size
-    avi_recorder = cv2.VideoWriter(avi_filename, fourcc, fps, (width, height))
+
+     # Use NVENC recorder
+    avi_recorder = NvencVideoWriter(
+        avi_filename,
+        width,
+        height,
+        fps=fps,
+        bitrate="10M",
+        log=lambda msg, _: log(msg, log_queue)
+    )
+
     log(f"$$$$$ Recording started at: {avi_filename} $$$$$",log_queue)
     # Reset step tracking data
     step_tracking_data[:] = []

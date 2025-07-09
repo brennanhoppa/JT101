@@ -34,6 +34,7 @@ TRACKING_INTERVAL = 1 / 50  # 50Hz tracking rate
 
 # Queue for inter-thread communication
 image_queue = queue.Queue(maxsize=5)
+recording_queue = queue.Queue(maxsize=100)
 tracking_result_queue = queue.Queue(maxsize=5)
 
 def run_live_stream_record(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag,step_size,step_to_mm_checking,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose,testingMode,recording,tracking,motors):
@@ -42,35 +43,71 @@ def run_live_stream_record(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_fla
     else:
         sys.exit(1)
 
-def imageacq(cam,log_queue):
+def recording_writer_thread(recording):
+    while states.running:
+        if recording.value and states.avi_recorder is not None:
+            try:
+                while True:  # flush queue
+                    frame = recording_queue.get_nowait()
+                    states.avi_recorder.write(frame)
+            except queue.Empty:
+                time.sleep(0.001)
+        else:
+            time.sleep(0.01)
+
+
+last_time = time.time()
+frames = 0
+def imageacq(cam, recording, fps, log_queue):
+    global frames, last_time
+    cam.set(cv2.CAP_PROP_FPS, fps)
+
     while states.running:
         try:
             ret, frame = cam.read()
             if ret:
-                # Convert for display
-                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                # Save frame for display
+                frames += 1
+                if frames % 100 == 0:
+                    now = time.time()
+                    print(f"Capture FPS: {100 / (now - last_time):.2f}")
+                    last_time = now
+                
+                # Save for display
                 states.shared_image = frame
-                # Put in queue for tracking
+
+                # Put frame into tracking queue
                 if isinstance(frame, np.ndarray):
                     try:
                         image_queue.put(frame, block=False)
                     except queue.Full:
                         try:
-                            image_queue.get_nowait()  # Remove the oldest frame if queue is full
+                            image_queue.get_nowait()  # drop oldest
                             image_queue.put(frame, block=False)
                         except queue.Empty:
                             pass
                 else:
-                    log("Warning: Frame conversion failed; not a valid NumPy array.",log_queue)
+                    log("Warning: Frame is not a valid NumPy array.", log_queue)
+
+                # If recording is active, put frame into recording queue too
+                if recording.value:
+                    try:
+                        recording_queue.put(frame, block=False)
+                    except queue.Full:
+                        try:
+                            recording_queue.get_nowait()  # drop oldest
+                            recording_queue.put(frame, block=False)
+                        except queue.Empty:
+                            pass
             else:
-                log("Failed to capture frame from webcam",log_queue)
+                log("Failed to capture frame from camera", log_queue)
+
         except Exception as ex:
-            log(f'Error in image acquisition: {ex}',log_queue)
-    
-    # Clean up video writer if it exists
+            log(f'Error in image acquisition: {ex}', log_queue)
+
+    # Clean up on exit
     if states.avi_recorder is not None:
         states.avi_recorder.release()
+
 
 def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,step_tracking_data,recording, tracking,motors, testingMode):    
     last_tracking_time = time.time()
@@ -147,6 +184,8 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
 
     # Initialize webcam
     cap = cv2.VideoCapture(0)  # Use default webcam (index 0)
+    # cap.set(cv2.CAP_PROP_FPS, 30)
+
     if not cap.isOpened():
         log("Error: Could not open webcam",log_queue)
         states.running = False
@@ -160,7 +199,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     # Get camera properties
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = 60 # change if camera settings change
+    fps = 30 # change if camera settings change
     
     pygame.init()
     text_panel_height = 320
@@ -171,11 +210,14 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     ensure_dir('saved_tracking_videos')
     ensure_dir('saved_tracking_csvs')
     
-    acq_thread = threading.Thread(target=imageacq, args=(cap,log_queue))
+    acq_thread = threading.Thread(target=imageacq, args=(cap,recording, fps, log_queue))
     acq_thread.start()
     
     tracking_thread = threading.Thread(target=active_tracking_thread, args=(width // 2, height // 2, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,step_tracking_data,recording, tracking, motors, testingMode))
     tracking_thread.start()
+
+    writer_thread = threading.Thread(target=recording_writer_thread, args=(recording,), daemon=True)
+    writer_thread.start()
     
     clock = pygame.time.Clock()
     font = pygame.font.Font(None, 36)
@@ -193,13 +235,14 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
         if not recording.value:
             states.avi_recorder,timestamp,avi_filename = recordingStart(recording,states.chosenAviType,fps,width,height,log_queue,step_tracking_data)
             states.start_time = datetime.now()
-        elif recording.value:
+        elif recording.value: # deleting
             if states.avi_recorder:
                 states.avi_recorder.release()
                 states.avi_recorder = None
             if os.path.exists(avi_filename):
                 os.remove(avi_filename)
             recording.value = False
+            log("$$Recording deleted.$$", log_queue)
             states.start_time = datetime.now()
 
 
@@ -399,15 +442,15 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
             boundary.append((x_pos.value,y_pos.value))
         if states.shared_image is not None:
             # Handle recording
-            if recording.value and states.avi_recorder is not None:
-                states.avi_recorder.write(states.shared_image)
+            # if recording.value and states.avi_recorder is not None:
+            #     states.avi_recorder.write(states.shared_image)
 
             # Convert webcam image for pygame display
             rgb_frame = cv2.cvtColor(states.shared_image, cv2.COLOR_BGR2RGB)
             height, width, channels = rgb_frame.shape
             py_image = pygame.surfarray.make_surface(rgb_frame.swapaxes(0, 1))
             # py_image = pygame.transform.scale(py_image, (window_width, window_height))
-            py_image_mirror = pygame.transform.flip(py_image, True, False) # mirrored to have live stream make more
+            # py_image_mirror = pygame.transform.flip(py_image, True, False) # mirrored to have live stream make more
             window.blit(py_image, (0, 0))   
             
             # Draw crosshair at the center of the screen
@@ -501,7 +544,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
                 y_offset += font.get_linesize()
             pygame.display.flip()
         
-        clock.tick(60)  # Keep at 60 FPS for smooth display
+        clock.tick(30)  # Keep at 60 FPS for smooth display
         
         frame_count += 1
         if frame_count == 600: # normally 600 is good speed
@@ -517,6 +560,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     
     acq_thread.join()
     tracking_thread.join()
+    writer_thread.join()
     cap.release()
     pygame.quit()
     print("Done")
