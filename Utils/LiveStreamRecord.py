@@ -142,6 +142,12 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     cap = cv2.VideoCapture(0)  # Use default webcam (index 0)
     if not cap.isOpened():
         log("Error: Could not open webcam",log_queue)
+        states.running = False
+        terminate_event.set()
+        running_flag.value = False
+        cap.release()
+        pygame.quit()
+        print("Done")
         return False
     
     # Get camera properties

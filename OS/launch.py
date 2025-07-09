@@ -38,8 +38,17 @@ thread.start()
 def check_if_done():
     if os.path.exists("ready.txt"):
         root.destroy()
+    elif not thread.is_alive():
+        # main.py ended but didn't create ready.txt -> error
+        label.config(text=(
+            "    Failed to load Jelly Tracker.\n"
+            "    Please run from VS Code Terminal to see error."
+        ))
+        # Optional: close splash after a few seconds
+        root.after(5000, root.destroy)
     else:
         root.after(200, check_if_done)
+
 
 root.after(500, check_if_done)
 
