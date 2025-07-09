@@ -1,5 +1,6 @@
 import sys
 import numpy as np
+import multiprocessing
 import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame # type: ignore
@@ -8,7 +9,7 @@ import queue
 from datetime import datetime
 import time
 from Utils.JellyTrackingFunctions import detect_jellyfish,calculate_movement, calculate_delta_Pixels, mm_to_pixels, pixels_to_mm, mm_to_steps, steps_to_mm, mode_string
-from Utils.ManualMotorInput import move
+from Utils.moveFunctions import move
 import cv2 #type: ignore
 from Utils.ButtonPresses import recordingStart, recordingSave, boundaryControl, boundaryCancel,pixelsCalibration, keyBindsControl, stepsCalibration
 from Utils.Button import Button
@@ -69,7 +70,7 @@ def imageacq(cam, recording, fps, log_queue):
                 frames += 1
                 if frames % 100 == 0:
                     now = time.time()
-                    print(f"Capture FPS: {100 / (now - last_time):.2f}")
+                    # print(f"Capture FPS: {100 / (now - last_time):.2f}")
                     last_time = now
                 
                 # Save for display
@@ -245,6 +246,14 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
             log("$$Recording deleted.$$", log_queue)
             states.start_time = datetime.now()
 
+    def setLarvaeHome(x_pos,y_pos, xy_LHpos,is_jf_mode,changeModeFlag,log_queue):
+        if is_jf_mode.value == 0:
+            changeModeFlag.value = False
+            xy_LHpos[:] = [x_pos.value, y_pos.value]
+            log(f"Larvae Home set to ({x_pos.value},{y_pos.value})", log_queue)
+        else:
+            log("Cannot set or change larvae home in JF mode.", log_queue)
+
 
     def borderHelper(is_jf_mode,log_queue):
         global boundary
@@ -263,6 +272,9 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
         nonlocal crosshair_x, crosshair_y
         crosshair_x,crosshair_y = pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,width,height,is_jf_mode, log_queue)
 
+    changeModeFlag = multiprocessing.Value('b',False)
+    xy_LHpos = multiprocessing.Array('i',[-1,-1])
+
     rolling_log = RollingLog()
     button_x = window.get_width() - 130  # inside terminal panel left margin
     button_y = 5
@@ -274,7 +286,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     calColors = [(50, 50, 100),(38, 75, 139),(25, 100, 178),(13, 125, 216),(0, 150, 255)]
 
     buttons = [
-       Button(330, 570, 150, 50, "Start Recording", lambda: recordingHelper(log_queue,step_tracking_data,recording),get_color=lambda: RecordingColors[recording.value],text_dependence=recording,text_if_true="Delete Recording",text_if_false="Start Recording", get_visible=lambda: not recording.value),
+       Button(330, 570, 150, 50, "Start Recording", lambda: recordingHelper(log_queue,step_tracking_data,recording),get_color=lambda: (50, 50, 100),text_dependence=recording,text_if_true="Delete Recording",text_if_false="Start Recording", get_visible=lambda: not recording.value),
        Button(330, 570, 70, 50, "Save", 
            lambda: saveHelper(log_queue, timestamp, step_tracking_data, recording),
            get_color=lambda: (80, 200, 80),
@@ -288,8 +300,8 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
        Button(330, 690, 150, 50, "Motors on for Tracking", lambda: trackingMotors(motors,log_queue),get_color=lambda: onOffColors[motors.value], text_dependence=motors,text_if_true="Tracking Motors On",text_if_false="Tracking Motors Off"),
        Button(330, 750, 150, 50, "Arrow Manual Control", lambda: keyBindsControl(keybinds_flag,log_queue), get_color=lambda: onOffColors[not keybinds_flag.value], text_dependence=keybinds_flag,text_if_true="Motors Arrow Control On",text_if_false="Motors Arrow Control Off"),
        
-       Button(490, 570, 150, 50, "", lambda: 1, get_color=None),
-       Button(490, 630, 150, 50, "Home with Error Check", lambda: homingStepsWithErrorCheck(homing_error_button, is_jf_mode, command_queue,x_pos,y_pos, log_queue),get_color=lambda: onOffColors[homing_error_button.value]),
+       Button(490, 570, 150, 50, "Change Larvae Home", lambda: setLarvaeHome(x_pos,y_pos, xy_LHpos,is_jf_mode,changeModeFlag,log_queue), get_color=None),
+       Button(490, 630, 150, 50, "Home with Error Check", lambda: homingStepsWithErrorCheck(homing_error_button, is_jf_mode, command_queue,x_pos,y_pos, xy_LHpos, x_invalid_flag, y_invalid_flag, log_queue),get_color=lambda: onOffColors[homing_error_button.value]),
        Button(490, 690, 150, 50, "Help", lambda: openHelp(log_queue)),       
        Button(490, 750, 150, 50, "Verbose Mode", lambda: verboseHelper(log_queue,command_queue,verbose),get_color=lambda: onOffColors[verbose.value]),
 
@@ -300,7 +312,10 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
        
        Button(810, 570, 150, 50, "Steps Calibration", lambda: stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,is_jf_mode, log_queue),get_color=lambda: calColors[step_to_mm_checking.value]),
        Button(810, 630, 150, 50, "Pixels Calibration", lambda: pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode, log_queue),get_color=lambda: calColors[pixelsCal_flag.value]),
-       Button(810, 690, 150, 50, "Change Mode", lambda: changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, homing_error_button, command_queue, x_invalid_flag, y_invalid_flag)),
+       Button(810, 690, 150, 50, "Change Mode", lambda: changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, homing_error_button, command_queue, x_invalid_flag, y_invalid_flag, changeModeFlag,xy_LHpos), get_visible=lambda: not changeModeFlag.value),
+       Button(810, 690, 150, 50, "Set Larvae Home", lambda: setLarvaeHome(x_pos,y_pos, xy_LHpos,is_jf_mode,changeModeFlag,log_queue), get_color=lambda: (255, 165, 0), get_visible=lambda: changeModeFlag.value),
+
+
        Button(810, 750, 150, 50, "Testing Function", lambda: testingHelper(log_queue,testingMode), get_color=lambda: onOffColors[testingMode.value]),
 
        Button(button_x, button_y, button_width, button_height,

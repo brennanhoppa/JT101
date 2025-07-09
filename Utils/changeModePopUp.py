@@ -6,9 +6,9 @@ import time
 pygame.init()
 from Utils.CONSTANTS import CONSTANTS
 from Utils.ButtonPresses import homingStepsWithErrorCheck
-from Utils.autoMove import autoMove
+from Utils.moveFunctions import autoMove
 
-def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, homing_error_button, command_queue, x_invalid_flag, y_invalid_flag):
+def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, homing_error_button, command_queue, x_invalid_flag, y_invalid_flag, changeModeFlag,xy_LHpos):
     
     popup_width, popup_height = 1000, 400
     window_width, window_height = window.get_size()
@@ -60,6 +60,9 @@ def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, ho
             "Now, guarantee the microscope is low enough, then homing will commence.\n"
             "It will automatically complete if yes selected.\n"
             )
+        final_msg = [
+            "Click yes to complete mode change to jf.",
+        ]
     elif is_jf_mode.value == 1: # switching from jf to larvae
         ready_msg_lines = [
         "Ready for the following steps to happen automatically?",
@@ -76,6 +79,12 @@ def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, ho
             "This gives 12800 steps/revolution.\n"
             "4. Prepare boundary inside tank for larvae.\n"
         )
+        final_msg = [
+            "After clicking yes here, immediately manually move motors to",
+            "site near larvae boundary, then click the button that says Set Larvae Home,",
+            "to set the home location for this mode.",
+            "Click yes to complete mode change to larve."
+        ]
     else: 
         msg = (
             f"Mode incorrectly saved as: {is_jf_mode.value}.\n"
@@ -102,7 +111,7 @@ def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, ho
                 if is_jf_mode.value == 0: # switching from larvae to jf
                     pass
                 elif is_jf_mode.value == 1: # switching from jf to larvae
-                    homingStepsWithErrorCheck(homing_error_button, is_jf_mode, command_queue, x_pos,y_pos, log_queue)
+                    homingStepsWithErrorCheck(homing_error_button, is_jf_mode,command_queue,x_pos,y_pos, xy_LHpos,  x_invalid_flag, y_invalid_flag, log_queue)
                     while homing_error_button.value == 1:
                         time.sleep(0.1)
                     autoMove(x_pos,y_pos,CONSTANTS["LarvaeHome"],command_queue, is_jf_mode, log_queue, x_invalid_flag, y_invalid_flag)
@@ -114,16 +123,24 @@ def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, ho
                 if is_jf_mode.value == 0: # switching from larvae to jf
                     is_jf_mode.value = 1
                     step_size.value = CONSTANTS['JellyStepSizeManual']
-                    homingStepsWithErrorCheck(homing_error_button, is_jf_mode, command_queue, x_pos,y_pos, log_queue)
-                    return None
+                    homingStepsWithErrorCheck(homing_error_button, is_jf_mode,command_queue,x_pos,y_pos, xy_LHpos,  x_invalid_flag, y_invalid_flag, log_queue)
                 elif is_jf_mode.value == 1: # switching from jf to larvae
                     is_jf_mode.value = 0
                     step_size.value = CONSTANTS['LarvaeStepSizeManual']
                     x_pos.value, y_pos.value = 0, 0
+                else: 
+                    log("Mode is incorrect value, please close program and reset to 0 (larvae) or 1 (jellyfish)",log_queue)
+                result["choice"] = None
+                phase = "final"
+            elif phase == "final":
+                if is_jf_mode.value == 0:
+                    changeModeFlag.value = True
+                    return None
+                elif is_jf_mode.value == 1:
                     return None
                 else: 
                     log("Mode is incorrect value, please close program and reset to 0 (larvae) or 1 (jellyfish)",log_queue)
-        elif result["choice"] == "no":
+        elif result["choice"] == "no":                
             if is_jf_mode.value == 0: # switching from larvae to jf
                 log("Maintaining larvae mode as not all steps required to switch to jellyfish mode fulfilled.",log_queue)
                 return None
@@ -143,7 +160,13 @@ def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, ho
         pygame.draw.rect(window, (200, 200, 200), popup_rect, 2, border_radius=10)
 
         # Draw text
-        lines = ready_msg_lines if phase == "ready" else msg_lines
+        if phase == 'ready':
+            lines = ready_msg_lines
+        elif phase == 'instructions':
+            lines = msg_lines
+        else:
+            lines = final_msg
+        
         line_height = font.get_height() + 5
         for i, line in enumerate(lines):
             text_surf = font.render(line, True, (255, 255, 255))
@@ -152,7 +175,8 @@ def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, ho
 
         # Draw buttons
         yes_button.draw(window)
-        no_button.draw(window)
+        if phase != "final":
+            no_button.draw(window)
 
         pygame.display.flip()
         clock.tick(30)
