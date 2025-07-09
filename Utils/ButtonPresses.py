@@ -190,10 +190,10 @@ def recordingSave(recording,avi_recorder,timestamp,step_tracking_data,log_queue)
     # Save tracking data
     tracking_filename = f'saved_tracking_csvs/JellyTracking_{timestamp}_tracking.csv'
     with open(tracking_filename, 'w') as f:
-        f.write("x,y,t\n")
+        f.write("x,y,t,type\n")
         local_steps = list(step_tracking_data)
-        for x, y, t in local_steps:
-            f.write(f"{x},{y},{t}\n")
+        for x, y, t, type in local_steps:
+            f.write(f"{x},{y},{t},{type}\n")
     log(f"$$$$$ Tracking data saved to {tracking_filename} $$$$$",log_queue)
     return None
 

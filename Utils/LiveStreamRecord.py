@@ -72,13 +72,13 @@ def imageacq(cam,log_queue):
     if states.avi_recorder is not None:
         states.avi_recorder.release()
 
-def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,step_tracking_data,recording, tracking,motors):    
+def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,step_tracking_data,recording, tracking,motors, testingMode):    
     last_tracking_time = time.time()
     while states.running:
-        if tracking.value:
-            try:
-                current_time = time.time()
-                if current_time - last_tracking_time >= TRACKING_INTERVAL:
+        current_time = time.time()
+        if current_time - last_tracking_time >= TRACKING_INTERVAL:
+            if tracking.value:
+                try:
                     image = image_queue.get(timeout=1)  # Wait for the next frame
 
                     # Verify that the image is a valid NumPy array
@@ -111,7 +111,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                             y = steps_to_mm(y_pos.value, is_jf_mode)
                             x -= pixels_to_mm(dx,is_jf_mode) # matching to the inverting of the x axis with the camera
                             y += pixels_to_mm(dy,is_jf_mode) # same as above
-                            step_tracking_data.append((x, y, timestamp))                        
+                            step_tracking_data.append((round(x,3), round(y,3), timestamp, 'SuccTrack'))                        
                         if motors.value:
                             step_x, step_y = calculate_movement(dx,dy,is_jf_mode)
                             # Send movement command
@@ -120,17 +120,24 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                         # Communicate tracking results for display
                         tracking_result_queue.put((flashlight_pos,(x1,x2,y1,y2)), block=False)
                     elif recording.value:    
-                        step_tracking_data.append((None, None, timestamp))
+                        x = steps_to_mm(x_pos.value, is_jf_mode)
+                        y = steps_to_mm(y_pos.value, is_jf_mode)
+                        step_tracking_data.append((x, y, timestamp, 'FailTrackMotorPos'))
 
                     # Update tracking timestamp
                     last_tracking_time = current_time
-            except queue.Empty:
-                # Handle case where no frame is available
-                log("Warning: Frame queue is empty; skipping tracking update.",log_queue)
-            except Exception as e:
-                pass
-                # log(f"Error in tracking thread: {e}",log_queue)
-        time.sleep(0.001)  # Sleep briefly to prevent excessive CPU usage
+                except queue.Empty:
+                    # Handle case where no frame is available
+                    log("Warning: Frame queue is empty; skipping tracking update.",log_queue)
+                except Exception as e:
+                    pass
+                    # log(f"Error in tracking thread: {e}",log_queue)
+            elif testingMode.value:
+                timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-2] 
+                x = steps_to_mm(x_pos.value, is_jf_mode)
+                y = steps_to_mm(y_pos.value, is_jf_mode)
+                step_tracking_data.append((x, y, timestamp, 'MotorPos'))
+            time.sleep(0.001)  # Sleep briefly to prevent excessive CPU usage
 
 def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking, homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose,testingMode,recording,tracking,motors):
     global boundary
@@ -167,7 +174,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     acq_thread = threading.Thread(target=imageacq, args=(cap,log_queue))
     acq_thread.start()
     
-    tracking_thread = threading.Thread(target=active_tracking_thread, args=(width // 2, height // 2, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,step_tracking_data,recording, tracking, motors))
+    tracking_thread = threading.Thread(target=active_tracking_thread, args=(width // 2, height // 2, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,step_tracking_data,recording, tracking, motors, testingMode))
     tracking_thread.start()
     
     clock = pygame.time.Clock()
