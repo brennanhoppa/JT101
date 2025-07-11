@@ -150,6 +150,15 @@ def serial_process(command_queue,homing_error_button,terminate_event,is_jf_mode,
 
     ser.close()
 
+def timer_process(elapsed_time, reset_timer, running):
+    start = time.time()
+    while running.value:
+        if reset_timer.value:
+            start = time.time()
+            reset_timer.value = False
+        elapsed_time.value = time.time() - start
+        time.sleep(0.1)  # update every 0.1 second
+
 if __name__ == "__main__":
     x_pos, y_pos, file_path_xy = get_x_y(log_queue)
     is_jf_mode, file_path_mode = get_mode(log_queue)
@@ -173,12 +182,16 @@ if __name__ == "__main__":
     recording = multiprocessing.Value('b',False)
     tracking = multiprocessing.Value('b',False)
     motors = multiprocessing.Value('b',False)
+    elapsed_time = multiprocessing.Value('d', 0.0)  # shared float
+    reset_timer = multiprocessing.Value('b',False)
 
     serial_proc = multiprocessing.Process(target=serial_process,args=(command_queue,homing_error_button,terminate_event,is_jf_mode, log_queue, x_invalid_flag, y_invalid_flag, x_pos, y_pos,verbose))
     serial_proc.start()
     motor_process = multiprocessing.Process(target=run_motor_input, args=(x_pos, y_pos, file_path_xy, command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode,file_path_mode,terminate_event,running_flag, step_size,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,testingMode,verbose))
-    live_stream_process = multiprocessing.Process(target=run_live_stream_record, args=(x_pos, y_pos, command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose,testingMode,recording, tracking,motors))
-    
+    live_stream_process = multiprocessing.Process(target=run_live_stream_record, args=(x_pos, y_pos, command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose,testingMode,recording, tracking,motors,elapsed_time,reset_timer))
+    timer = multiprocessing.Process(target=timer_process, args=(elapsed_time, reset_timer, running_flag))
+    timer.start()
+
     if terminate_event.is_set():
         sys.exit(0)  
     motor_process.start()
@@ -187,6 +200,7 @@ if __name__ == "__main__":
 
     motor_process.join()
     live_stream_process.join()
+    timer.join()
 
     command_queue.put("EXIT")
     serial_proc.join()

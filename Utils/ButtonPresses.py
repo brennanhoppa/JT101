@@ -213,7 +213,7 @@ def recordingSave(recording,avi_recorder,timestamp,step_tracking_data,log_queue)
     log(f"$$$$$ Tracking data saved to {tracking_filename} $$$$$",log_queue)
     return None
 
-def boundaryControl(boundary_making, boundary,is_jf_mode,log_queue):
+def boundaryControl(boundary_making, boundary,is_jf_mode,step_size,log_queue):
     if boundary_making:
         log('&& Boundary Making Mode turned Off &&.',log_queue)
         file_start = "C:\\Users\\JellyTracker\\Desktop\\JellyFishTrackingPC-main\\saved_boundaries_mm\\"
@@ -222,26 +222,36 @@ def boundaryControl(boundary_making, boundary,is_jf_mode,log_queue):
         log(f'&& Boundary saved at: {filename} &&',log_queue)
         save_boundaries(filename,boundary_to_mm_from_steps(boundary,is_jf_mode),log_queue)
         boundary_making = False
+        if is_jf_mode.value == 1:
+            step_size.value =  CONSTANTS['JellyStepSizeManual']
+        elif is_jf_mode.value == 0:
+            step_size.value = CONSTANTS['LarvaeStepSizeManual']            
     else:
         log('&& Boundary Making Mode turned On. Move motors to record boundary. &&',log_queue)
         boundary_making = True
         boundary = []
+        step_size.value = 35
     return boundary_making, boundary
 
-def boundaryCancel(boundary_making, boundary,log_queue):
+def boundaryCancel(boundary_making, boundary,is_jf_mode, step_size,log_queue):
     if boundary_making:
         boundary_making = False
         boundary = [] # reset boundary
+        if is_jf_mode.value == 1:
+            step_size.value =  CONSTANTS['JellyStepSizeManual']
+        elif is_jf_mode.value == 0:
+            step_size.value = CONSTANTS['LarvaeStepSizeManual']  
         log('&& Boundary making turned off, nothing saved. &&',log_queue)
     else: # do nothing
         pass
     return boundary_making, boundary
 
 # Button press direct function
-def saveHelper(log_queue, timestamp, step_tracking_data, recording):
+def saveHelper(log_queue, timestamp, step_tracking_data, recording,reset_timer):
     if recording.value:
         recordingSave(recording,states.avi_recorder,timestamp,step_tracking_data,log_queue)
-        states.start_time = datetime.now() 
+        states.start_time = datetime.now()
+        reset_timer.value = True
 
 def trackingHelper(tracking, log_queue):
     tracking.value = not tracking.value
