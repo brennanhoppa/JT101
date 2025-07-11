@@ -215,15 +215,15 @@ def recordingSave(recording,avi_recorder,timestamp,step_tracking_data,log_queue)
 
 def boundaryControl(boundary_making, boundary,is_jf_mode,log_queue):
     if boundary_making:
-        log('Boundary Making Mode turned Off.',log_queue)
+        log('&& Boundary Making Mode turned Off &&.',log_queue)
         file_start = "C:\\Users\\JellyTracker\\Desktop\\JellyFishTrackingPC-main\\saved_boundaries_mm\\"
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
         filename = file_start + f"new_boundary_{timestamp}.csv"
-        log(f'Boundary saved at: {filename}',log_queue)
+        log(f'&& Boundary saved at: {filename} &&',log_queue)
         save_boundaries(filename,boundary_to_mm_from_steps(boundary,is_jf_mode),log_queue)
         boundary_making = False
     else:
-        log('Boundary Making Mode turned On. Move to record boundary. Finish and save by clicking Make Border button again. Click Cancel Border button to cancel and start over.',log_queue)
+        log('&& Boundary Making Mode turned On. Move motors to record boundary. &&',log_queue)
         boundary_making = True
         boundary = []
     return boundary_making, boundary
@@ -232,7 +232,7 @@ def boundaryCancel(boundary_making, boundary,log_queue):
     if boundary_making:
         boundary_making = False
         boundary = [] # reset boundary
-        log('Boundary making turned off, and reset, with nothing saved.',log_queue)
+        log('&& Boundary making turned off, nothing saved. &&',log_queue)
     else: # do nothing
         pass
     return boundary_making, boundary

@@ -50,9 +50,17 @@ def recording_writer_thread(recording):
             try:
                 while True:  # flush queue
                     frame = recording_queue.get_nowait()
-                    states.avi_recorder.write(frame)
+                    try:
+                        states.avi_recorder.write(frame)
+                    except ValueError as e:
+                        if 'write to closed file' in str(e):
+                            print("Recorder closed while flushing queue.")
+                            break
+                        else:
+                            raise
             except queue.Empty:
                 time.sleep(0.001)
+
         else:
             time.sleep(0.01)
 
@@ -287,11 +295,11 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
 
     buttons = [
        Button(330, 570, 150, 50, "Start Recording", lambda: recordingHelper(log_queue,step_tracking_data,recording),get_color=lambda: (50, 50, 100),text_dependence=recording,text_if_true="Delete Recording",text_if_false="Start Recording", get_visible=lambda: not recording.value),
-       Button(330, 570, 70, 50, "Save", 
+       Button(330, 570, 70, 50, "Save Video", 
            lambda: saveHelper(log_queue, timestamp, step_tracking_data, recording),
            get_color=lambda: (80, 200, 80),
            get_visible=lambda: recording.value),
-       Button(410, 570, 70, 50, "Delete", 
+       Button(410, 570, 70, 50, "Delete Video", 
            lambda: recordingHelper(log_queue,step_tracking_data,recording),
            get_color=lambda: (255, 80, 80),
            get_visible=lambda: recording.value),
@@ -305,8 +313,17 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
        Button(490, 690, 150, 50, "Help", lambda: openHelp(log_queue)),       
        Button(490, 750, 150, 50, "Verbose Mode", lambda: verboseHelper(log_queue,command_queue,verbose),get_color=lambda: onOffColors[verbose.value]),
 
-       Button(650, 570, 150, 50, "Make Border", lambda: borderHelper(is_jf_mode, log_queue),get_color=lambda: onOffColors[states.boundary_making]),
-       Button(650, 630, 150, 50, "Cancel Border", lambda: borderCancelHelper(log_queue)),
+       Button(650, 570, 150, 50, "Make Border", lambda: borderHelper(is_jf_mode, log_queue),get_color=lambda: onOffColors[states.boundary_making], get_visible=lambda: not states.boundary_making),
+       Button(650, 570, 70, 50, "Save Border", 
+           lambda: borderHelper(is_jf_mode, log_queue),
+           get_color=lambda: (80, 200, 80),
+           get_visible=lambda: states.boundary_making),
+       Button(730, 570, 70, 50, "Delete Border", 
+           lambda: borderCancelHelper(log_queue),
+           get_color=lambda: (255, 80, 80),
+           get_visible=lambda: states.boundary_making),
+       
+       Button(650, 630, 150, 50, "", lambda: None),
        Button(650, 690, 150, 50, "Show Border", lambda: borderShowHelper(),get_color=lambda: onOffColors[states.show_boundary]),
        Button(650, 750, 150, 50, "Load Border", lambda: borderLoadHelper()),
        
