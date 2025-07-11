@@ -185,7 +185,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                 hours, remainder = divmod(total, 3600)
                 minutes, seconds = divmod(remainder, 60)
                 timestamp = f'{hours:02}:{minutes:02}:{seconds:02}'
-                
+
                 x = steps_to_mm(x_pos.value, is_jf_mode)
                 y = steps_to_mm(y_pos.value, is_jf_mode)
                 step_tracking_data.append((x, y, timestamp, 'MotorPos'))
@@ -587,12 +587,12 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
         clock.tick(30)  # Keep at 60 FPS for smooth display
         
         frame_count += 1
-        if frame_count == 600: # normally 600 is good speed
+        if frame_count == 900: # should display roughly every 30 sec
             current_time = time.time()
-            frames = 600 / (current_time - last_frame_time)
+            frames = 900 / (current_time - last_frame_time)
             frame_count = 0
             last_frame_time = current_time
-            log(f"FPS: {frames:.1f}",log_queue)
+            log(f"[{hours:02}:{minutes:02}:{seconds:02}] FPS: {frames:.1f}",log_queue)
     
     if recording.value and states.avi_recorder:
         states.avi_recorder.release()

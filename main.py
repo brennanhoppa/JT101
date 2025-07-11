@@ -151,6 +151,7 @@ def serial_process(command_queue,homing_error_button,terminate_event,is_jf_mode,
     ser.close()
 
 def timer_process(elapsed_time, reset_timer, running):
+    time.sleep(3)
     start = time.time()
     while running.value:
         if reset_timer.value:
