@@ -281,7 +281,7 @@ def testingHelper(log_queue,testingMode):
 
 def openHelp(log_queue):
     webbrowser.open("https://docs.google.com/document/d/1KBQ-LmBlyk6xcm9JkfM5uCkn3D8vZ4zREsdYrj_VqAM/edit?usp=sharing")
-    log("!!!! Opening help document pdf on the desktop. !!!!", log_queue)
+    log("!!!! Opening help document on Google Drive. !!!!", log_queue)
 
 def clear_log_callback(rolling_log, log_queue):
     rolling_log.clear()
