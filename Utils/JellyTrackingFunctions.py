@@ -118,7 +118,7 @@ def detect_jellyfish(frame, detect_light, is_jf_mode, log_queue, verbose):
             results, log_output = run_yolo_with_output(modelJF,frame_resized,imgsz=IMG_SIZE,conf=CONF_THRESHOLD,iou=IOU_THRESHOLD,half=HALF_PRECISION, device='cuda:0', verbose=True)
         else:
             results, log_output = run_yolo_with_output(modelLarvae,frame_resized,imgsz=IMG_SIZE,conf=CONF_THRESHOLD,iou=IOU_THRESHOLD,half=HALF_PRECISION, device='cuda:0', verbose=True)
-        log(log_output,log_queue)
+        # log(log_output,log_queue)
 
     original_height, original_width = frame.shape[:2]
     # Find the box with the highest confidence
@@ -183,17 +183,19 @@ def calculate_movement(dx,dy,is_jf_mode):
         MIN_STEP_SIZE = 10 # 10 for JF
         MAX_STEP_SIZE = 95
     else: # means larvae mode
-        MIN_STEP_SIZE = 15 # 5 for larvae
-        MAX_STEP_SIZE = 75
+        MIN_STEP_SIZE = 40 # try these
+        MAX_STEP_SIZE = 95 #
     # Calculate step sizes with adjusted sensitivity
     step_x = int(np.clip(dx * MOVE_MULTIPLIER, -MAX_STEP_SIZE, MAX_STEP_SIZE))
     step_y = int(np.clip(dy * MOVE_MULTIPLIER, -MAX_STEP_SIZE, MAX_STEP_SIZE))
 
     # Ensure a minimum step size for quicker response
     if 0 < abs(step_x) < MIN_STEP_SIZE:
-        step_x = MIN_STEP_SIZE if step_x > 0 else -MIN_STEP_SIZE
+        # step_x = MIN_STEP_SIZE if step_x > 0 else -MIN_STEP_SIZE
+        step_x = 0
     if 0 < abs(step_y) < MIN_STEP_SIZE:
-        step_y = MIN_STEP_SIZE if step_y > 0 else -MIN_STEP_SIZE
+        # step_y = MIN_STEP_SIZE if step_y > 0 else -MIN_STEP_SIZE
+        step_y = 0
 
     # Ignore small movements within a dead zone
     if abs(dx) < DEAD_ZONE:
