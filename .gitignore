@@ -2,6 +2,7 @@
 *.mp4
 *.csv
 *.pyc
+*.txt
 __pycache__/
 Utils/__pycache__/JellyTrackingFunctions.cpython-310.pyc
 Utils/motor_location.txt
