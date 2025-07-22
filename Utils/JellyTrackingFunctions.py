@@ -195,7 +195,7 @@ def calculate_movement(dx,dy,is_jf_mode):
         step_x = 0
     if 0 < abs(step_y) < MIN_STEP_SIZE:
         # step_y = MIN_STEP_SIZE if step_y > 0 else -MIN_STEP_SIZE
-        step_y = 0
+        step_y = 0 # good edit
 
     # Ignore small movements within a dead zone
     if abs(dx) < DEAD_ZONE:
