@@ -6,3 +6,4 @@ __pycache__/
 Utils/__pycache__/JellyTrackingFunctions.cpython-310.pyc
 Utils/motor_location.txt
 Utils/log.txt
+Utils/jf_or_larvae_mode.txt
