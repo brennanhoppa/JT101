@@ -17,9 +17,11 @@ def move(x_pos, y_pos, x_direction, y_direction, command_queue, is_jf_mode, log_
         elif y_invalid_flag.value == 2 and y_direction > 0:
             y_valid = False
     
+    # # ignore these for now in case limit switches mess up
     else: # larvae mode, use hard coded maxes 
-        x_valid = 0 <= new_x <= CONSTANTS['XmaxLarvae']
-        y_valid = 0 <= new_y <= CONSTANTS['YmaxLarvae']
+        x_valid, y_valid = True, True
+    #     x_valid = 0 <= new_x <= CONSTANTS['XmaxLarvae']
+    #     y_valid = 0 <= new_y <= CONSTANTS['YmaxLarvae']
     
     # Update positions and send movement commands
     if x_valid and x_direction != 0:

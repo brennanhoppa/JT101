@@ -9,17 +9,25 @@ from Utils.log import log
 import webbrowser
 from Utils import states
 from Utils.nvenc_video_writer import NvencVideoWriter
+from Utils.JellyTrackingFunctions import steps_to_mm
 import os
 from Utils.moveFunctions import autoMove
 
-def homingStepsWithErrorCheck(homing_error_button, is_jf_mode,command_queue,x_pos,y_pos, xy_LHpos,  x_invalid_flag, y_invalid_flag, log_queue):
+def homingStepsWithErrorCheck(homing_error_button, is_jf_mode,command_queue,x_pos,y_pos, xy_LHpos,  x_invalid_flag, y_invalid_flag, log_queue,LH_flag):
     
     if is_jf_mode.value == 0: # means larvae mode
         if xy_LHpos[0] == -1 and xy_LHpos[1] == -1:
             log("Larve Home not yet set. Please set it first before attempting to home.", log_queue)
         else:
-            autoMove(x_pos,y_pos,xy_LHpos[:],command_queue, is_jf_mode, log_queue, x_invalid_flag, y_invalid_flag)
-            log("Moved to saved larvae home. Unable to check error in larvae mode, switch to jf mode to check error and fully home.",log_queue)
+            if LH_flag.value == False:
+                log("***Use manual motor control to move camera to visual reference for larvae home, then click Home button again.***",log_queue)
+                LH_flag.value = True
+            else:
+                log("***Larvae Home restored by visual reference to stored values when larvae home was set.", log_queue)
+                x_error_mm = steps_to_mm(x_pos.value - xy_LHpos[0], is_jf_mode)
+                y_error_mm = steps_to_mm(y_pos.value - xy_LHpos[1], is_jf_mode)
+                log(f"Error [mm]: X: {x_error_mm}, Y: {y_error_mm}",log_queue)
+                LH_flag.value = False
     else:
         command_queue.put(f'ERRORCHECK_{x_pos.value}_{y_pos.value}\n')
         homing_error_button.value = 1

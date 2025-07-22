@@ -8,7 +8,7 @@ from Utils.CONSTANTS import CONSTANTS
 from Utils.ButtonPresses import homingStepsWithErrorCheck
 from Utils.moveFunctions import autoMove
 
-def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, homing_error_button, command_queue, x_invalid_flag, y_invalid_flag, changeModeFlag,xy_LHpos):
+def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, homing_error_button, command_queue, x_invalid_flag, y_invalid_flag, changeModeFlag,xy_LHpos,LH_flag):
     
     popup_width, popup_height = 1000, 400
     window_width, window_height = window.get_size()
@@ -111,7 +111,7 @@ def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, ho
                 if is_jf_mode.value == 0: # switching from larvae to jf
                     pass
                 elif is_jf_mode.value == 1: # switching from jf to larvae
-                    homingStepsWithErrorCheck(homing_error_button, is_jf_mode,command_queue,x_pos,y_pos, xy_LHpos,  x_invalid_flag, y_invalid_flag, log_queue)
+                    homingStepsWithErrorCheck(homing_error_button, is_jf_mode,command_queue,x_pos,y_pos, xy_LHpos,  x_invalid_flag, y_invalid_flag, log_queue,LH_flag)
                     while homing_error_button.value == 1:
                         time.sleep(0.1)
                     autoMove(x_pos,y_pos,CONSTANTS["LarvaeHome"],command_queue, is_jf_mode, log_queue, x_invalid_flag, y_invalid_flag)
@@ -123,7 +123,7 @@ def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, ho
                 if is_jf_mode.value == 0: # switching from larvae to jf
                     is_jf_mode.value = 1
                     step_size.value = CONSTANTS['JellyStepSizeManual']
-                    homingStepsWithErrorCheck(homing_error_button, is_jf_mode,command_queue,x_pos,y_pos, xy_LHpos,  x_invalid_flag, y_invalid_flag, log_queue)
+                    homingStepsWithErrorCheck(homing_error_button, is_jf_mode,command_queue,x_pos,y_pos, xy_LHpos,  x_invalid_flag, y_invalid_flag, log_queue,LH_flag)
                 elif is_jf_mode.value == 1: # switching from jf to larvae
                     is_jf_mode.value = 0
                     step_size.value = CONSTANTS['LarvaeStepSizeManual']

@@ -290,6 +290,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
 
     changeModeFlag = multiprocessing.Value('b',False)
     xy_LHpos = multiprocessing.Array('i',[-1,-1])
+    LH_flag = multiprocessing.Value('b',False)
 
     rolling_log = RollingLog()
     button_x = window.get_width() - 130  # inside terminal panel left margin
@@ -317,8 +318,8 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
        Button(330, 750, 150, 50, "Arrow Manual Control", lambda: keyBindsControl(keybinds_flag,log_queue), get_color=lambda: onOffColors[not keybinds_flag.value], text_dependence=keybinds_flag,text_if_true="Motors Arrow Control On",text_if_false="Motors Arrow Control Off"),
        
        #second col
-       Button(490, 570, 150, 50, "Home with Error Check", lambda: homingStepsWithErrorCheck(homing_error_button, is_jf_mode, command_queue,x_pos,y_pos, xy_LHpos, x_invalid_flag, y_invalid_flag, log_queue),get_color=lambda: onOffColors[homing_error_button.value]),
-       Button(490, 630, 150, 50, "Change Mode", lambda: changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, homing_error_button, command_queue, x_invalid_flag, y_invalid_flag, changeModeFlag,xy_LHpos), get_visible=lambda: not changeModeFlag.value),
+       Button(490, 570, 150, 50, "Home with Error Check", lambda: homingStepsWithErrorCheck(homing_error_button, is_jf_mode, command_queue,x_pos,y_pos, xy_LHpos, x_invalid_flag, y_invalid_flag, log_queue,LH_flag),get_color = lambda: onOffColors[homing_error_button.value] if is_jf_mode.value == 1 else onOffColors[LH_flag.value]),
+       Button(490, 630, 150, 50, "Change Mode", lambda: changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, homing_error_button, command_queue, x_invalid_flag, y_invalid_flag, changeModeFlag,xy_LHpos,LH_flag), get_visible=lambda: not changeModeFlag.value),
        Button(490, 630, 150, 50, "Set Larvae Home", lambda: setLarvaeHome(x_pos,y_pos, xy_LHpos,is_jf_mode,changeModeFlag,log_queue), get_color=lambda: (255, 165, 0), get_visible=lambda: changeModeFlag.value),
        Button(490, 690, 150, 50, "Change Larvae Home", lambda: setLarvaeHome(x_pos,y_pos, xy_LHpos,is_jf_mode,changeModeFlag,log_queue), get_color=None),
        Button(490, 750, 150, 50, "Pixels Calibration", lambda: pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode, log_queue),get_color=lambda: calColors[pixelsCal_flag.value]),
@@ -517,8 +518,18 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
                 (flashlight_pos,(x1,x2,y1,y2)) = tracking_result_queue.get_nowait()
                 if flashlight_pos:
                     pygame.draw.circle(window, (0, 255, 0), flashlight_pos, 10)
-                    pygame.draw.circle(window, (0, 255, 255), (x1,y1), 10)
-                    pygame.draw.circle(window, (0, 255, 255), (x2,y2), 10)
+                    
+                    # First calculate the top-left corner, width, and height - test this out!!!
+                    top_left_x = min(x1, x2)
+                    top_left_y = min(y1, y2)
+                    boxwidth = abs(x2 - x1)
+                    boxheight = abs(y2 - y1)
+
+                    # Draw the rectangle outline
+                    pygame.draw.rect(window, (0, 255, 255), (top_left_x, top_left_y, boxwidth, boxheight), 2)  # last '2' is the line thickness
+                    
+                    # pygame.draw.circle(window, (0, 255, 255), (x1,y1), 10)
+                    # pygame.draw.circle(window, (0, 255, 255), (x2,y2), 10)
                     trackingFoundSomething = True
             except queue.Empty:
                 trackingFoundSomething = False

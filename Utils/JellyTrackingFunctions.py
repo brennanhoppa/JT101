@@ -183,8 +183,8 @@ def calculate_movement(dx,dy,is_jf_mode):
         MIN_STEP_SIZE = 10 # 10 for JF
         MAX_STEP_SIZE = 95
     else: # means larvae mode
-        MIN_STEP_SIZE = 5 # 5 for larvae
-        MAX_STEP_SIZE = 50
+        MIN_STEP_SIZE = 15 # 5 for larvae
+        MAX_STEP_SIZE = 75
     # Calculate step sizes with adjusted sensitivity
     step_x = int(np.clip(dx * MOVE_MULTIPLIER, -MAX_STEP_SIZE, MAX_STEP_SIZE))
     step_y = int(np.clip(dy * MOVE_MULTIPLIER, -MAX_STEP_SIZE, MAX_STEP_SIZE))

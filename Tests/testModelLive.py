@@ -1,6 +1,6 @@
 import cv2
 import time
-from ultralytics import YOLO
+from ultralytics import YOLO #type:ignore
 import threading
 import traceback
 import numpy as np
@@ -13,7 +13,7 @@ model_path = r"C:\Users\JellyTracker\Desktop\TrainingPipeline\Foundational_Train
 # Path to the video file for processing
 # Ensure this path is correct for your system
 # video_path = r"C:\Users\JellyTracker\Desktop\JellyFishTrackingPC-main\saved_tracking_videos\JellyTracking_20250512_121113.mp4"
-video_path = r"C:\Users\JellyTracker\Desktop\JellyFishTrackingPC-main\saved_tracking_videos\good_larvae_vids_to_label_and_train_on\JellyTracking_20250520_165319.mp4"
+video_path = r"C:\Users\JellyTracker\Desktop\JellyFishTrackingPC-main\saved_tracking_videos\JellyTracking_20250521_125159.mp4"
 # YOLO Inference parameters
 IMG_SIZE_INFERENCE = 640  # Image size for YOLOv8 model input (resized frame)
 INITIAL_CONF_THRESHOLD = 0.25  # Initial confidence threshold for detections
