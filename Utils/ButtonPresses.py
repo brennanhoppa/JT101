@@ -255,7 +255,7 @@ def boundaryCancel(boundary_making, boundary,is_jf_mode, step_size,log_queue):
     return boundary_making, boundary
 
 # Button press direct function
-def saveHelper(log_queue, timestamp, step_tracking_data, recording,reset_timer):
+def saveHelper(log_queue, timestamp, step_tracking_data, recording,reset_timer, tracking):
     if recording.value:
         recordingSave(recording,states.avi_recorder,timestamp,step_tracking_data,log_queue)
         states.start_time = datetime.now()

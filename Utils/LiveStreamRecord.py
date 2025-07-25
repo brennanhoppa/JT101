@@ -163,6 +163,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                             step_tracking_data.append((round(x,3), round(y,3), timestamp, 'SuccTrack'))                        
                         if motors.value:
                             step_x, step_y = calculate_movement(dx,dy,is_jf_mode)
+                            # log(f"moves steps: ({step_x},{step_y})", log_queue)
                             # Send movement command
                             x_pos, y_pos = move(x_pos, y_pos, step_x, step_y, command_queue,is_jf_mode, log_queue, x_invalid_flag, y_invalid_flag)
                         # Communicate tracking results for display
@@ -239,18 +240,24 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
 
     last_frame_time = time.time()
     frame_count = 0
+    missed_tracks = 0 
     
     crosshair_x = width // 2
     crosshair_y = height // 2
     move_delay = 2  # How many frames to wait between moves
     move_counter = 0  # Frame counter
     
-    def recordingHelper(log_queue,step_tracking_data,recording,reset_timer):
+    def recordingHelper(log_queue,step_tracking_data,recording,reset_timer,tracking):
         global timestamp, avi_filename
         if not recording.value:
+            old_state = tracking.value
+            tracking.value = False
+            # time.sleep(3)  # Optional: give GPU time to settle
+
             states.avi_recorder,timestamp,avi_filename = recordingStart(recording,states.chosenAviType,fps,width,height,log_queue,step_tracking_data)
             states.start_time = datetime.now()
             reset_timer.value = True
+            tracking.value = old_state
         elif recording.value: # deleting
             if states.avi_recorder:
                 states.avi_recorder.release()
@@ -304,13 +311,13 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
 
     buttons = [
         #first col
-       Button(330, 570, 150, 50, "Start Recording", lambda: recordingHelper(log_queue,step_tracking_data,recording,reset_timer),get_color=lambda: (50, 50, 100),text_dependence=recording,text_if_true="Delete Recording",text_if_false="Start Recording", get_visible=lambda: not recording.value),
+       Button(330, 570, 150, 50, "Start Recording", lambda: recordingHelper(log_queue,step_tracking_data,recording,reset_timer,tracking),get_color=lambda: (50, 50, 100),text_dependence=recording,text_if_true="Delete Recording",text_if_false="Start Recording", get_visible=lambda: not recording.value),
        Button(330, 570, 70, 50, "Save Video", 
-           lambda: saveHelper(log_queue, timestamp, step_tracking_data, recording,reset_timer),
+           lambda: saveHelper(log_queue, timestamp, step_tracking_data, recording,reset_timer, tracking),
            get_color=lambda: (80, 200, 80),
            get_visible=lambda: recording.value),
        Button(410, 570, 70, 50, "Delete Video", 
-           lambda: recordingHelper(log_queue,step_tracking_data,recording,reset_timer),
+           lambda: recordingHelper(log_queue,step_tracking_data,recording,reset_timer,tracking),
            get_color=lambda: (255, 80, 80),
            get_visible=lambda: recording.value),
        Button(330, 630, 150, 50, "Turn Tracking On", lambda: trackingHelper(tracking, log_queue), get_color=lambda: onOffColors[tracking.value], text_dependence=tracking,text_if_true="Tracking On",text_if_false="Tracking Off" ),
@@ -531,8 +538,12 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
                     # pygame.draw.circle(window, (0, 255, 255), (x1,y1), 10)
                     # pygame.draw.circle(window, (0, 255, 255), (x2,y2), 10)
                     trackingFoundSomething = True
+                    missed_tracks = 0
             except queue.Empty:
-                trackingFoundSomething = False
+                missed_tracks += 1
+                if missed_tracks >= 5:
+                    trackingFoundSomething = False
+
 
             if states.show_boundary: 
                 if boundary != []: # boundary is currently in steps

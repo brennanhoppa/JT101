@@ -1,3 +1,4 @@
+import os
 import subprocess
 import time
 
@@ -10,8 +11,11 @@ class NvencVideoWriter:
         self.bitrate = bitrate
         self.log = log
 
+        # Set the environment so that GPU 1 appears as "cuda:0" to FFmpeg
+
         command = [
             'ffmpeg',
+            # '-loglevel', 'debug',
             '-y',
             '-f', 'rawvideo',
             '-vcodec', 'rawvideo',
@@ -19,9 +23,9 @@ class NvencVideoWriter:
             '-s', f'{width}x{height}',
             '-r', str(fps),
             '-i', '-',
-            '-gpu', '1', 
             '-c:v', 'h264_nvenc',
-            '-preset', 'llhp',              
+            '-gpu', '0', # uses the 3090   
+            '-preset', 'llhp',
             '-b:v', self.bitrate,
             '-maxrate', self.bitrate,
             '-bufsize', str(int(int(self.bitrate[:-1]) * 2)) + 'M',
@@ -30,22 +34,23 @@ class NvencVideoWriter:
         ]
 
         if self.log:
-            self.log(f"Starting NVENC FFmpeg recording.", None)
+            self.log(f"Starting NVENC FFmpeg recording on GPU 1 (3090).", None)
 
         self.process = subprocess.Popen(
             command,
             stdin=subprocess.PIPE,
-            # # Code to help with error with the code below, but doesn't work correctly 100% of the time
-            # stdout=subprocess.DEVNULL,  # discard normal output
-            # stderr=subprocess.PIPE     # capture errors
+            # stdout=subprocess.DEVNULL,
+            # stderr=subprocess.PIPE,
         )
-        # # Code to attempt to help with command error process, but doesn't work effeciently while getting output.
-        # time.sleep(0.2)
+
+        # time.sleep(0.3)
+
         # if self.process.poll() is not None:
         #     error_msg = self.process.stderr.read().decode('utf-8', errors='replace')
         #     if self.log:
-        #         self.log(f"FFmpeg failed to start: {error_msg}. Restart program to fix.", None)
-        #     raise RuntimeError(f"FFmpeg NVENC failed to start: {error_msg}. Restart VS Code or program to fix.")
+        #         self.log(f"[FFMPEG] Failed to start: {error_msg.strip()}", None)
+        #     raise RuntimeError(f"[FFMPEG ERROR] NVENC failed to start.\n{error_msg}")
+
 
     def write(self, frame):
         """Write a single frame (numpy array in BGR)"""
