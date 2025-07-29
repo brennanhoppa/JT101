@@ -6,7 +6,7 @@
 #define Y_STEP_PIN 5
 #define Y_DIR_PIN 6
 #define Y_ENABLE_PIN 7
-#define X_LIMIT_SWITCH_MIN A1  // Limit switch for X-axis
+#define X_LIMIT_SWITCH_MIN A5  // Limit switch for X-axis
 #define Y_LIMIT_SWITCH_MIN A0  // Limit switch for Y-axis
 #define X_LIMIT_SWITCH_MAX A3
 #define Y_LIMIT_SWITCH_MAX A2
@@ -132,6 +132,25 @@ void checkLimitSwitches() {
   bool rawXMax = digitalRead(X_LIMIT_SWITCH_MAX) == LOW;
   bool rawYMin = digitalRead(Y_LIMIT_SWITCH_MIN) == LOW;
   bool rawYMax = digitalRead(Y_LIMIT_SWITCH_MAX) == LOW;
+
+  static bool prevRawXMin = false, prevRawXMax = false, prevRawYMin = false, prevRawYMax = false;
+
+  if (rawXMin != prevRawXMin) {
+    Serial.print("Raw X Min: "); Serial.println(rawXMin ? "PRESSED" : "RELEASED");
+    prevRawXMin = rawXMin;
+  }
+  if (rawXMax != prevRawXMax) {
+    Serial.print("Raw X Max: "); Serial.println(rawXMax ? "PRESSED" : "RELEASED");
+    prevRawXMax = rawXMax;
+  }
+  if (rawYMin != prevRawYMin) {
+    Serial.print("Raw Y Min: "); Serial.println(rawYMin ? "PRESSED" : "RELEASED");
+    prevRawYMin = rawYMin;
+  }
+  if (rawYMax != prevRawYMax) {
+    Serial.print("Raw Y Max: "); Serial.println(rawYMax ? "PRESSED" : "RELEASED");
+    prevRawYMax = rawYMax;
+  }
 
   // Debounce logic
   if (rawXMin != stableXMin && (now - xMinLastChange > debounceDelay)) {

@@ -105,8 +105,8 @@ def serial_process(command_queue,homing_error_button,terminate_event,is_jf_mode,
 
                 if "X Min Hit" in response:
                     x_invalid_flag.value = 1
+                    log(f"X Min switch hit. Resetting X pos to 0. Prior X: {x_pos.value}", log_queue)
                     x_pos.value = 0
-                    log("X Min switch hit. Resetting X pos to 0.", log_queue)
                 elif "X Max Hit" in response:
                     x_invalid_flag.value = 2
                     log(f"X Max switch hit. Current X pos: {x_pos.value}, Max: {xmax}", log_queue)
@@ -116,8 +116,8 @@ def serial_process(command_queue,homing_error_button,terminate_event,is_jf_mode,
 
                 if "Y Min Hit" in response:
                     y_invalid_flag.value = 1
+                    log(f"Y Min switch hit. Resetting Y pos to 0. Prior Y: {y_pos.value}", log_queue)
                     y_pos.value = 0
-                    log("Y Min switch hit. Resetting Y pos to 0.", log_queue)
                 elif "Y Max Hit" in response:
                     y_invalid_flag.value = 2
                     log(f"Y Max switch hit. Current Y pos: {y_pos.value}, Max: {ymax}", log_queue)

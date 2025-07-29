@@ -22,7 +22,8 @@ def move(x_pos, y_pos, x_direction, y_direction, command_queue, is_jf_mode, log_
         x_valid, y_valid = True, True
     #     x_valid = 0 <= new_x <= CONSTANTS['XmaxLarvae']
     #     y_valid = 0 <= new_y <= CONSTANTS['YmaxLarvae']
-    
+    # x_valid, y_valid = True, True
+
     # Update positions and send movement commands
     if x_valid and x_direction != 0:
         x_pos.value = new_x
