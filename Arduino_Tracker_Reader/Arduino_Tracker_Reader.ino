@@ -10,11 +10,28 @@
 #define Y_LIMIT_SWITCH_MIN A0  // Limit switch for Y-axis
 #define X_LIMIT_SWITCH_MAX A3
 #define Y_LIMIT_SWITCH_MAX A2
-
 #define MOTOR_INTERFACE_TYPE AccelStepper::DRIVER
+#define DEBOUNCE_DELAY 20  // milliseconds
+
+struct LimitSwitch {
+  uint8_t pin;
+  bool stableState;
+  bool lastRawState;
+  unsigned long lastChangeTime;
+};
+
+struct HomingResult {
+    int stepsX;
+    int stepsY;
+};
 
 AccelStepper stepperX(MOTOR_INTERFACE_TYPE, X_STEP_PIN, X_DIR_PIN);
 AccelStepper stepperY(MOTOR_INTERFACE_TYPE, Y_STEP_PIN, Y_DIR_PIN);
+
+LimitSwitch xMin = {X_LIMIT_SWITCH_MIN, false, false, 0};
+LimitSwitch xMax = {X_LIMIT_SWITCH_MAX, false, false, 0};
+LimitSwitch yMin = {Y_LIMIT_SWITCH_MIN, false, false, 0};
+LimitSwitch yMax = {Y_LIMIT_SWITCH_MAX, false, false, 0};
 
 // Variables to track cumulative positions
 long cumulativeTargetX = 0;
@@ -26,27 +43,17 @@ int motorAcceleration = 22000; // 2000 for microscope, 22000 for camera
 bool homeSetX = false;
 bool homeSetY = false;
 
-bool xMinHit = false;
-bool xMaxHit = false;
-bool yMinHit = false;
-bool yMaxHit = false;
-
 bool verboseMode = false;
-
-struct HomingResult {
-    int stepsX;
-    int stepsY;
-};
 
 void setup() {
   Serial.begin(500000);
   
   pinMode(X_ENABLE_PIN, OUTPUT);
   pinMode(Y_ENABLE_PIN, OUTPUT);
-  pinMode(X_LIMIT_SWITCH_MIN, INPUT_PULLUP);  // Set limit switch pins as input with pull-up resistor
-  pinMode(Y_LIMIT_SWITCH_MIN, INPUT_PULLUP);
-  pinMode(Y_LIMIT_SWITCH_MAX, INPUT_PULLUP);
-  pinMode(X_LIMIT_SWITCH_MAX, INPUT_PULLUP);
+  pinMode(xMin.pin, INPUT_PULLUP);
+  pinMode(xMax.pin, INPUT_PULLUP);
+  pinMode(yMin.pin, INPUT_PULLUP);
+  pinMode(yMax.pin, INPUT_PULLUP);
 
   digitalWrite(X_ENABLE_PIN, LOW);
   digitalWrite(Y_ENABLE_PIN, LOW);
@@ -115,111 +122,50 @@ void verboseFunc(){
   Serial.println(verboseMode ? "ON" : "OFF");
 }
 
-
+// Call every loop
 void checkLimitSwitches() {
-  const unsigned long debounceDelay = 50;
+  checkSwitch(xMin, stepperX, cumulativeTargetX, "X Min");
+  checkSwitch(xMax, stepperX, cumulativeTargetX, "X Max");
+  checkSwitch(yMin, stepperY, cumulativeTargetY, "Y Min");
+  checkSwitch(yMax, stepperY, cumulativeTargetY, "Y Max");
+}
+
+void checkSwitch(LimitSwitch &sw, AccelStepper &stepper, long &cumulativeTarget, const char* name) {
+  bool rawState = digitalRead(sw.pin) == LOW; // active LOW
   unsigned long now = millis();
 
-  // Persistent debounce and state variables
-  static bool stableXMin = false, stableXMax = false, stableYMin = false, stableYMax = false;
-  static unsigned long xMinLastChange = 0, xMaxLastChange = 0, yMinLastChange = 0, yMaxLastChange = 0;
-
-  static bool wasXMinHit = false, wasXMaxHit = false, wasYMinHit = false, wasYMaxHit = false;
-  static bool wasXMinVerbose = false, wasXMaxVerbose = false, wasYMinVerbose = false, wasYMaxVerbose = false;
-
-  // Read raw pin states (active LOW)
-  bool rawXMin = digitalRead(X_LIMIT_SWITCH_MIN) == LOW;
-  bool rawXMax = digitalRead(X_LIMIT_SWITCH_MAX) == LOW;
-  bool rawYMin = digitalRead(Y_LIMIT_SWITCH_MIN) == LOW;
-  bool rawYMax = digitalRead(Y_LIMIT_SWITCH_MAX) == LOW;
-
-  static bool prevRawXMin = false, prevRawXMax = false, prevRawYMin = false, prevRawYMax = false;
-
-  if (rawXMin != prevRawXMin) {
-    Serial.print("Raw X Min: "); Serial.println(rawXMin ? "PRESSED" : "RELEASED");
-    prevRawXMin = rawXMin;
-  }
-  if (rawXMax != prevRawXMax) {
-    Serial.print("Raw X Max: "); Serial.println(rawXMax ? "PRESSED" : "RELEASED");
-    prevRawXMax = rawXMax;
-  }
-  if (rawYMin != prevRawYMin) {
-    Serial.print("Raw Y Min: "); Serial.println(rawYMin ? "PRESSED" : "RELEASED");
-    prevRawYMin = rawYMin;
-  }
-  if (rawYMax != prevRawYMax) {
-    Serial.print("Raw Y Max: "); Serial.println(rawYMax ? "PRESSED" : "RELEASED");
-    prevRawYMax = rawYMax;
+  // If raw reading changed, reset the timer
+  if (rawState != sw.lastRawState) {
+    sw.lastChangeTime = now;
+    sw.lastRawState = rawState;
   }
 
-  // Debounce logic
-  if (rawXMin != stableXMin && (now - xMinLastChange > debounceDelay)) {
-    stableXMin = rawXMin;
-    xMinLastChange = now;
-  }
-  if (rawXMax != stableXMax && (now - xMaxLastChange > debounceDelay)) {
-    stableXMax = rawXMax;
-    xMaxLastChange = now;
-  }
-  if (rawYMin != stableYMin && (now - yMinLastChange > debounceDelay)) {
-    stableYMin = rawYMin;
-    yMinLastChange = now;
-  }
-  if (rawYMax != stableYMax && (now - yMaxLastChange > debounceDelay)) {
-    stableYMax = rawYMax;
-    yMaxLastChange = now;
-  }
+  // Only update stable state if the reading has been stable for DEBOUNCE_DELAY
+  if ((now - sw.lastChangeTime) > DEBOUNCE_DELAY && sw.stableState != rawState) {
+    sw.stableState = rawState;
 
-  // Assign debounced values to globals
-  xMinHit = stableXMin;
-  xMaxHit = stableXMax;
-  yMinHit = stableYMin;
-  yMaxHit = stableYMax;
-
-  // Get current and target positions
-  long curX = stepperX.currentPosition();
-  long tarX = stepperX.targetPosition();
-  long curY = stepperY.currentPosition();
-  long tarY = stepperY.targetPosition();
-
-  // Handle all 4 switches using helper
-  handleLimitSwitch(xMinHit, wasXMinHit, wasXMinVerbose, curX, tarX, tarX < curX, "X Min", stepperX, cumulativeTargetX);
-  handleLimitSwitch(xMaxHit, wasXMaxHit, wasXMaxVerbose, curX, tarX, tarX > curX, "X Max", stepperX, cumulativeTargetX);
-  handleLimitSwitch(yMinHit, wasYMinHit, wasYMinVerbose, curY, tarY, tarY < curY, "Y Min", stepperY, cumulativeTargetY);
-  handleLimitSwitch(yMaxHit, wasYMaxHit, wasYMaxVerbose, curY, tarY, tarY > curY, "Y Max", stepperY, cumulativeTargetY);
-}
-
-
-void handleLimitSwitch(bool hit, bool &wasHit, bool &wasVerbose, long cur, long tar, bool goingTowardSwitch, const char* name, AccelStepper& stepper, long &cumulativeTarget) {
-  if (hit) {
-    if (!wasHit && goingTowardSwitch) {
+    if (sw.stableState) {
+      // Switch pressed
       stepper.stop();
-      stepper.setCurrentPosition(0);       // Reset current position
-      stepper.moveTo(0);                   // Match target to stop movement
-      cumulativeTarget = 0;                // Reset tracking variable
-      stepper.runToPosition(); 
-
+      stepper.setCurrentPosition(0);
+      stepper.moveTo(0);
+      cumulativeTarget = 0;
+      stepper.runToPosition();
       stepper.disableOutputs();
-      Serial.print(name); Serial.println(" Hit");
-      wasHit = true;
-    }
-    if (verboseMode && hit != wasVerbose) {
-      Serial.print(name); Serial.println(" Switch: PRESSED");
-      wasVerbose = hit;
-    }
-  } else {
-    if (wasHit) {
-      Serial.print(name); Serial.println(" Clear");
+      if (verboseMode) {
+        Serial.print(name);
+        Serial.println(" Hit");
+      }
+    } else {
+      // Switch released
       stepper.enableOutputs();
-      wasHit = false;
-    }
-    if (verboseMode && hit != wasVerbose) {
-      Serial.print(name); Serial.println(" Switch: RELEASED");
-      wasVerbose = hit;
+      if (verboseMode) {
+        Serial.print(name);
+        Serial.println(" Clear");
+      }
     }
   }
 }
-
 
 HomingResult homeAxis() {
   HomingResult result = {0, 0};
@@ -237,7 +183,7 @@ HomingResult homeAxis() {
   stepperY.setMaxSpeed(homingSpeed);
   stepperY.setAcceleration(homingAcceleration);
 
-  Serial.println("Homing mode started");
+  Serial.println("Homing started");
   int startX = stepperX.currentPosition(); // Get starting position
   int startY = stepperY.currentPosition(); // Get starting position
   int endX = 0;
@@ -299,14 +245,10 @@ HomingResult homeAxis() {
   }
   result.stepsX += abs(endX - startX); // Count only actual steps taken
   result.stepsY += abs(endY - startY); // Count only actual steps taken
-
-  Serial.println("Homing complete for both axes");
-  Serial.println("Homing complete");
   return result; // Return step counts
 }
 
 void errorAxis(int x_pos, int y_pos) {
-  Serial.println("error mode started");
   HomingResult homeSteps = homeAxis();
   int errorX = abs(homeSteps.stepsX - x_pos);
   int errorY = abs(homeSteps.stepsY - y_pos);
