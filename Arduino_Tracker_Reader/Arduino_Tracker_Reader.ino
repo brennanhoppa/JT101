@@ -152,17 +152,13 @@ void checkSwitch(LimitSwitch &sw, AccelStepper &stepper, long &cumulativeTarget,
       cumulativeTarget = 0;
       stepper.runToPosition();
       stepper.disableOutputs();
-      if (verboseMode) {
-        Serial.print(name);
-        Serial.println(" Hit");
-      }
+      Serial.print(name);
+      Serial.println(" Hit");
     } else {
       // Switch released
       stepper.enableOutputs();
-      if (verboseMode) {
-        Serial.print(name);
-        Serial.println(" Clear");
-      }
+      Serial.print(name);
+      Serial.println(" Clear");
     }
   }
 }
