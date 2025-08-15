@@ -22,8 +22,18 @@ def save_mode(mode, file_path,log_queue):
     except Exception as e:
         log(f"Error writing to {file_path}: {e}",log_queue)
 
+# for testing function
+move_pattern = [
+    (1000, 1000),
+    (-1000, 1000),
+    (-1000, -1000),
+    (1000, -1000)
+]
+move_index = 0
+
 def run_motor_input(x_pos,y_pos,file_path_xy,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode,file_path_mode,terminate_event,running_flag, step_size,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,testingMode,verbose):
     # Main loop for reading input and controlling motors
+    global move_index, move_pattern
     try:
         while True:
             x_dir, y_dir = 0, 0
@@ -48,11 +58,16 @@ def run_motor_input(x_pos,y_pos,file_path_xy,command_queue,keybinds_flag,pixelsC
                 # code for random movements - turned off for now
                 xMove = random.randint(-100, 100)
                 yMove = random.randint(-100, 100)
+
+                # programmed movement
+                # xMove, yMove = move_pattern[move_index]
+                # move_index = (move_index + 1) % len(move_pattern)  # cycle back to start
+
                 move(x_pos,y_pos,xMove,yMove,command_queue,is_jf_mode, log_queue, x_invalid_flag, y_invalid_flag)
                 if verbose.value:
                     # log(f"Move (x,y) [steps]: ({xMove}, {yMove})",log_queue)
                     pass
-                time.sleep(0.013)
+                time.sleep(1)
                 pass
 
             if running_flag.value == False:
