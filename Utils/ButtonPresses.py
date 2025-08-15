@@ -171,10 +171,13 @@ def keyBindsControl(keybinds_flag,log_queue):
     log(f"-----Turning arrow motor control {'on' if keybinds_flag.value else 'off'}.-----",log_queue)
     # time.sleep(0.2)
     
-def recordingStart(recording,chosenAviType,fps,width,height,log_queue,step_tracking_data):
+def recordingStart(recording,chosenAviType,fps,width,height,log_queue,step_tracking_data, timestamp):
     recording.value = True
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    avi_filename = f'saved_tracking_videos/JellyTracking_{timestamp}.mp4'
+    now = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp.value = now.encode('utf-8')
+    run_folder = os.path.join("saved_runs", f"run_{now}")
+    os.makedirs(run_folder, exist_ok=True)
+    avi_filename = os.path.join(run_folder, f"video")
 
     # # Create video writer with more reliable settings
     # if chosenAviType == AviType.MJPG:
@@ -203,7 +206,7 @@ def recordingStart(recording,chosenAviType,fps,width,height,log_queue,step_track
     log(f"$$$$$ Recording started at: {avi_filename} $$$$$",log_queue)
     # Reset step tracking data
     step_tracking_data[:] = []
-    return avi_recorder,timestamp,avi_filename
+    return avi_recorder,avi_filename
 
 def recordingSave(recording,avi_recorder,timestamp,step_tracking_data,log_queue):
     recording.value = False
@@ -212,7 +215,8 @@ def recordingSave(recording,avi_recorder,timestamp,step_tracking_data,log_queue)
         avi_recorder = None
     log("$$$$$ Recording stopped and saved $$$$$",log_queue)
     # Save tracking data
-    tracking_filename = f'saved_tracking_csvs/JellyTracking_{timestamp}_tracking.csv'
+    timestamp_text = timestamp.value.decode('utf-8').rstrip('\x00')
+    tracking_filename = f'saved_runs/run_{timestamp_text}/tracking.csv'
     with open(tracking_filename, 'w') as f:
         f.write("x,y,t,type\n")
         local_steps = list(step_tracking_data)

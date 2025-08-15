@@ -12,25 +12,28 @@ class NvencVideoWriter:
         self.log = log
 
         # Set the environment so that GPU 1 appears as "cuda:0" to FFmpeg
-
+        folder = os.path.dirname(self.filename)
+        basename = os.path.splitext(os.path.basename(self.filename))[0]  # "video"
+        output_pattern = os.path.join(folder, f"{basename}_%03d.mp4")
         command = [
             'ffmpeg',
-            # '-loglevel', 'debug',
             '-y',
-            '-f', 'rawvideo',
+            '-f', 'rawvideo',           # input format
             '-vcodec', 'rawvideo',
             '-pix_fmt', 'bgr24',
             '-s', f'{width}x{height}',
             '-r', str(fps),
-            '-i', '-',
+            '-i', '-',                  # input pipe
             '-c:v', 'h264_nvenc',
-            '-gpu', '0', # uses the 3090   
+            '-gpu', '0',
             '-preset', 'llhp',
             '-b:v', self.bitrate,
             '-maxrate', self.bitrate,
             '-bufsize', str(int(int(self.bitrate[:-1]) * 2)) + 'M',
             '-pix_fmt', 'yuv420p',
-            self.filename
+            '-f', 'segment',            # segment muxer is output-specific
+            '-segment_time', '900',
+            output_pattern
         ]
 
         if self.log:

@@ -22,6 +22,9 @@ from Utils import states
 from Utils.ButtonPresses import homingStepsWithErrorCheck, saveHelper, trackingHelper, trackingMotors, borderShowHelper, testingHelper, verboseHelper, openHelp, clear_log_callback
 from Utils.changeModePopUp import changeModePopUp
 from multiprocessing import Manager
+import ctypes
+import shutil
+
 
 boundary = []
 # or write filename to load in a boundary
@@ -194,7 +197,10 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
 
 def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking, homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose,testingMode,recording,tracking,motors,elapsed_time,reset_timer):
     global boundary
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = multiprocessing.Array(ctypes.c_char, 100)
+    holder = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp.value = holder.encode('utf-8')
+
     manager = Manager()
     step_tracking_data = manager.list()
 
@@ -222,9 +228,8 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     window_width, window_height = width+500, height+text_panel_height
     window = pygame.display.set_mode((window_width, window_height))
     pygame.display.set_caption("Camera Live View with Flashlight Tracking")
-    
-    ensure_dir('saved_tracking_videos')
-    ensure_dir('saved_tracking_csvs')
+
+    ensure_dir('saved_runs')
     
     acq_thread = threading.Thread(target=imageacq, args=(cap,recording, fps, log_queue))
     acq_thread.start()
@@ -241,20 +246,20 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     last_frame_time = time.time()
     frame_count = 0
     missed_tracks = 0 
-    
+
     crosshair_x = width // 2
     crosshair_y = height // 2
     move_delay = 2  # How many frames to wait between moves
     move_counter = 0  # Frame counter
     
-    def recordingHelper(log_queue,step_tracking_data,recording,reset_timer,tracking):
-        global timestamp, avi_filename
+    def recordingHelper(log_queue,step_tracking_data,recording,reset_timer,tracking, timestamp):
+        global avi_filename
         if not recording.value:
             old_state = tracking.value
             tracking.value = False
             # time.sleep(3)  # Optional: give GPU time to settle
 
-            states.avi_recorder,timestamp,avi_filename = recordingStart(recording,states.chosenAviType,fps,width,height,log_queue,step_tracking_data)
+            states.avi_recorder,avi_filename = recordingStart(recording,states.chosenAviType,fps,width,height,log_queue,step_tracking_data,timestamp)
             states.start_time = datetime.now()
             reset_timer.value = True
             tracking.value = old_state
@@ -262,8 +267,11 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
             if states.avi_recorder:
                 states.avi_recorder.release()
                 states.avi_recorder = None
-            if os.path.exists(avi_filename):
-                os.remove(avi_filename)
+
+            timestamp_text = timestamp.value.decode('utf-8').rstrip('\x00')
+            folder_path = f'saved_runs/run_{timestamp_text}'
+            if os.path.exists(folder_path):
+                shutil.rmtree(folder_path)
             recording.value = False
             log("$$Recording deleted.$$", log_queue)
             states.start_time = datetime.now()
@@ -311,13 +319,13 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
 
     buttons = [
         #first col
-       Button(330, 570, 150, 50, "Start Recording", lambda: recordingHelper(log_queue,step_tracking_data,recording,reset_timer,tracking),get_color=lambda: (50, 50, 100),text_dependence=recording,text_if_true="Delete Recording",text_if_false="Start Recording", get_visible=lambda: not recording.value),
+       Button(330, 570, 150, 50, "Start Recording", lambda: recordingHelper(log_queue,step_tracking_data,recording,reset_timer,tracking, timestamp),get_color=lambda: (50, 50, 100),text_dependence=recording,text_if_true="Delete Recording",text_if_false="Start Recording", get_visible=lambda: not recording.value),
        Button(330, 570, 70, 50, "Save Video", 
            lambda: saveHelper(log_queue, timestamp, step_tracking_data, recording,reset_timer, tracking),
            get_color=lambda: (80, 200, 80),
            get_visible=lambda: recording.value),
        Button(410, 570, 70, 50, "Delete Video", 
-           lambda: recordingHelper(log_queue,step_tracking_data,recording,reset_timer,tracking),
+           lambda: recordingHelper(log_queue,step_tracking_data,recording,reset_timer,tracking, timestamp),
            get_color=lambda: (255, 80, 80),
            get_visible=lambda: recording.value),
        Button(330, 630, 150, 50, "Turn Tracking On", lambda: trackingHelper(tracking, log_queue), get_color=lambda: onOffColors[tracking.value], text_dependence=tracking,text_if_true="Tracking On",text_if_false="Tracking Off" ),

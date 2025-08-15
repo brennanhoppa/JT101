@@ -1,6 +1,8 @@
 import pygame
 import os
 from Utils.Button import Button
+import shutil
+
 pygame.init()
 
 def popup_save_recording(window, font, recordingSave, avi_recorder, timestamp, step_tracking_data, recording, avi_filename, log_queue):
@@ -45,8 +47,10 @@ def popup_save_recording(window, font, recordingSave, avi_recorder, timestamp, s
             if avi_recorder:
                 avi_recorder.release()
                 avi_recorder = None
-            if os.path.exists(avi_filename):
-                os.remove(avi_filename)
+            timestamp_text = timestamp.value.decode('utf-8').rstrip('\x00')
+            folder_path = f'saved_runs/run_{timestamp_text}'
+            if os.path.exists(folder_path):
+                shutil.rmtree(folder_path)
             return False
 
         # Dim background
