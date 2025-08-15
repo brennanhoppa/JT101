@@ -17,8 +17,9 @@ except:
 DEAD_ZONE = 20  # Minimum movement threshold to ignore small movements
 MOVE_MULTIPLIER = 0.91  # Factor to adjust sensitivity of movements
 
-MODEL_PATH_JF = r"C:\Users\JellyTracker\Downloads\best (1).pt" # jf good model
-MODEL_PATH_LARVAE = r"C:\Users\JellyTracker\Desktop\TrainingPipeline\Foundational_Training\train_m_Larvae_seg\weights\best.pt" # larvae testing model
+MODEL_PATH_JF = r"C:\Users\JellyTracker\Desktop\JellyFishTrackingPC-main\Models\jf_best.pt" # jf model
+MODEL_PATH_LARVAE = r"C:\Users\JellyTracker\Desktop\JellyFishTrackingPC-main\Models\larvae_best.pt" # larvae model
+
 IMG_SIZE = 1024  # Set the image size for inference
 CONF_THRESHOLD = 0.25  # Confidence threshold
 IOU_THRESHOLD = 0.7  # IoU threshold for NMS
