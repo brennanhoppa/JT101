@@ -1,6 +1,11 @@
 import os
 import subprocess
 import time
+import shutil
+ffmpeg_path = shutil.which("ffmpeg")
+if not ffmpeg_path:
+    # fallback hardcoded path for Windows
+    ffmpeg_path = r"C:\ffmpeg\bin\ffmpeg.exe"
 
 class NvencVideoWriter:
     def __init__(self, filename, width, height, fps=30, bitrate="10M", log=None):
@@ -16,7 +21,7 @@ class NvencVideoWriter:
         basename = os.path.splitext(os.path.basename(self.filename))[0]  # "video"
         output_pattern = os.path.join(folder, f"{basename}_%03d.mp4")
         command = [
-            'ffmpeg',
+            ffmpeg_path,
             '-y',
             '-f', 'rawvideo',           # input format
             '-vcodec', 'rawvideo',

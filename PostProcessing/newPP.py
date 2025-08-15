@@ -1,7 +1,7 @@
 import pandas as pd # type: ignore
-import matplotlib.pyplot as plt
-import numpy as np
-from matplotlib.animation import FuncAnimation
+import matplotlib.pyplot as plt # type: ignore
+import numpy as np # type: ignore
+from matplotlib.animation import FuncAnimation  # type: ignore
 import os
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
