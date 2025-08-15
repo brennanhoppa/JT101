@@ -32,7 +32,7 @@ class NvencVideoWriter:
             '-bufsize', str(int(int(self.bitrate[:-1]) * 2)) + 'M',
             '-pix_fmt', 'yuv420p',
             '-f', 'segment',            # segment muxer is output-specific
-            '-segment_time', '900',
+            '-segment_time', '900', # 15 min intervals
             output_pattern
         ]
 
