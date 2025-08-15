@@ -13,6 +13,7 @@ from Utils.CONSTANTS import CONSTANTS
 from Utils.log import log
 import queue
 log_queue = multiprocessing.Queue()
+import json
 
 def get_x_y(log_queue):
     x_pos, y_pos = None, None
@@ -79,7 +80,10 @@ def wait_for_errorcheck_completion(ser,is_jf_mode, log_queue):
 
 def serial_process(command_queue,homing_error_button,terminate_event,is_jf_mode, log_queue, x_invalid_flag, y_invalid_flag, x_pos, y_pos,verbose):
     try:
-        ser = serial.Serial('COM5', 500000, timeout=5)
+        with open("config.json") as f:
+            config = json.load(f)
+        COM_PORT = config.get("COM_PORT", "COM5") # COM5 default
+        ser = serial.Serial(COM_PORT, 500000, timeout=5)
         time.sleep(3)
         log("Serial connection established.",log_queue)
     except Exception as e:

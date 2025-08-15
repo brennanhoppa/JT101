@@ -11,3 +11,4 @@ Models/*
 !Models/jf_best.pt
 !Models/larvae_best.pt
 !Models/old/
+config.json
