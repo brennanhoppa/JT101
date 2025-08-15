@@ -7,3 +7,7 @@ Utils/__pycache__/JellyTrackingFunctions.cpython-310.pyc
 Utils/motor_location.txt
 Utils/log.txt
 Utils/jf_or_larvae_mode.txt
+Models/*
+!Models/jf_best.pt
+!Models/larvae_best.pt
+!Models/old/

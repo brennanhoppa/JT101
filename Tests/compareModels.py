@@ -7,15 +7,18 @@ import time
 import multiprocessing
 from ultralytics import YOLO #type: ignore
 
+# Model paths - CHANGE THESE
+MODEL_PATH_L1 = r"C:\Users\JellyTracker\Desktop\JellyFishTrackingPC-main\Models\larvae_best.pt"
+MODEL_PATH_L2 = r"C:\Users\JellyTracker\Desktop\JellyFishTrackingPC-main\Models\trainingNewModels\Larvae_additional_training\train_l_Larvae_seg\weights\best.pt"
+
+# Video to test on - CHANGE THIS
+video_path = r"C:\Users\JellyTracker\Desktop\JellyFishTrackingPC-main\saved_runs\old_saved_tracking_videos\JellyTracking_20250722_163900.mp4"
+
 # ----------------- Constants -----------------
 IMG_SIZE = 1024
 CONF_THRESHOLD = 0.25
 IOU_THRESHOLD = 0.7
 HALF_PRECISION = True
-
-# ----------------- Model Paths -----------------
-MODEL_PATH_L1 = r"C:\Users\JellyTracker\Desktop\TrainingPipeline\Foundational_Training\train_m_Larvae_seg\weights\best.pt"
-MODEL_PATH_L2 = r"C:\Users\JellyTracker\Desktop\TrainingPipeline\Larvae_additional_training\train_l_Larvae_seg\weights\best.pt"
 
 # ----------------- Load YOLO models -----------------
 modelL1 = YOLO(MODEL_PATH_L1)
@@ -171,7 +174,6 @@ def playback_side_by_side(video_path, det1, det2, frame_width, frame_height, tot
 
 # ----------------- Main -----------------
 if __name__ == "__main__":
-    video_path = r"C:\Users\JellyTracker\Desktop\JellyFishTrackingPC-main\saved_tracking_videos\JellyTracking_20250722_163900.mp4"
 
     # Run detection for L1
     det_L1, w, h, total_frames = run_detection(video_path, model1=True)
