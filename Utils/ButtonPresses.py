@@ -12,6 +12,7 @@ from Utils.nvenc_video_writer import NvencVideoWriter
 from Utils.JellyTrackingFunctions import steps_to_mm
 import os
 from Utils.moveFunctions import autoMove
+from pathlib import Path
 
 def homingStepsWithErrorCheck(homing_error_button, is_jf_mode,command_queue,x_pos,y_pos, xy_LHpos,  x_invalid_flag, y_invalid_flag, log_queue,LH_flag):
     
@@ -228,9 +229,12 @@ def recordingSave(recording,avi_recorder,timestamp,step_tracking_data,log_queue)
 def boundaryControl(boundary_making, boundary,is_jf_mode,step_size,log_queue):
     if boundary_making:
         log('&& Boundary Making Mode turned Off &&.',log_queue)
-        file_start = "C:\\Users\\JellyTracker\\Desktop\\JellyFishTrackingPC-main\\saved_boundaries_mm\\"
+        script_path = Path(__file__).resolve()
+        script_parent = script_path.parent
+        project_root = script_parent.parent
+        file_start = project_root / "saved_boundaries_mm"
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
-        filename = file_start + f"new_boundary_{timestamp}.csv"
+        filename = file_start / f"new_boundary_{timestamp}.csv"
         log(f'&& Boundary saved at: {filename} &&',log_queue)
         save_boundaries(filename,boundary_to_mm_from_steps(boundary,is_jf_mode),log_queue)
         boundary_making = False

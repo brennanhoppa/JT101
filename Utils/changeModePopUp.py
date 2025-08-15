@@ -88,7 +88,7 @@ def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, ho
     else: 
         msg = (
             f"Mode incorrectly saved as: {is_jf_mode.value}.\n"
-            "Please close program, edit C:\\Users\\JellyTracker\\Desktop\\JellyFishTrackingPC-main\\Utils\\jf_or_larvae_mode.txt \n "
+            "Please close program, edit Utils\\jf_or_larvae_mode.txt \n "
             "to be 0 (Meaning larvae) or 1 (meaning JF)"
         )
 

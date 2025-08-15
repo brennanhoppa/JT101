@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import filedialog
 import subprocess
 import re
+from pathlib import Path
 
 def numerical_sort(value):
     """Sort filenames containing numbers in correct order."""
@@ -14,10 +15,14 @@ def main():
     root = tk.Tk()
     root.withdraw()
 
+    script_path = Path(__file__).resolve()
+    script_parent = script_path.parent
+    project_root = script_parent.parent
+
     # Open folder picker
     folder = filedialog.askdirectory(
         title="Select folder with video segments",
-        initialdir="C:\\Users\\JellyTracker\\Desktop\\JellyFishTrackingPC-main\\saved_runs"
+        initialdir=project_root / "saved_runs"
     )
     if not folder:
         print("No folder selected. Exiting.")

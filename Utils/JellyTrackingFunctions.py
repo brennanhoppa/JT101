@@ -1,10 +1,12 @@
-import numpy as np
+import numpy as np # type: ignore
 import logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 import cv2 #type: ignore
 import time
 import io
+import os
+from pathlib import Path
 from ultralytics import YOLO # type: ignore
 try:
     from Utils.CONSTANTS import CONSTANTS
@@ -17,8 +19,11 @@ except:
 DEAD_ZONE = 20  # Minimum movement threshold to ignore small movements
 MOVE_MULTIPLIER = 0.91  # Factor to adjust sensitivity of movements
 
-MODEL_PATH_JF = r"C:\Users\JellyTracker\Desktop\JellyFishTrackingPC-main\Models\jf_best.pt" # jf model
-MODEL_PATH_LARVAE = r"C:\Users\JellyTracker\Desktop\JellyFishTrackingPC-main\Models\larvae_best.pt" # larvae model
+script_path = Path(__file__).resolve()
+script_parent = script_path.parent
+project_root = script_parent.parent
+MODEL_PATH_JF = project_root / "Models" / "jf_best.pt"
+MODEL_PATH_LARVAE = project_root / "Models" / "larvae_best.pt"
 
 IMG_SIZE = 1024  # Set the image size for inference
 CONF_THRESHOLD = 0.25  # Confidence threshold
