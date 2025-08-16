@@ -8,7 +8,7 @@ from Utils.CONSTANTS import CONSTANTS, AviType
 from Utils.log import log
 import webbrowser
 from Utils import states
-from Utils.nvenc_video_writer import NvencVideoWriter
+from Utils.nvenc_video_writer import NvencVideoWriter, DummyVideoWriter
 from Utils.JellyTrackingFunctions import steps_to_mm
 import os
 from Utils.moveFunctions import autoMove
@@ -195,7 +195,7 @@ def recordingStart(recording,chosenAviType,fps,width,height,log_queue,step_track
     # avi_recorder = cv2.VideoWriter(avi_filename, fourcc, fps, (width, height))
 
 
-     # Use NVENC recorder
+    # Use NVENC recorder
     avi_recorder = NvencVideoWriter(
         avi_filename,
         width,
@@ -204,6 +204,8 @@ def recordingStart(recording,chosenAviType,fps,width,height,log_queue,step_track
         bitrate="10M",
         log=lambda msg, _: log(msg, log_queue)
     )
+    # testing - allows tracking recorded with out video
+    # avi_recorder = DummyVideoWriter(log=lambda msg, _: log(msg, log_queue))
 
     log(f"$$$$$ Recording started at: {avi_filename} $$$$$",log_queue)
     # Reset step tracking data
