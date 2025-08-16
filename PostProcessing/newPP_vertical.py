@@ -1,8 +1,8 @@
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
-from matplotlib.animation import FuncAnimation, FFMpegWriter
-from matplotlib import animation
+import pandas as pd # type: ignore
+import matplotlib.pyplot as plt # type: ignore
+import numpy as np # type: ignore
+from matplotlib.animation import FuncAnimation, FFMpegWriter # type: ignore
+from matplotlib import animation # type: ignore
 import shutil
 import os
 import subprocess
