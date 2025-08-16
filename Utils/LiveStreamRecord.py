@@ -24,7 +24,7 @@ from Utils.changeModePopUp import changeModePopUp
 from multiprocessing import Manager
 import ctypes
 import shutil
-
+import csv
 
 boundary = []
 # or write filename to load in a boundary
@@ -121,11 +121,28 @@ def imageacq(cam, recording, fps, log_queue):
         states.avi_recorder.release()
 
 
-def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,step_tracking_data,recording, tracking,motors, testingMode, elapsed_time):    
+def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,recording, tracking,motors, testingMode, elapsed_time,recordingTimeStamp,recordingStartEnd):    
     last_tracking_time = time.time()
+    csv_writer = None
+    tracking_data_file = None
+
     while states.running:
         current_time = time.time()
         if current_time - last_tracking_time >= TRACKING_INTERVAL:
+            if recordingStartEnd.value == 1:
+                recordingtimestamp_text = recordingTimeStamp.value.decode('utf-8').rstrip('\x00')
+                mode_str = "Jellyfish" if is_jf_mode.value == 1 else "Larvae"
+                tracking_data_file = open(f"saved_runs/run_{recordingtimestamp_text}_{mode_str}/tracking.csv", "a",newline="")
+                csv_writer = csv.writer(tracking_data_file)
+                csv_writer.writerow(["x_mm", "y_mm", "timestamp", "status", "flashlight_pos", "bbox"])
+                recordingStartEnd.value = 0 
+            elif recordingStartEnd.value == 2:
+                if tracking_data_file:
+                    tracking_data_file.close()
+                    tracking_data_file = None
+                    csv_writer = None
+                recordingStartEnd.value = 0
+
             if tracking.value:
                 try:
                     image = image_queue.get(timeout=1)  # Wait for the next frame
@@ -157,16 +174,15 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                         # Calculate deltas
                         dx, dy = calculate_delta_Pixels(flashlight_pos, center_x, center_y)
                         if recording.value:
-                            # x_pos + dx thing and y !!!!!!!!!!!!!!
                             # mm position of jf in the global coords
                             x = steps_to_mm(x_pos.value, is_jf_mode)
                             y = steps_to_mm(y_pos.value, is_jf_mode)
                             x -= pixels_to_mm(dx,is_jf_mode) # matching to the inverting of the x axis with the camera
                             y += pixels_to_mm(dy,is_jf_mode) # same as above
-                            step_tracking_data.append((round(x,3), round(y,3), timestamp, 'SuccTrack', flashlight_pos, (x1,x2,y1,y2)))                        
+                            csv_writer.writerow([round(x,3), round(y,3), timestamp, 'SuccTrack', flashlight_pos, (x1,x2,y1,y2)])
+
                         if motors.value:
                             step_x, step_y = calculate_movement(dx,dy,is_jf_mode)
-                            # log(f"moves steps: ({step_x},{step_y})", log_queue)
                             # Send movement command
                             x_pos, y_pos = move(x_pos, y_pos, step_x, step_y, command_queue,is_jf_mode, log_queue, x_invalid_flag, y_invalid_flag)
                         # Communicate tracking results for display
@@ -174,7 +190,8 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                     elif recording.value:    
                         x = steps_to_mm(x_pos.value, is_jf_mode)
                         y = steps_to_mm(y_pos.value, is_jf_mode)
-                        step_tracking_data.append((x, y, timestamp, 'FailTrackMotorPos', (x,y), (0,0,0,0) ))
+                        csv_writer.writerow([x, y, timestamp, 'FailTrackMotorPos', (x,y), (0,0,0,0)])
+
 
                     # Update tracking timestamp
                     last_tracking_time = current_time
@@ -192,7 +209,8 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
 
                 x = steps_to_mm(x_pos.value, is_jf_mode)
                 y = steps_to_mm(y_pos.value, is_jf_mode)
-                step_tracking_data.append((x, y, timestamp, 'MotorPos',(x,y), (0,0,0,0)))
+                csv_writer.writerow([x, y, timestamp, 'MotorPos', (x,y), (0,0,0,0)])
+
             time.sleep(0.001)  # Sleep briefly to prevent excessive CPU usage
 
 def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking, homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose,testingMode,recording,tracking,motors,elapsed_time,reset_timer):
@@ -201,8 +219,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     holder = datetime.now().strftime("%Y%m%d_%H%M%S")
     timestamp.value = holder.encode('utf-8')
 
-    manager = Manager()
-    step_tracking_data = manager.list()
+    recordingStartEnd = multiprocessing.Value('i',0) # 0 is just running. 1 means just started a recording, 2 means just saved a recording
 
     # Initialize webcam
     cap = cv2.VideoCapture(0)  # Use default webcam (index 0)
@@ -234,7 +251,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     acq_thread = threading.Thread(target=imageacq, args=(cap,recording, fps, log_queue))
     acq_thread.start()
     
-    tracking_thread = threading.Thread(target=active_tracking_thread, args=(width // 2, height // 2, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,step_tracking_data,recording, tracking, motors, testingMode, elapsed_time))
+    tracking_thread = threading.Thread(target=active_tracking_thread, args=(width // 2, height // 2, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,recording, tracking, motors, testingMode, elapsed_time, timestamp,recordingStartEnd))
     tracking_thread.start()
 
     writer_thread = threading.Thread(target=recording_writer_thread, args=(recording,), daemon=True)
@@ -252,24 +269,25 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     move_delay = 2  # How many frames to wait between moves
     move_counter = 0  # Frame counter
     
-    def recordingHelper(log_queue,step_tracking_data,recording,reset_timer,tracking, timestamp, is_jf_mode):
+    def recordingHelper(log_queue,recording,reset_timer,tracking, timestamp, is_jf_mode,recordingStartEnd):
         global avi_filename
         if not recording.value:
             old_state = tracking.value
             tracking.value = False
             # time.sleep(3)  # Optional: give GPU time to settle
 
-            states.avi_recorder,avi_filename = recordingStart(recording,states.chosenAviType,fps,width,height,log_queue,step_tracking_data,timestamp, is_jf_mode)
+            states.avi_recorder,avi_filename = recordingStart(recording,states.chosenAviType,fps,width,height,log_queue,timestamp, is_jf_mode,recordingStartEnd)
             states.start_time = datetime.now()
             reset_timer.value = True
             tracking.value = old_state
         elif recording.value: # deleting
+            recordingStartEnd.value = 2
             if states.avi_recorder:
                 states.avi_recorder.release()
                 states.avi_recorder = None
-
             timestamp_text = timestamp.value.decode('utf-8').rstrip('\x00')
-            folder_path = f'saved_runs/run_{timestamp_text}'
+            mode_str = "Jellyfish" if is_jf_mode.value == 1 else "Larvae"
+            folder_path = f'saved_runs/run_{timestamp_text}_{mode_str}'
             if os.path.exists(folder_path):
                 shutil.rmtree(folder_path)
             recording.value = False
@@ -319,13 +337,13 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
 
     buttons = [
         #first col
-       Button(330, 570, 150, 50, "Start Recording", lambda: recordingHelper(log_queue,step_tracking_data,recording,reset_timer,tracking, timestamp, is_jf_mode),get_color=lambda: (50, 50, 100),text_dependence=recording,text_if_true="Delete Recording",text_if_false="Start Recording", get_visible=lambda: not recording.value),
+       Button(330, 570, 150, 50, "Start Recording", lambda: recordingHelper(log_queue,recording,reset_timer,tracking, timestamp, is_jf_mode, recordingStartEnd),get_color=lambda: (50, 50, 100),text_dependence=recording,text_if_true="Delete Recording",text_if_false="Start Recording", get_visible=lambda: not recording.value),
        Button(330, 570, 70, 50, "Save Video", 
-           lambda: saveHelper(log_queue, timestamp, step_tracking_data, recording,reset_timer, tracking, is_jf_mode),
+           lambda: saveHelper(log_queue, timestamp, recording,reset_timer, tracking, is_jf_mode, recordingStartEnd),
            get_color=lambda: (80, 200, 80),
            get_visible=lambda: recording.value),
        Button(410, 570, 70, 50, "Delete Video", 
-           lambda: recordingHelper(log_queue,step_tracking_data,recording,reset_timer,tracking, timestamp, is_jf_mode),
+           lambda: recordingHelper(log_queue,recording,reset_timer,tracking, timestamp, is_jf_mode,recordingStartEnd),
            get_color=lambda: (255, 80, 80),
            get_visible=lambda: recording.value),
        Button(330, 630, 150, 50, "Turn Tracking On", lambda: trackingHelper(tracking, log_queue), get_color=lambda: onOffColors[tracking.value], text_dependence=tracking,text_if_true="Tracking On",text_if_false="Tracking Off" ),
@@ -387,7 +405,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 if recording.value:
-                    cont = popup_save_recording(window, font, recordingSave, states.avi_recorder, timestamp, step_tracking_data, recording, avi_filename, log_queue, is_jf_mode)
+                    cont = popup_save_recording(window, font, recordingSave, states.avi_recorder, timestamp, recording, avi_filename, log_queue, is_jf_mode,recordingStartEnd)
                     if not cont:
                         states.running = False
                         terminate_event.set()
