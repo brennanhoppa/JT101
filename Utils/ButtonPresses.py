@@ -172,11 +172,12 @@ def keyBindsControl(keybinds_flag,log_queue):
     log(f"-----Turning arrow motor control {'on' if keybinds_flag.value else 'off'}.-----",log_queue)
     # time.sleep(0.2)
     
-def recordingStart(recording,chosenAviType,fps,width,height,log_queue,step_tracking_data, timestamp):
+def recordingStart(recording,chosenAviType,fps,width,height,log_queue,step_tracking_data, timestamp, is_jf_mode):
     recording.value = True
     now = datetime.now().strftime("%Y%m%d_%H%M%S")
     timestamp.value = now.encode('utf-8')
-    run_folder = os.path.join("saved_runs", f"run_{now}")
+    mode_str = "Jellyfish" if is_jf_mode.value == 1 else "Larvae"
+    run_folder = os.path.join("saved_runs", f"run_{now}_",f"{mode_str}")
     os.makedirs(run_folder, exist_ok=True)
     avi_filename = os.path.join(run_folder, f"video")
 

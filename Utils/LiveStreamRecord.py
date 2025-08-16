@@ -1,5 +1,5 @@
 import sys
-import numpy as np
+import numpy as np # type: ignore
 import multiprocessing
 import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
@@ -252,14 +252,14 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     move_delay = 2  # How many frames to wait between moves
     move_counter = 0  # Frame counter
     
-    def recordingHelper(log_queue,step_tracking_data,recording,reset_timer,tracking, timestamp):
+    def recordingHelper(log_queue,step_tracking_data,recording,reset_timer,tracking, timestamp, is_jf_mode):
         global avi_filename
         if not recording.value:
             old_state = tracking.value
             tracking.value = False
             # time.sleep(3)  # Optional: give GPU time to settle
 
-            states.avi_recorder,avi_filename = recordingStart(recording,states.chosenAviType,fps,width,height,log_queue,step_tracking_data,timestamp)
+            states.avi_recorder,avi_filename = recordingStart(recording,states.chosenAviType,fps,width,height,log_queue,step_tracking_data,timestamp, is_jf_mode)
             states.start_time = datetime.now()
             reset_timer.value = True
             tracking.value = old_state
@@ -319,13 +319,13 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
 
     buttons = [
         #first col
-       Button(330, 570, 150, 50, "Start Recording", lambda: recordingHelper(log_queue,step_tracking_data,recording,reset_timer,tracking, timestamp),get_color=lambda: (50, 50, 100),text_dependence=recording,text_if_true="Delete Recording",text_if_false="Start Recording", get_visible=lambda: not recording.value),
+       Button(330, 570, 150, 50, "Start Recording", lambda: recordingHelper(log_queue,step_tracking_data,recording,reset_timer,tracking, timestamp, is_jf_mode),get_color=lambda: (50, 50, 100),text_dependence=recording,text_if_true="Delete Recording",text_if_false="Start Recording", get_visible=lambda: not recording.value),
        Button(330, 570, 70, 50, "Save Video", 
            lambda: saveHelper(log_queue, timestamp, step_tracking_data, recording,reset_timer, tracking),
            get_color=lambda: (80, 200, 80),
            get_visible=lambda: recording.value),
        Button(410, 570, 70, 50, "Delete Video", 
-           lambda: recordingHelper(log_queue,step_tracking_data,recording,reset_timer,tracking, timestamp),
+           lambda: recordingHelper(log_queue,step_tracking_data,recording,reset_timer,tracking, timestamp, is_jf_mode),
            get_color=lambda: (255, 80, 80),
            get_visible=lambda: recording.value),
        Button(330, 630, 150, 50, "Turn Tracking On", lambda: trackingHelper(tracking, log_queue), get_color=lambda: onOffColors[tracking.value], text_dependence=tracking,text_if_true="Tracking On",text_if_false="Tracking Off" ),
