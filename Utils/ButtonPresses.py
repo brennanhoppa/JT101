@@ -177,7 +177,7 @@ def recordingStart(recording,chosenAviType,fps,width,height,log_queue,step_track
     now = datetime.now().strftime("%Y%m%d_%H%M%S")
     timestamp.value = now.encode('utf-8')
     mode_str = "Jellyfish" if is_jf_mode.value == 1 else "Larvae"
-    run_folder = os.path.join("saved_runs", f"run_{now}_",f"{mode_str}")
+    run_folder = os.path.join("saved_runs", f"run_{now}_{mode_str}")
     os.makedirs(run_folder, exist_ok=True)
     avi_filename = os.path.join(run_folder, f"video")
 
@@ -212,7 +212,7 @@ def recordingStart(recording,chosenAviType,fps,width,height,log_queue,step_track
     step_tracking_data[:] = []
     return avi_recorder,avi_filename
 
-def recordingSave(recording,avi_recorder,timestamp,step_tracking_data,log_queue):
+def recordingSave(recording,avi_recorder,timestamp,step_tracking_data,log_queue,is_jf_mode):
     recording.value = False
     if avi_recorder:
         avi_recorder.release()
@@ -220,12 +220,13 @@ def recordingSave(recording,avi_recorder,timestamp,step_tracking_data,log_queue)
     log("$$$$$ Recording stopped and saved $$$$$",log_queue)
     # Save tracking data
     timestamp_text = timestamp.value.decode('utf-8').rstrip('\x00')
-    tracking_filename = f'saved_runs/run_{timestamp_text}/tracking.csv'
+    mode_str = "Jellyfish" if is_jf_mode.value == 1 else "Larvae"
+    tracking_filename = f'saved_runs/run_{timestamp_text}_{mode_str}/tracking.csv'
     with open(tracking_filename, 'w') as f:
-        f.write("x,y,t,type\n")
+        f.write("x,y,t,type,(cx,cy),(x1,x2,y1,y2)\n")
         local_steps = list(step_tracking_data)
-        for x, y, t, type in local_steps:
-            f.write(f"{x},{y},{t},{type}\n")
+        for x, y, t, type, (cx,cy), (x1,x2,y1,y2) in local_steps:
+            f.write(f"{x},{y},{t},{type},({cx},{cy}),({x1},{x2},{y1},{y2})\n")
     log(f"$$$$$ Tracking data saved to {tracking_filename} $$$$$",log_queue)
     return None
 
@@ -266,9 +267,9 @@ def boundaryCancel(boundary_making, boundary,is_jf_mode, step_size,log_queue):
     return boundary_making, boundary
 
 # Button press direct function
-def saveHelper(log_queue, timestamp, step_tracking_data, recording,reset_timer, tracking):
+def saveHelper(log_queue, timestamp, step_tracking_data, recording,reset_timer, tracking, is_jf_mode):
     if recording.value:
-        recordingSave(recording,states.avi_recorder,timestamp,step_tracking_data,log_queue)
+        recordingSave(recording,states.avi_recorder,timestamp,step_tracking_data,log_queue, is_jf_mode)
         states.start_time = datetime.now()
         reset_timer.value = True
 

@@ -163,7 +163,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                             y = steps_to_mm(y_pos.value, is_jf_mode)
                             x -= pixels_to_mm(dx,is_jf_mode) # matching to the inverting of the x axis with the camera
                             y += pixels_to_mm(dy,is_jf_mode) # same as above
-                            step_tracking_data.append((round(x,3), round(y,3), timestamp, 'SuccTrack'))                        
+                            step_tracking_data.append((round(x,3), round(y,3), timestamp, 'SuccTrack', flashlight_pos, (x1,x2,y1,y2)))                        
                         if motors.value:
                             step_x, step_y = calculate_movement(dx,dy,is_jf_mode)
                             # log(f"moves steps: ({step_x},{step_y})", log_queue)
@@ -174,7 +174,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                     elif recording.value:    
                         x = steps_to_mm(x_pos.value, is_jf_mode)
                         y = steps_to_mm(y_pos.value, is_jf_mode)
-                        step_tracking_data.append((x, y, timestamp, 'FailTrackMotorPos'))
+                        step_tracking_data.append((x, y, timestamp, 'FailTrackMotorPos', (x,y), (0,0,0,0) ))
 
                     # Update tracking timestamp
                     last_tracking_time = current_time
@@ -192,7 +192,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
 
                 x = steps_to_mm(x_pos.value, is_jf_mode)
                 y = steps_to_mm(y_pos.value, is_jf_mode)
-                step_tracking_data.append((x, y, timestamp, 'MotorPos'))
+                step_tracking_data.append((x, y, timestamp, 'MotorPos',(x,y), (0,0,0,0)))
             time.sleep(0.001)  # Sleep briefly to prevent excessive CPU usage
 
 def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking, homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose,testingMode,recording,tracking,motors,elapsed_time,reset_timer):
@@ -321,7 +321,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
         #first col
        Button(330, 570, 150, 50, "Start Recording", lambda: recordingHelper(log_queue,step_tracking_data,recording,reset_timer,tracking, timestamp, is_jf_mode),get_color=lambda: (50, 50, 100),text_dependence=recording,text_if_true="Delete Recording",text_if_false="Start Recording", get_visible=lambda: not recording.value),
        Button(330, 570, 70, 50, "Save Video", 
-           lambda: saveHelper(log_queue, timestamp, step_tracking_data, recording,reset_timer, tracking),
+           lambda: saveHelper(log_queue, timestamp, step_tracking_data, recording,reset_timer, tracking, is_jf_mode),
            get_color=lambda: (80, 200, 80),
            get_visible=lambda: recording.value),
        Button(410, 570, 70, 50, "Delete Video", 
@@ -387,7 +387,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 if recording.value:
-                    cont = popup_save_recording(window, font, recordingSave, states.avi_recorder, timestamp, step_tracking_data, recording, avi_filename, log_queue)
+                    cont = popup_save_recording(window, font, recordingSave, states.avi_recorder, timestamp, step_tracking_data, recording, avi_filename, log_queue, is_jf_mode)
                     if not cont:
                         states.running = False
                         terminate_event.set()
