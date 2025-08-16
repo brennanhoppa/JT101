@@ -12,3 +12,4 @@ Models/*
 !Models/larvae_best.pt
 !Models/old/
 config.json
+Utils/vertical.txt

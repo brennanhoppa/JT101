@@ -1,4 +1,8 @@
 from Utils.CONSTANTS import CONSTANTS
+import os
+
+vertical = os.path.exists(r"C:\Users\weiss\Desktop\JT101\Utils\vertical.txt")
+
 
 def move(x_pos, y_pos, x_direction, y_direction, command_queue, is_jf_mode, log_queue,x_invalid_flag, y_invalid_flag):       
     # Calculate new positions
@@ -25,7 +29,7 @@ def move(x_pos, y_pos, x_direction, y_direction, command_queue, is_jf_mode, log_
     # x_valid, y_valid = True, True
 
     # Update positions and send movement commands
-    if x_valid and x_direction != 0:
+    if x_valid and x_direction != 0 and not vertical:
         x_pos.value = new_x
         command_queue.put(f'{"R" if x_direction > 0 else "L"}{abs(x_direction)}\n')
     if y_valid and y_direction != 0:

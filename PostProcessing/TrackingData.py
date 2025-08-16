@@ -7,7 +7,7 @@ import os
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Load Tracking CSV
-tracking_file = r"C:\Users\JellyTracker\Desktop\JellyFishTrackingPC-main\saved_runs\run_20250815_201825\tracking.csv"
+tracking_file = r"C:\Users\weiss\Desktop\JT101\saved_runs\run_20250815_193702\tracking.csv"
 track_df = pd.read_csv(tracking_file)
 
 # Use all points
