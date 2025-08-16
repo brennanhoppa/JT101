@@ -68,3 +68,18 @@ class NvencVideoWriter:
         """Close FFmpeg cleanly."""
         self.process.stdin.close()
         self.process.wait()
+
+
+class DummyVideoWriter:
+    def __init__(self, *args, **kwargs):
+        # keep same constructor signature
+        if "log" in kwargs and kwargs["log"]:
+            kwargs["log"]("Dummy recorder active (no video will be saved).", None)
+
+    def write(self, frame):
+        # do nothing
+        pass
+
+    def release(self):
+        # do nothing
+        pass
