@@ -1,4 +1,5 @@
-import pygame
+import pygame #type: ignore
+import time
 import os
 from Utils.Button import Button
 import shutil
@@ -46,6 +47,11 @@ def popup_save_recording(window, font, recordingSave, avi_recorder, timestamp, s
             return False
         elif result["choice"] == "no":
             recordingStartEnd.value = 2
+            timeout = time.time() + 5  # 5 seconds timeout
+            while recordingStartEnd.value != 0:
+                if time.time() > timeout:
+                    break
+                time.sleep(0.1)            
             if avi_recorder:
                 avi_recorder.release()
                 avi_recorder = None
