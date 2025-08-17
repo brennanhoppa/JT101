@@ -6,7 +6,7 @@ import shutil
 
 pygame.init()
 
-def popup_save_recording(window, font, recordingSave, avi_recorder, timestamp, step_tracking_data, recording, avi_filename, log_queue, is_jf_mode, recordingStartEnd):
+def popup_save_recording(window, font, recordingSave, avi_recorder, timestamp, recording, avi_filename, log_queue, is_jf_mode, recordingStartEnd):
     popup_width, popup_height = 400, 150
     window_width, window_height = window.get_size()
     popup_rect = pygame.Rect(
@@ -43,7 +43,7 @@ def popup_save_recording(window, font, recordingSave, avi_recorder, timestamp, s
 
         if result["choice"] == "yes":
             recordingStartEnd.value = 2
-            recordingSave(recording, avi_recorder,timestamp,step_tracking_data,log_queue, is_jf_mode)
+            recordingSave(recording, avi_recorder,timestamp,log_queue, is_jf_mode)
             return False
         elif result["choice"] == "no":
             recordingStartEnd.value = 2
