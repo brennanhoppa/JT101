@@ -1,5 +1,5 @@
-import pygame
-import cv2
+import pygame #type: ignore
+import cv2 #type: ignore
 import csv
 import tkinter as tk
 from tkinter import filedialog

@@ -1,5 +1,5 @@
 import pandas as pd # type:ignore
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt #type: ignore
 import os
 import tkinter as tk
 from tkinter import filedialog
@@ -37,21 +37,47 @@ plt.show()
 # ================= Plot 2: Success % per minute =================
 # Filter only SuccTrack and FailTrackMotorPos
 df_filtered = df[df['status'].isin(['SuccTrack', 'FailTrackMotorPos'])].copy()
-df_filtered['minute'] = df_filtered['timestamp'].dt.total_seconds().astype(int) // 60
 
-# Count per minute + status
-counts = df_filtered.groupby(['minute','status']).size().unstack(fill_value=0)
+# Check the time span of the data
+time_span_seconds = (df_filtered['timestamp'].max() - df_filtered['timestamp'].min()).total_seconds()
 
-# Compute success %
-counts['success_pct'] = counts['SuccTrack'] / (counts['SuccTrack'] + counts['FailTrackMotorPos']) * 100
+# If the time span is less than one minute, group by seconds
+if time_span_seconds < 60:
+    df_filtered['time_group'] = df_filtered['timestamp'].dt.total_seconds().astype(int)  # Group by seconds
+    time_label = 'Time [seconds]'
+else:
+    # Create a 'minute' column for grouping by minute if the time span is >= 1 minute
+    df_filtered['time_group'] = (df_filtered['timestamp'].dt.total_seconds() // 60).astype(int)  # Group by minutes
+    time_label = 'Time [minutes]'
 
-plt.figure(figsize=(8,4))
-# plt.scatter(counts.index, counts['success_pct'], label="Success %")
-plt.plot(counts.index, counts['success_pct'], linestyle='-', alpha=0.7)
-plt.xlabel("Time [minutes]")
+# Count per time group + status
+counts = df_filtered.groupby(['time_group', 'status']).size().unstack(fill_value=0)
+
+# Ensure both columns exist for every time group, fill missing with 0
+counts = counts.reindex(columns=['SuccTrack', 'FailTrackMotorPos'], fill_value=0)
+
+# Compute success %: Avoid division by zero
+total = counts['SuccTrack'] + counts['FailTrackMotorPos']
+counts['success_pct'] = (counts['SuccTrack'] / total.replace(0, 1)) * 100  # Avoid dividing by zero
+# Plot the success percentage (even if it's 100% for all intervals)
+plt.figure(figsize=(8, 4))
+plt.plot(counts.index, counts['success_pct'], linestyle='-', alpha=1, label="Success %")
+
+# Add grid lines for clarity
+plt.xlabel(time_label)
 plt.ylabel("Success Percentage [%]")
-plt.title("Success Rate per Minute")
-plt.ylim(0, 100)
+plt.title("Success Rate per Time Interval")
+plt.ylim(0, 110)
 plt.grid(True)
+
+# Ensure everything is tight and visible
 plt.tight_layout()
+
+# Show the plot
 plt.show()
+
+
+
+
+
+
