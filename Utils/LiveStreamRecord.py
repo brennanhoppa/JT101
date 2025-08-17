@@ -282,6 +282,13 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
             tracking.value = old_state
         elif recording.value: # deleting
             recordingStartEnd.value = 2
+            timeout = time.time() + 5  # 5 seconds timeout
+            while recordingStartEnd.value != 0:
+                if time.time() > timeout:
+                    log("Timeout waiting for tracking process to release files.", log_queue)
+                    break
+                time.sleep(0.1)
+            
             if states.avi_recorder:
                 states.avi_recorder.release()
                 states.avi_recorder = None
