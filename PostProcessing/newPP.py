@@ -3,15 +3,27 @@ import matplotlib.pyplot as plt # type: ignore
 import numpy as np # type: ignore
 from matplotlib.animation import FuncAnimation  # type: ignore
 import os
+import tkinter as tk
+from tkinter import filedialog
+
+# Hide the root Tk window
+root = tk.Tk()
+root.withdraw()
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Load Tracking CSV
-tracking_file = r"C:\Users\JellyTracker\Desktop\JellyFishTrackingPC-main\saved_analysis\track_run_711\JellyTracking_20250711_130005_tracking.csv"
+tracking_file = filedialog.askopenfilename(
+    title="Select Tracking File (CSV)",
+    filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")]
+)
 track_df = pd.read_csv(tracking_file)
 
 # Load Boundary
-boundary_file = r"C:\Users\JellyTracker\Desktop\JellyFishTrackingPC-main\saved_analysis\track_run_711\new_boundary_20250711_150914_petri.csv"
+boundary_file = filedialog.askopenfilename(
+    title="Select Boundary File (CSV)",
+    filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")]
+)
 b_df = pd.read_csv(boundary_file)
 
 # Convert to list of (x, y) tuples
@@ -25,14 +37,14 @@ if points:
 x_vals, y_vals = zip(*points)
 
 tolerance = 1
-idx_close_to_zero = track_df.index[track_df['x'].abs() < tolerance]
+idx_close_to_zero = track_df.index[track_df['x_mm'].abs() < tolerance]
 if not idx_close_to_zero.empty:
     first_idx = idx_close_to_zero[0]
-    first_t = track_df.loc[first_idx, 't']
+    first_t = track_df.loc[first_idx, 'timestamp']
     print(f"First x ≈ 0 at index {first_idx}, time: {first_t}")
 
     # Slice data up to that index
-    sliced_points = list(zip(track_df.loc[:first_idx, 'x'], track_df.loc[:first_idx, 'y']))
+    sliced_points = list(zip(track_df.loc[:first_idx, 'x_mm'], track_df.loc[:first_idx, 'y_mm']))
 
     
 else:

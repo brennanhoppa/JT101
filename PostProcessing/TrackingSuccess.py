@@ -1,18 +1,26 @@
 import pandas as pd # type:ignore
 import matplotlib.pyplot as plt
 import os
+import tkinter as tk
+from tkinter import filedialog
+
+# Hide the root Tk window
+root = tk.Tk()
+root.withdraw()
 
 # File path
-tracking_file = r"C:\Users\JellyTracker\Desktop\JellyFishTrackingPC-main\saved_runs\run_20250816_121252\tracking.csv"
-
+tracking_file = filedialog.askopenfilename(
+    title="Select Tracking File (CSV)",
+    filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")]
+)
 # Load
 df = pd.read_csv(tracking_file)
 
 # --- Convert time column to timedelta ---
-df['t'] = pd.to_timedelta(df['t'])
+df['timestamp'] = pd.to_timedelta(df['timestamp'])
 
 # ================= Plot 1: Counts per second (x in hours) =================
-counts_per_sec = df.groupby(df['t'].dt.total_seconds().astype(int)).size()
+counts_per_sec = df.groupby(df['timestamp'].dt.total_seconds().astype(int)).size()
 
 # Convert x-axis to hours
 x_hours = counts_per_sec.index / 3600  
@@ -28,11 +36,11 @@ plt.show()
 
 # ================= Plot 2: Success % per minute =================
 # Filter only SuccTrack and FailTrackMotorPos
-df_filtered = df[df['type'].isin(['SuccTrack', 'FailTrackMotorPos'])].copy()
-df_filtered['minute'] = df_filtered['t'].dt.total_seconds().astype(int) // 60
+df_filtered = df[df['status'].isin(['SuccTrack', 'FailTrackMotorPos'])].copy()
+df_filtered['minute'] = df_filtered['timestamp'].dt.total_seconds().astype(int) // 60
 
-# Count per minute + type
-counts = df_filtered.groupby(['minute','type']).size().unstack(fill_value=0)
+# Count per minute + status
+counts = df_filtered.groupby(['minute','status']).size().unstack(fill_value=0)
 
 # Compute success %
 counts['success_pct'] = counts['SuccTrack'] / (counts['SuccTrack'] + counts['FailTrackMotorPos']) * 100

@@ -3,29 +3,39 @@ import matplotlib.pyplot as plt # type: ignore
 import numpy as np # type: ignore
 from matplotlib.animation import FuncAnimation  # type: ignore
 import os
+import tkinter as tk
+from tkinter import filedialog
+
+# Hide the root Tk window
+root = tk.Tk()
+root.withdraw()
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Load Tracking CSV
-tracking_file = r"C:\Users\JellyTracker\Desktop\JellyFishTrackingPC-main\saved_runs\run_20250816_154546_Jellyfish\tracking.csv"
+# Ask for tracking CSV file
+tracking_file = filedialog.askopenfilename(
+    title="Select Tracking File (CSV)",
+    filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")]
+)
 track_df = pd.read_csv(tracking_file)
 
 # Use all points
-sliced_points = list(zip(track_df['x'], track_df['y']))
+sliced_points = list(zip(track_df['x_mm'], track_df['y_mm']))
 
 fig, ax = plt.subplots()
 ax.set_xlabel('x [mm]')
 ax.set_ylabel('y [mm]')
 ax.set_title('Tracking JF')
 # Compute bounds from the data
-x_min, x_max = track_df['x'].min(), track_df['x'].max()
-y_min, y_max = track_df['y'].min(), track_df['y'].max()
+x_min, x_max = track_df['x_mm'].min(), track_df['x_mm'].max()
+y_min, y_max = track_df['y_mm'].min(), track_df['y_mm'].max()
 
 # Add some margin so the dot doesn’t hug the edges
 margin = 10
 ax.set_xlim(x_min - margin, x_max + margin)
 ax.set_ylim(y_min - margin, y_max + margin)
-# ax.axis('equal') #opt
+ax.axis('equal') 
 # or do
 # ax.set_xlim(xmin,xmax)
 # ax.set_ylim(ymin,ymax)
@@ -40,7 +50,7 @@ def init():
     return track_line, curr_dot
 
 
-skip = 10
+skip = 100
 sliced_points_downsampled = sliced_points[::skip]
 
 frames = len(sliced_points_downsampled)

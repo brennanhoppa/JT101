@@ -1,38 +1,54 @@
 import pygame
 import cv2
 import csv
+import tkinter as tk
+from tkinter import filedialog
 
 def timestamp_to_seconds(tstr):
     h, m, s = map(int, tstr.split(':'))
     return h*3600 + m*60 + s
 
-video_path = r"C:\Users\JellyTracker\Desktop\JellyFishTrackingPC-main\saved_runs\run_20250816_154546_Jellyfish\video_000.mp4"
-csv_path = r"C:\Users\JellyTracker\Desktop\JellyFishTrackingPC-main\saved_runs\run_20250816_154546_Jellyfish\tracking.csv"
+# Hide the root Tk window
+root = tk.Tk()
+root.withdraw()
+
+# Ask for video file
+video_path = filedialog.askopenfilename(
+    title="Select Video File",
+    filetypes=[("Video Files", "*.mp4;*.avi;*.mov;*.mkv"), ("All Files", "*.*")]
+)
+
+# Ask for tracking CSV file
+csv_path = filedialog.askopenfilename(
+    title="Select Tracking File (CSV)",
+    filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")]
+)
 
 # Group all entries (SuccTrack or not) by second
 tracking_by_second = {}
 
 with open(csv_path, newline='') as csvfile:
-    reader = csv.reader(csvfile)
-    headers = next(reader)
+    reader = csv.DictReader(csvfile)
     for row in reader:
-        t_seconds = timestamp_to_seconds(row[2])
-        typ = row[3]
-        cx = float(row[4].lstrip('('))
-        cy = float(row[5].rstrip(')'))
-        x1 = int(row[6].lstrip('('))
-        x2 = int(row[7])
-        y1 = int(row[8])
-        y2 = int(row[9].rstrip(')'))
+        t_seconds = timestamp_to_seconds(row["timestamp"])
+        typ = row["status"]
+
+        # Parse flashlight_pos "(676, 333)"
+        cx_str, cy_str = row["flashlight_pos"].strip("()").split(",")
+        cx, cy = float(cx_str), float(cy_str)
+        
+
+        # Parse bbox "(492, 861, 206, 461)"
+        x1, x2, y1, y2 = map(int, row["bbox"].strip("()").split(","))
 
         if t_seconds not in tracking_by_second:
             tracking_by_second[t_seconds] = []
 
         tracking_by_second[t_seconds].append({
-            'type': typ,
-            'cx': int(cx),
-            'cy': int(cy),
-            'bbox': (x1, x2, y1, y2)
+            "type": typ,
+            "cx": int(cx),
+            "cy": int(cy),
+            "bbox": (x1, x2, y1, y2)
         })
 
 # Open video
@@ -106,9 +122,9 @@ while running:
         entry_idx = min(entry_idx, num_entries - 1)
         entry = entries[entry_idx]
 
-        if entry['type'] == 'SuccTrack':
-            pygame.draw.circle(frame_surface, (0, 255, 0), (entry['cx'], entry['cy']), 8)
-            x1, x2, y1, y2 = entry['bbox']
+        if entry["type"] == "SuccTrack":
+            pygame.draw.circle(frame_surface, (0, 255, 0), (entry["cx"], entry["cy"]), 8)
+            x1, x2, y1, y2 = entry["bbox"]
             top_left = (min(x1, x2), min(y1, y2))
             width = abs(x2 - x1)
             height = abs(y2 - y1)

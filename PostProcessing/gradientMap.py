@@ -1,21 +1,31 @@
-import pandas as pd
-import numpy as np
+import pandas as pd # type: ignore
+import numpy as np 
 import matplotlib.pyplot as plt
-import cupy as cp
-from scipy.stats import gaussian_kde
-from joblib import Parallel, delayed
+import cupy as cp # type: ignore
+from scipy.stats import gaussian_kde # type: ignore
+from joblib import Parallel, delayed # type: ignore
+import tkinter as tk
+from tkinter import filedialog
+
+# Hide the root Tk window
+root = tk.Tk()
+root.withdraw()
 
 # Load the CSV data
-csv_file = r'C:\Users\JellyTracker\Desktop\JellyFishTrackingPC-main\saved_tracking_csvs\JellyTracking_20241031_102257_tracking.csv'
-data = pd.read_csv(csv_file, names=['x', 'y', 't'], skiprows=1)  # Adjust skiprows if needed
+csv_file = filedialog.askopenfilename(
+    title="Select Tracking File (CSV)",
+    filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")]
+)
+
+data = pd.read_csv(csv_file, names=["x_mm","y_mm","timestamp"], skiprows=1)  # Adjust skiprows if needed
 
 # Convert 't' column (Unix timestamp) to datetime and calculate time differences in minutes
-data['t'] = pd.to_datetime(data['t'], unit='s', errors='coerce')  # Handle non-numeric values with 'coerce'
-time_diffs = data['t'].diff().dt.total_seconds().fillna(0) / 60  # Time differences in minutes
+data['timestamp'] = pd.to_datetime(data['timestamp'], unit='s', errors='coerce')  # Handle non-numeric values with 'coerce'
+time_diffs = data['timestamp'].diff().dt.total_seconds().fillna(0) / 60  # Time differences in minutes
 
 # Transfer x, y coordinates and time differences to GPU arrays
-x_values = cp.array(data['x'].values, dtype=cp.float32)
-y_values = cp.array(data['y'].values, dtype=cp.float32)
+x_values = cp.array(data['x_mm'].values, dtype=cp.float32)
+y_values = cp.array(data['y_mm'].values, dtype=cp.float32)
 time_diffs = cp.array(time_diffs.values, dtype=cp.float32)  # Time differences as weights
 
 # Optional: Center the data around (0,0)
