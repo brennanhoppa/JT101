@@ -1,4 +1,4 @@
-import pygame
+import pygame # type: ignore
 import os
 from Utils.Button import Button
 from Utils.log import log
@@ -7,6 +7,8 @@ pygame.init()
 from Utils.CONSTANTS import CONSTANTS
 from Utils.ButtonPresses import homingStepsWithErrorCheck
 from Utils.moveFunctions import autoMove
+
+vertical = os.path.exists(r"C:\Users\weiss\Desktop\JT101\Utils\vertical.txt")
 
 def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, homing_error_button, command_queue, x_invalid_flag, y_invalid_flag, changeModeFlag,xy_LHpos,LH_flag):
     
@@ -83,7 +85,8 @@ def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, ho
             "After clicking yes here, immediately manually move motors to",
             "site near larvae boundary, then click the button that says Set Larvae Home,",
             "to set the home location for this mode.",
-            "Click yes to complete mode change to larve."
+            "Click yes to complete mode change to larve.",
+            "If using vertical, just click set larvae home immediately to keep larvae home at 0 with the limit switch."
         ]
     else: 
         msg = (
@@ -114,7 +117,8 @@ def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, ho
                     homingStepsWithErrorCheck(homing_error_button, is_jf_mode,command_queue,x_pos,y_pos, xy_LHpos,  x_invalid_flag, y_invalid_flag, log_queue,LH_flag)
                     while homing_error_button.value == 1:
                         time.sleep(0.1)
-                    autoMove(x_pos,y_pos,CONSTANTS["LarvaeHome"],command_queue, is_jf_mode, log_queue, x_invalid_flag, y_invalid_flag)
+                    if not vertical:
+                        autoMove(x_pos,y_pos,CONSTANTS["LarvaeHome"],command_queue, is_jf_mode, log_queue, x_invalid_flag, y_invalid_flag)
                 else:
                     pass
                 result["choice"] = None

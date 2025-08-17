@@ -13,10 +13,11 @@ from Utils.JellyTrackingFunctions import steps_to_mm
 import os
 from Utils.moveFunctions import autoMove
 from pathlib import Path
+vertical = os.path.exists(r"C:\Users\weiss\Desktop\JT101\Utils\vertical.txt")
 
 def homingStepsWithErrorCheck(homing_error_button, is_jf_mode,command_queue,x_pos,y_pos, xy_LHpos,  x_invalid_flag, y_invalid_flag, log_queue,LH_flag):
     
-    if is_jf_mode.value == 0: # means larvae mode
+    if is_jf_mode.value == 0 and not vertical: # means larvae mode
         if xy_LHpos[0] == -1 and xy_LHpos[1] == -1:
             log("Larve Home not yet set. Please set it first before attempting to home.", log_queue)
         else:
