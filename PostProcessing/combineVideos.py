@@ -39,6 +39,21 @@ def main():
         os.startfile(folder)
         return
 
+    # Filter only files like video_000.mp4, video_001.mp4, etc.
+    pattern = re.compile(r"video_\d{3}\.mp4$")
+    mp4_files = [f for f in mp4_files if pattern.match(f)]
+
+    def numerical_sort(filename):
+        match = re.search(r"(\d{3})", filename)
+        return int(match.group(1)) if match else -1
+
+    mp4_files.sort(key=numerical_sort)
+
+    # Write the concat list (relative paths)
+    list_file_path = os.path.join(folder, "segments.txt").replace("\\", "/")
+    with open(list_file_path, "w") as f:
+        for seg in mp4_files:
+            f.write(f"file '{seg}'\n")
 
     # Sort files numerically
     mp4_files.sort(key=numerical_sort)
