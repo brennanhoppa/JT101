@@ -13,53 +13,53 @@ root.withdraw()
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Load Tracking CSV
+# Ask for tracking CSV file
 tracking_file = filedialog.askopenfilename(
     title="Select Tracking File (CSV)",
     filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")]
 )
 track_df = pd.read_csv(tracking_file)
 
-# Load Boundary
+# Ask for boundary CSV file
 boundary_file = filedialog.askopenfilename(
     title="Select Boundary File (CSV)",
     filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")]
 )
-b_df = pd.read_csv(boundary_file)
+boundary_df = pd.read_csv(boundary_file)
+# Extract boundary points
+boundary_points = list(zip(boundary_df['x'], boundary_df['y']))
 
-# Convert to list of (x, y) tuples
-points = list(zip(b_df['x'], b_df['y']))
+# Close the loop by connecting first and last points
+boundary_points.append(boundary_points[0])
 
-# Add first point to end to close the shape
-if points:
-    points.append(points[0])
-
-# Unpack x and y for plotting
-x_vals, y_vals = zip(*points)
-
-tolerance = 1
-idx_close_to_zero = track_df.index[track_df['x_mm'].abs() < tolerance]
-if not idx_close_to_zero.empty:
-    first_idx = idx_close_to_zero[0]
-    first_t = track_df.loc[first_idx, 'timestamp']
-    print(f"First x ≈ 0 at index {first_idx}, time: {first_t}")
-
-    # Slice data up to that index
-    sliced_points = list(zip(track_df.loc[:first_idx, 'x_mm'], track_df.loc[:first_idx, 'y_mm']))
-
-    
-else:
-    print("No x value close to 0 found.")
-
+# Unzip for plotting
+bx, by = zip(*boundary_points)
 fig, ax = plt.subplots()
+
+# Plot the boundary as solid blue line
+ax.plot(bx, by, color='blue', linestyle='-', linewidth=2, label='Boundary')
+
+# Use all points
+sliced_points = list(zip(track_df['x_mm'], track_df['y_mm']))
+
 ax.set_xlabel('x [mm]')
 ax.set_ylabel('y [mm]')
-ax.set_title('Tracking JF 7/11/2025 in Petri Dish')
-ax.axis('equal') #opt
-# or do
-# ax.set_xlim(xmin,xmax)
-# ax.set_ylim(ymin,ymax)
+ax.set_title('Tracking JF')
 
-boundary_line, = ax.plot(*zip(*points), color='blue', linewidth=1)
+# Combine all points: tracking + boundary
+all_x = list(track_df['x_mm']) + list(boundary_df['x'])
+all_y = list(track_df['y_mm']) + list(boundary_df['y'])
+
+x_min, x_max = min(all_x), max(all_x)
+y_min, y_max = min(all_y), max(all_y)
+
+margin = 10
+ax.set_xlim(x_min - margin, x_max + margin)
+ax.set_ylim(y_min - margin, y_max + margin)
+
+# Make the scaling equal
+ax.set_aspect('equal', adjustable='box')
+
 # Create empty line and dot for updating
 track_line, = ax.plot([], [], color='gray', linestyle='-')
 curr_dot = ax.scatter([], [], color='red', s=40)
@@ -102,7 +102,8 @@ ani = FuncAnimation(
 # plt.show()
 
 # Save fast:
-output_path = os.path.join(os.path.dirname(__file__), "path_vis.mp4")
+run_folder = os.path.dirname(tracking_file)
+output_path = os.path.join(run_folder, "path_vis_with_border.mp4")
 ani.save(output_path, fps=20, dpi=80, extra_args=['-vcodec', 'libx264', '-crf', '28'])
 
 # save a gif
