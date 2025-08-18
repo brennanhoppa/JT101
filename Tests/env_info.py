@@ -45,27 +45,48 @@ print("OpenCV version:", cv2.__version__)
 print("===== END OF ENVIRONMENT INFO =====")
 
 
-import torch # type: ignore
-from pathlib import Path
+import platform
+import psutil  # type: ignore
+import cpuinfo # type: ignore
+import GPUtil # type: ignore
 
-script_path = Path(__file__).resolve()
-script_parent = script_path.parent
-project_root = script_parent.parent
-MODEL_PATH_JF = project_root / "Models" / "jf_best.pt"
+def get_system_info():
+    info = {}
 
-# Load model metadata without loading the full weights
-model_data = torch.load(MODEL_PATH_JF, map_location="cpu")
+    # OS info
+    info['OS'] = f"{platform.system()} {platform.release()} ({platform.version()})"
 
-# Print keys in the saved file
-print("Keys in model file:", model_data.keys())
+    # CPU info
+    cpu = cpuinfo.get_cpu_info()
+    info['CPU'] = {
+        'Brand': cpu.get('brand_raw', 'Unknown'),
+        'Arch': cpu.get('arch', 'Unknown'),
+        'Cores (logical)': psutil.cpu_count(logical=True),
+        'Cores (physical)': psutil.cpu_count(logical=False),
+        'Frequency (MHz)': psutil.cpu_freq().max if psutil.cpu_freq() else 'Unknown'
+    }
 
-# If it’s a YOLOv8 model, there’s usually a 'model' or 'yaml' key
-# Print basic info
-if 'model' in model_data:
-    print("Model type:", model_data['model'])
-if 'yaml' in model_data:
-    print("YOLO yaml info:", model_data['yaml'])
+    # RAM info
+    ram_gb = round(psutil.virtual_memory().total / (1024 ** 3), 2)
+    info['RAM'] = f"{ram_gb} GB"
 
-# Sometimes version info is stored under 'version' or 'meta'
-for key in model_data:
-    print(key, ":", type(model_data[key]))
+    # GPU info
+    gpus = GPUtil.getGPUs()
+    gpu_list = []
+    for gpu in gpus:
+        gpu_list.append({
+            'Name': gpu.name,
+            'ID': gpu.id,
+            'Driver': gpu.driver,
+            'VRAM (GB)': round(gpu.memoryTotal / 1024, 2),
+            'GPU Load (%)': gpu.load * 100,
+            'Temperature (C)': gpu.temperature
+        })
+    info['GPUs'] = gpu_list if gpu_list else 'No GPU detected'
+
+    return info
+
+if __name__ == "__main__":
+    system_info = get_system_info()
+    for key, value in system_info.items():
+        print(f"{key}: {value}")
