@@ -4,9 +4,15 @@ CONSTANTS = {
     "LarvaeStepSizeManual": 35,
     "JFStepPerRev": 2000, # set on motor controllers
     "LStepPerRev": 12800, # set on motor controllers
-    "JFmaxes": (213300, 212550), # FIX THIS MAX
-    "JFPixelsPerMm": 39.5, # for the jellyfish zoom on microscope, measured by calibration function
-    "LPixelsPerMm": 437, # 
+    "JFmaxes": (213300, 212550), 
+    # for the jellyfish zoom on microscope, measured by calibration function. 
+    # Default: 39.5 pixels/mm
+    # Change value below if needed, keep default value stored above
+    "JFPixelsPerMm": 39.5,
+    # for the larvae zoom on microscope, measured by calibration function.
+    # Default: 437 pixels/mm
+    # Change value below if needed, keep default value stored above
+    "LPixelsPerMm": 437, 
     "LarvaeHome": (2700,80625), # this is in JF step sizes
     "XmaxLarvae": 1331155,
     "YmaxLarvae": 418670,
