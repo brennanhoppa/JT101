@@ -266,8 +266,9 @@ def saveHelper(log_queue, timestamp, recording,reset_timer, tracking, is_jf_mode
         reset_timer.value = True
         recordingStartEnd.value = 2
 
-def trackingHelper(tracking, log_queue):
+def trackingHelper(tracking, trackingStartEnd, log_queue):
     tracking.value = not tracking.value
+    trackingStartEnd.value = 1 if tracking.value else 2
     log(f"*Tracking turned {'on' if tracking.value else 'off'}*",log_queue)
 
 def trackingMotors(motors, log_queue):

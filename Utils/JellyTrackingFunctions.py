@@ -5,6 +5,7 @@ logger = logging.getLogger(__name__)
 import cv2 #type: ignore
 import time
 import io
+from ultralytics.utils import ops # type: ignore
 import os
 from pathlib import Path
 from ultralytics import YOLO # type: ignore
@@ -14,6 +15,10 @@ try:
 except:
     from CONSTANTS import CONSTANTS
     from log import log
+import torch # type: ignore
+import gc
+
+
 
 # Constants
 DEAD_ZONE = 20  # Minimum movement threshold to ignore small movements
@@ -34,6 +39,9 @@ HALF_PRECISION = True  # Enable FP16 inference if supported
 modelJF = YOLO(MODEL_PATH_JF)
 modelLarvae = YOLO(MODEL_PATH_LARVAE)
 
+modelJF.to("cuda:0")
+modelLarvae.to("cuda:0")
+
 def run_yolo_with_output(model, frame_resized, **kwargs):
     log_stream = io.StringIO()
     handler = logging.StreamHandler(log_stream)
@@ -50,13 +58,39 @@ def run_yolo_with_output(model, frame_resized, **kwargs):
 
     return results, log_stream.getvalue()
 
-def detect_jellyfish(frame, detect_light, is_jf_mode, log_queue, verbose):
+counter = 0
+
+def detect_jellyfish(frame, detect_light, is_jf_mode, log_queue, verbose,trackingStartEnd):
     """
     Uses the YOLO model to detect jellyfish in a given frame.
     
     :param frame: The current frame to analyze
     :return: The coordinates (center_x, center_y) of the detected jellyfish if found, otherwise None
     """
+    global counter, modelJF, modelLarvae
+
+    if trackingStartEnd.value == 0: # (tracking default)
+        pass
+    elif trackingStartEnd.value == 1: # (tracking just started)
+        s = time.time()
+        e = time.time()
+        delta = e-s
+        print(f"Tracking turned on, time (sec): {delta:.4f}")
+        trackingStartEnd.value = 0
+    else: # must be 2 (tracking just ended)
+        # Explicitly delete the model objects to free up resources
+        s = time.time()
+        gc.collect() 
+        # torch.cuda.empty_cache() # Clean up any remaining CUDA memory
+        # torch.cuda.ipc_collect()
+        # torch.cuda.synchronize()
+        e = time.time()
+        delta = e-s
+        trackingStartEnd.value = 0
+        print(f"Tracking turned off, time (sec): {delta:.4f}")
+        return None, (None, None, None, None) # Return immediately
+
+
     # Check if the frame is valid
     if frame is None:
         log("Warning: Frame is None, skipping detection.",log_queue)
@@ -115,15 +149,35 @@ def detect_jellyfish(frame, detect_light, is_jf_mode, log_queue, verbose):
 
     # Perform object detection using the YOLO model
     if verbose.value == False:
-        if is_jf_mode.value == 1:
-            results = modelJF.predict(frame_resized,imgsz=IMG_SIZE,conf=CONF_THRESHOLD,iou=IOU_THRESHOLD,half=HALF_PRECISION, device='cuda:0', verbose=False)
-        else:
-            results = modelLarvae.predict(frame_for_inference,imgsz=IMG_SIZE,conf=CONF_THRESHOLD,iou=IOU_THRESHOLD,half=HALF_PRECISION, device='cuda:0', verbose=False)
+        with torch.no_grad():  # disables gradient computation
+            if is_jf_mode.value == 1:
+                start = time.time()
+                
+                results = modelJF.predict(frame_resized,
+                                            imgsz=IMG_SIZE,
+                                            conf=CONF_THRESHOLD,
+                                            iou=IOU_THRESHOLD,
+                                            half=HALF_PRECISION,
+                                            device="cuda:0",
+                                            verbose=False
+                                            )
+                
+                end = time.time()
+                d = end-start
+                counter += 1
+                if counter == 500:
+                    counter = 0
+                    print(f"Time to .predict single frame(sec): {d:.4f}")
+                    print("allocated:", torch.cuda.memory_allocated(0)/1e9, "GB")
+                    print("reserved:", torch.cuda.memory_reserved(0)/1e9, "GB")
+            else:
+                results = modelLarvae.predict(frame_for_inference,imgsz=IMG_SIZE,conf=CONF_THRESHOLD,iou=IOU_THRESHOLD,half=HALF_PRECISION, device='cuda:0', verbose=False)
     else:
-        if is_jf_mode.value == 1:
-            results, log_output = run_yolo_with_output(modelJF,frame_resized,imgsz=IMG_SIZE,conf=CONF_THRESHOLD,iou=IOU_THRESHOLD,half=HALF_PRECISION, device='cuda:0', verbose=True)
-        else:
-            results, log_output = run_yolo_with_output(modelLarvae,frame_resized,imgsz=IMG_SIZE,conf=CONF_THRESHOLD,iou=IOU_THRESHOLD,half=HALF_PRECISION, device='cuda:0', verbose=True)
+        with torch.no_grad():  # disables gradient computation
+            if is_jf_mode.value == 1:
+                results, log_output = run_yolo_with_output(modelJF,frame_resized,imgsz=IMG_SIZE,conf=CONF_THRESHOLD,iou=IOU_THRESHOLD,half=HALF_PRECISION, device='cuda:0', verbose=True)
+            else:
+                results, log_output = run_yolo_with_output(modelLarvae,frame_resized,imgsz=IMG_SIZE,conf=CONF_THRESHOLD,iou=IOU_THRESHOLD,half=HALF_PRECISION, device='cuda:0', verbose=True)
         # log(log_output,log_queue)
 
     original_height, original_width = frame.shape[:2]

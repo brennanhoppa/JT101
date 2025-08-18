@@ -121,7 +121,7 @@ def imageacq(cam, recording, fps, log_queue):
         states.avi_recorder.release()
 
 
-def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,recording, tracking,motors, testingMode, elapsed_time,recordingTimeStamp,recordingStartEnd):    
+def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,recording, tracking,motors, testingMode, elapsed_time,recordingTimeStamp,recordingStartEnd,trackingStartEnd):    
     last_tracking_time = time.time()
     csv_writer = None
     tracking_data_file = None
@@ -143,7 +143,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                     csv_writer = None
                 recordingStartEnd.value = 0
 
-            if tracking.value:
+            if tracking.value or trackingStartEnd.value == 2:
                 try:
                     image = image_queue.get(timeout=1)  # Wait for the next frame
 
@@ -165,7 +165,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                     # detect_light = True # testing mode - returns x,y of brightest spot in frame
 
                     # Use YOLO to detect jellyfish position
-                    flashlight_pos, (x1,x2,y1,y2) = detect_jellyfish(image, detect_light, is_jf_mode,log_queue,verbose)                    
+                    flashlight_pos, (x1,x2,y1,y2) = detect_jellyfish(image, detect_light, is_jf_mode,log_queue,verbose,trackingStartEnd)                    
                     total = int(elapsed_time.value)
                     hours, remainder = divmod(total, 3600)
                     minutes, seconds = divmod(remainder, 60)
@@ -220,6 +220,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     timestamp.value = holder.encode('utf-8')
 
     recordingStartEnd = multiprocessing.Value('i',0) # 0 is just running. 1 means just started a recording, 2 means just saved a recording
+    trackingStartEnd = multiprocessing.Value('i',0) # 0 is just running. 1 means just started tracking. 2 means just ended.
 
     # Initialize webcam
     cap = cv2.VideoCapture(0)  # Use default webcam (index 0)
@@ -251,7 +252,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     acq_thread = threading.Thread(target=imageacq, args=(cap,recording, fps, log_queue))
     acq_thread.start()
     
-    tracking_thread = threading.Thread(target=active_tracking_thread, args=(width // 2, height // 2, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,recording, tracking, motors, testingMode, elapsed_time, timestamp,recordingStartEnd))
+    tracking_thread = threading.Thread(target=active_tracking_thread, args=(width // 2, height // 2, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,recording, tracking, motors, testingMode, elapsed_time, timestamp,recordingStartEnd,trackingStartEnd))
     tracking_thread.start()
 
     writer_thread = threading.Thread(target=recording_writer_thread, args=(recording,), daemon=True)
@@ -353,7 +354,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
            lambda: recordingHelper(log_queue,recording,reset_timer,tracking, timestamp, is_jf_mode,recordingStartEnd),
            get_color=lambda: (255, 80, 80),
            get_visible=lambda: recording.value),
-       Button(330, 630, 150, 50, "Turn Tracking On", lambda: trackingHelper(tracking, log_queue), get_color=lambda: onOffColors[tracking.value], text_dependence=tracking,text_if_true="Tracking On",text_if_false="Tracking Off" ),
+       Button(330, 630, 150, 50, "Turn Tracking On", lambda: trackingHelper(tracking, trackingStartEnd, log_queue), get_color=lambda: onOffColors[tracking.value], text_dependence=tracking,text_if_true="Tracking On",text_if_false="Tracking Off" ),
        Button(330, 690, 150, 50, "Motors on for Tracking", lambda: trackingMotors(motors,log_queue),get_color=lambda: onOffColors[motors.value], text_dependence=motors,text_if_true="Tracking Motors On",text_if_false="Tracking Motors Off"),
        Button(330, 750, 150, 50, "Arrow Manual Control", lambda: keyBindsControl(keybinds_flag,log_queue), get_color=lambda: onOffColors[not keybinds_flag.value], text_dependence=keybinds_flag,text_if_true="Motors Arrow Control On",text_if_false="Motors Arrow Control Off"),
        

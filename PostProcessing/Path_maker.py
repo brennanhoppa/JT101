@@ -50,7 +50,7 @@ def init():
     return track_line, curr_dot
 
 
-skip = 100
+skip = 10
 sliced_points_downsampled = sliced_points[::skip]
 
 frames = len(sliced_points_downsampled)
