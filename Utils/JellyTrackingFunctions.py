@@ -12,13 +12,13 @@ from ultralytics import YOLO # type: ignore
 try:
     from Utils.CONSTANTS import CONSTANTS
     from Utils.log import log
+    from Utils.TRACKINGSTEPS import TRACKINGSTEPS
 except:
     from CONSTANTS import CONSTANTS
     from log import log
+    from TRACKINGSTEPS import TRACKINGSTEPS
 import torch # type: ignore
 import gc
-
-
 
 # Constants
 DEAD_ZONE = 20  # Minimum movement threshold to ignore small movements
@@ -240,11 +240,11 @@ def calculate_movement(dx,dy,is_jf_mode):
     
     # Constants for tracking
     if is_jf_mode.value == 1: # means JF mode
-        MIN_STEP_SIZE = 10 # 10 for JF
-        MAX_STEP_SIZE = 95
+        MIN_STEP_SIZE = TRACKINGSTEPS["JF_MIN"]
+        MAX_STEP_SIZE = TRACKINGSTEPS["JF_MAX"]
     else: # means larvae mode
-        MIN_STEP_SIZE = 40 # try these
-        MAX_STEP_SIZE = 95 #
+        MIN_STEP_SIZE = TRACKINGSTEPS["LARVAE_MIN"]
+        MAX_STEP_SIZE = TRACKINGSTEPS["LARVAE_MAX"]
     # Calculate step sizes with adjusted sensitivity
     step_x = int(np.clip(dx * MOVE_MULTIPLIER, -MAX_STEP_SIZE, MAX_STEP_SIZE))
     step_y = int(np.clip(dy * MOVE_MULTIPLIER, -MAX_STEP_SIZE, MAX_STEP_SIZE))
@@ -262,7 +262,6 @@ def calculate_movement(dx,dy,is_jf_mode):
         step_x = 0
     if abs(dy) < DEAD_ZONE:
         step_y = 0
-        
     step_x, step_y = int(-1*round(step_x,0)), int(round(step_y,0))
     return step_x, step_y
 

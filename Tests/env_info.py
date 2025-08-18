@@ -43,3 +43,29 @@ print("NumPy version:", np.__version__)
 print("OpenCV version:", cv2.__version__)
 
 print("===== END OF ENVIRONMENT INFO =====")
+
+
+import torch # type: ignore
+from pathlib import Path
+
+script_path = Path(__file__).resolve()
+script_parent = script_path.parent
+project_root = script_parent.parent
+MODEL_PATH_JF = project_root / "Models" / "jf_best.pt"
+
+# Load model metadata without loading the full weights
+model_data = torch.load(MODEL_PATH_JF, map_location="cpu")
+
+# Print keys in the saved file
+print("Keys in model file:", model_data.keys())
+
+# If it’s a YOLOv8 model, there’s usually a 'model' or 'yaml' key
+# Print basic info
+if 'model' in model_data:
+    print("Model type:", model_data['model'])
+if 'yaml' in model_data:
+    print("YOLO yaml info:", model_data['yaml'])
+
+# Sometimes version info is stored under 'version' or 'meta'
+for key in model_data:
+    print(key, ":", type(model_data[key]))
