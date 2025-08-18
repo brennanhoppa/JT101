@@ -89,7 +89,7 @@ def serial_process(command_queue,homing_error_button,terminate_event,is_jf_mode,
     except Exception as e:
         log(f"Serial connection failed: {e}",log_queue)
         log(f"##########",log_queue)
-        log(f"If access denied, make sure no other program is using the arduino, close arduino IDE if open, and restart this program.",log_queue)
+        log(f"If access denied, make sure no other program is using the arduino, close arduino IDE if open, and restart this program. Other option, unplug and replug in the arduino.",log_queue)
         log(f"##########",log_queue)
         terminate_event.set()  # Signal other processes to terminate
         return  # Exit this process
