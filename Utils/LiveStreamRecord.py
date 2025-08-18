@@ -318,7 +318,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
 
     def borderCancelHelper(is_jf_mode, step_size,log_queue):
         global boundary
-        states.boundary_making, boundary = boundaryCancel(states.boundary_making, boundary, step_size, log_queue)
+        states.boundary_making, boundary = boundaryCancel(states.boundary_making, boundary, is_jf_mode, step_size, log_queue)
 
     def borderLoadHelper():
         global boundary

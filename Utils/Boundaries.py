@@ -5,10 +5,11 @@ except:
     from JellyTrackingFunctions import pixels_to_mm, mm_to_steps, mm_to_pixels, steps_to_mm
     from log import log
 import logging
+import os
 # Logging setup
 logging.getLogger('matplotlib').setLevel(logging.ERROR)
 
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt #type: ignore
 import tkinter as tk
 from tkinter import filedialog
 
@@ -30,7 +31,9 @@ def save_boundaries(filename, points,log_queue):
 def load_boundary(is_jf_mode, log_queue):
     root = tk.Tk()
     root.withdraw()
-    file_path = filedialog.askopenfilename(title="Select a File", filetypes=[("CSV files", "*.csv"), ("All Files", "*.*")])
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    initial_dir = os.path.join(parent_dir, "saved_boundaries_mm")
+    file_path = filedialog.askopenfilename(title="Select a File", initialdir=initial_dir,filetypes=[("CSV files", "*.csv"), ("All Files", "*.*")])
     if file_path:  # If a file was selected
         log(f"Selected file: {file_path}",log_queue)
         try:
