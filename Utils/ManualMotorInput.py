@@ -55,18 +55,18 @@ def run_motor_input(x_pos,y_pos,file_path_xy,command_queue,keybinds_flag,pixelsC
             if testingMode.value:
                 
                 # code for random movements - turned off for now
-                xMove = random.randint(-100, 100)
-                yMove = random.randint(-100, 100)
+                # xMove = random.randint(-100, 100)
+                # yMove = random.randint(-100, 100)
 
                 # programmed movement
                 # xMove, yMove = move_pattern[move_index]
                 # move_index = (move_index + 1) % len(move_pattern)  # cycle back to start
 
-                move(x_pos,y_pos,xMove,yMove,command_queue,is_jf_mode, x_invalid_flag, y_invalid_flag)
+                # move(x_pos,y_pos,xMove,yMove,command_queue,is_jf_mode, x_invalid_flag, y_invalid_flag)
                 if verbose.value:
                     # print(f"Move (x,y) [steps]: ({xMove}, {yMove})")
                     pass
-                time.sleep(1)
+                # time.sleep(1)
                 pass
 
             if running_flag.value == False:
