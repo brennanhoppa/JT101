@@ -133,7 +133,7 @@ def pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,window_width,window
     if pixelsCal_flag.value == 0:
         log('***** Pixels Calibration Mode *****',log_queue)
         if is_jf_mode.value == 1:
-            log(f'*Move the camera so the entire width of calibration piece is within frame, then click the Pixels Cal button again.',log_queue)
+            log(f'*Move the camera so the entire width of calibration piece is within frame, and the bottom two corners, then click the Pixels Cal button again.',log_queue)
         else:
             log(f'*Move the camera so the entire thickness of calibration piece is within frame, and the edge of it is visible, then click the Pixels Cal button again.',log_queue)
         pixelsCal_flag.value = 1
