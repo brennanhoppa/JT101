@@ -295,7 +295,3 @@ def testingHelper(testingMode):
 def openHelp():
     webbrowser.open("https://docs.google.com/document/d/1KBQ-LmBlyk6xcm9JkfM5uCkn3D8vZ4zREsdYrj_VqAM/edit?usp=sharing")
     print("!!!! Opening help document on Google Drive. !!!!")
-
-def clear_log_callback(rolling_log):
-    rolling_log.clear()
-    print("New Terminal:")

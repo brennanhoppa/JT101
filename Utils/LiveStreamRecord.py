@@ -14,13 +14,11 @@ import cv2 #type: ignore
 from Utils.ButtonPresses import recordingStart, recordingSave, boundaryControl, boundaryCancel,pixelsCalibration, keyBindsControl, stepsCalibration
 from Utils.Button import Button
 from Utils.savePopUp import popup_save_recording
-from Utils.RollingLog import RollingLog
-from Utils.LiveStreamUtilFuncs import ensure_dir, draw_log_terminal
+from Utils.LiveStreamUtilFuncs import ensure_dir
 from Utils.Boundaries import load_boundary
 from Utils import states
-from Utils.ButtonPresses import homingStepsWithErrorCheck, saveHelper, trackingHelper, trackingMotors, borderShowHelper, testingHelper, verboseHelper, openHelp, clear_log_callback
+from Utils.ButtonPresses import homingStepsWithErrorCheck, saveHelper, trackingHelper, trackingMotors, borderShowHelper, testingHelper, verboseHelper, openHelp
 from Utils.changeModePopUp import changeModePopUp
-from multiprocessing import Manager
 import ctypes
 import shutil
 import csv
@@ -241,9 +239,9 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     
     pygame.init()
     text_panel_height = 320
-    window_width, window_height = width+500, height+text_panel_height
+    window_width, window_height = width, height+text_panel_height
     window = pygame.display.set_mode((window_width, window_height))
-    pygame.display.set_caption("Camera Live View with Flashlight Tracking")
+    pygame.display.set_caption("Tracker")
 
     ensure_dir('saved_runs')
     
@@ -330,7 +328,6 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     xy_LHpos = multiprocessing.Array('i',[-1,-1])
     LH_flag = multiprocessing.Value('b',False)
 
-    rolling_log = RollingLog()
     button_x = window.get_width() - 130  # inside terminal panel left margin
     button_y = 5
     button_width = 120
@@ -342,62 +339,47 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
 
     buttons = [
         #first col
-       Button(330, 570, 150, 50, "Start Recording", lambda: recordingHelper(recording,reset_timer,tracking, timestamp, is_jf_mode, recordingStartEnd,verbose),get_color=lambda: (50, 50, 100),text_dependence=recording,text_if_true="Delete Recording",text_if_false="Start Recording", get_visible=lambda: not recording.value),
-       Button(330, 570, 70, 50, "Save Video", 
+       Button(320, 570, 150, 50, "Start Recording", lambda: recordingHelper(recording,reset_timer,tracking, timestamp, is_jf_mode, recordingStartEnd,verbose),get_color=lambda: (50, 50, 100),text_dependence=recording,text_if_true="Delete Recording",text_if_false="Start Recording", get_visible=lambda: not recording.value),
+       Button(320, 570, 70, 50, "Save Video", 
            lambda: saveHelper(timestamp, recording,reset_timer, tracking, is_jf_mode, recordingStartEnd),
            get_color=lambda: (80, 200, 80),
            get_visible=lambda: recording.value),
-       Button(410, 570, 70, 50, "Delete Video", 
+       Button(400, 570, 70, 50, "Delete Video", 
            lambda: recordingHelper(recording,reset_timer,tracking, timestamp, is_jf_mode,recordingStartEnd,verbose),
            get_color=lambda: (255, 80, 80),
            get_visible=lambda: recording.value),
-       Button(330, 630, 150, 50, "Turn Tracking On", lambda: trackingHelper(tracking, trackingStartEnd), get_color=lambda: onOffColors[tracking.value], text_dependence=tracking,text_if_true="Turn Tracking Off",text_if_false="Turn Tracking On" ),
-       Button(330, 690, 150, 50, "Motors on for Tracking", lambda: trackingMotors(motors),get_color=lambda: onOffColors[motors.value], text_dependence=motors,text_if_true="Turn Tracking Motors Off",text_if_false="Turn Tracking Motors On"),
-       Button(330, 750, 150, 50, "Arrow Manual Control", lambda: keyBindsControl(keybinds_flag), get_color=lambda: onOffColors[not keybinds_flag.value], text_dependence=keybinds_flag,text_if_true="Turn Motors Arrow Control Off",text_if_false="Turn Motors Arrow Control On"),
+       Button(320, 630, 150, 50, "Turn Tracking On", lambda: trackingHelper(tracking, trackingStartEnd), get_color=lambda: onOffColors[tracking.value], text_dependence=tracking,text_if_true="Turn Tracking Off",text_if_false="Turn Tracking On" ),
+       Button(320, 690, 150, 50, "Motors on for Tracking", lambda: trackingMotors(motors),get_color=lambda: onOffColors[motors.value], text_dependence=motors,text_if_true="Turn Tracking Motors Off",text_if_false="Turn Tracking Motors On"),
+       Button(320, 750, 150, 50, "Arrow Manual Control", lambda: keyBindsControl(keybinds_flag), get_color=lambda: onOffColors[not keybinds_flag.value], text_dependence=keybinds_flag,text_if_true="Turn Motors Arrow Control Off",text_if_false="Turn Motors Arrow Control On"),
        
        #second col
-       Button(490, 570, 150, 50, "Home with Error Check", lambda: homingStepsWithErrorCheck(homing_error_button, is_jf_mode, command_queue,x_pos,y_pos, xy_LHpos, x_invalid_flag, y_invalid_flag,LH_flag),get_color = lambda: onOffColors[homing_error_button.value] if is_jf_mode.value == 1 else onOffColors[LH_flag.value]),
-       Button(490, 630, 150, 50, "Change Mode", lambda: changeModePopUp(is_jf_mode,x_pos,y_pos,step_size, window, font, homing_error_button, command_queue, x_invalid_flag, y_invalid_flag, changeModeFlag,xy_LHpos,LH_flag), get_visible=lambda: not changeModeFlag.value),
-       Button(490, 630, 150, 50, "Set Larvae Home", lambda: setLarvaeHome(x_pos,y_pos, xy_LHpos,is_jf_mode,changeModeFlag), get_color=lambda: (255, 165, 0), get_visible=lambda: changeModeFlag.value),
-       Button(490, 690, 150, 50, "Change Larvae Home", lambda: setLarvaeHome(x_pos,y_pos, xy_LHpos,is_jf_mode,changeModeFlag), get_color=None),
-       Button(490, 750, 150, 50, "Pixels Calibration", lambda: pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode),get_color=lambda: calColors[pixelsCal_flag.value]),
+       Button(480, 570, 150, 50, "Home with Error Check", lambda: homingStepsWithErrorCheck(homing_error_button, is_jf_mode, command_queue,x_pos,y_pos, xy_LHpos, x_invalid_flag, y_invalid_flag,LH_flag),get_color = lambda: onOffColors[homing_error_button.value] if is_jf_mode.value == 1 else onOffColors[LH_flag.value]),
+       Button(480, 630, 150, 50, "Change Mode", lambda: changeModePopUp(is_jf_mode,x_pos,y_pos,step_size, window, font, homing_error_button, command_queue, x_invalid_flag, y_invalid_flag, changeModeFlag,xy_LHpos,LH_flag), get_visible=lambda: not changeModeFlag.value),
+       Button(480, 630, 150, 50, "Set Larvae Home", lambda: setLarvaeHome(x_pos,y_pos, xy_LHpos,is_jf_mode,changeModeFlag), get_color=lambda: (255, 165, 0), get_visible=lambda: changeModeFlag.value),
+       Button(480, 690, 150, 50, "Change Larvae Home", lambda: setLarvaeHome(x_pos,y_pos, xy_LHpos,is_jf_mode,changeModeFlag), get_color=None),
+       Button(480, 750, 150, 50, "Pixels Calibration", lambda: pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode),get_color=lambda: calColors[pixelsCal_flag.value]),
 
        #third col
-       Button(650, 570, 150, 50, "Make Border", lambda: borderHelper(is_jf_mode, step_size),get_color=lambda: onOffColors[states.boundary_making], get_visible=lambda: not states.boundary_making),
-       Button(650, 570, 70, 50, "Save Border", 
+       Button(640, 570, 150, 50, "Make Border", lambda: borderHelper(is_jf_mode, step_size),get_color=lambda: onOffColors[states.boundary_making], get_visible=lambda: not states.boundary_making),
+       Button(640, 570, 70, 50, "Save Border", 
            lambda: borderHelper(is_jf_mode, step_size),
            get_color=lambda: (80, 200, 80),
            get_visible=lambda: states.boundary_making),
-       Button(730, 570, 70, 50, "Delete Border", 
+       Button(720, 570, 70, 50, "Delete Border", 
            lambda: borderCancelHelper(is_jf_mode, step_size),
            get_color=lambda: (255, 80, 80),
            get_visible=lambda: states.boundary_making),
-       Button(650, 630, 150, 50, "Show Border", lambda: borderShowHelper(),get_color=lambda: onOffColors[states.show_boundary]),
-       Button(650, 690, 150, 50, "Load Border", lambda: borderLoadHelper()),
-       Button(650, 750, 150, 50, "Steps Calibration", lambda: stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,is_jf_mode),get_color=lambda: calColors[step_to_mm_checking.value]),
+       Button(640, 630, 150, 50, "Show Border", lambda: borderShowHelper(),get_color=lambda: onOffColors[states.show_boundary]),
+       Button(640, 690, 150, 50, "Load Border", lambda: borderLoadHelper()),
+       Button(640, 750, 150, 50, "Steps Calibration", lambda: stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,is_jf_mode),get_color=lambda: calColors[step_to_mm_checking.value]),
 
         #fourth col
-       Button(810, 570, 150, 50, "Help", lambda: openHelp()),       
-       Button(810, 630, 150, 50, "Verbose Mode", lambda: verboseHelper(command_queue,verbose),get_color=lambda: onOffColors[verbose.value]),
-       Button(810, 690, 150, 50, "Testing Function", lambda: testingHelper(testingMode), get_color=lambda: onOffColors[testingMode.value]),
-       Button(810, 750, 150, 50, "", lambda: None),
+       Button(800, 570, 150, 50, "Help", lambda: openHelp()),       
+       Button(800, 630, 150, 50, "Verbose Mode", lambda: verboseHelper(command_queue,verbose),get_color=lambda: onOffColors[verbose.value]),
+       Button(800, 690, 150, 50, "Testing Function", lambda: testingHelper(testingMode), get_color=lambda: onOffColors[testingMode.value]),
+       Button(800, 750, 150, 50, "", lambda: None),
 
-        #clear term
-       Button(button_x, button_y, button_width, button_height,
-                        "Clear Term", lambda: clear_log_callback(rolling_log),
-                        get_color=lambda: (255, 50, 50))  # red button
     ]
-    
-    scroll_offset = 0
-    scroll_speed = 3
-    is_dragging_scrollbar = False
-    user_scrolled_up = False
-
-    column_start_x = 970
-    scrollbar_width = 8
-    margin = 10
-    column_width = window.get_width() - column_start_x
-    max_width = column_width - 2 * margin - scrollbar_width
 
     with open("ready.txt", "w") as f:
         f.write("ready")
@@ -423,60 +405,6 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
                     os.remove("ready.txt")
                     break
 
-            elif event.type == pygame.MOUSEWHEEL:
-                font = pygame.font.SysFont("consolas", 16)
-                total_lines = rolling_log.total_lines()
-                visible_lines = (window.get_height() - 50) // 18
-                max_scroll = max(0, total_lines - visible_lines)
-
-                scroll_offset -= event.y * scroll_speed
-                scroll_offset = max(0, min(scroll_offset, max_scroll))
-                user_scrolled_up = scroll_offset < max_scroll
-
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                mouse_x, mouse_y = pygame.mouse.get_pos()
-                scrollbar_x = window.get_width() - 8  # Scrollbar left edge
-                scrollbar_width = 8
-                panel_height = window.get_height()
-
-                font = pygame.font.SysFont("consolas", 16)
-                total_lines = rolling_log.total_lines()
-                visible_lines = (panel_height - 50) // 18
-
-                if total_lines <= visible_lines:
-                    continue
-                scrollbar_height = int((visible_lines / total_lines) * panel_height)
-                scrollbar_track_height = panel_height - scrollbar_height
-                scrollbar_pos = int((scroll_offset / max(1, total_lines - visible_lines)) * scrollbar_track_height)
-
-                scrollbar_rect = pygame.Rect(scrollbar_x, scrollbar_pos, scrollbar_width, scrollbar_height)
-                if scrollbar_rect.collidepoint(mouse_x, mouse_y):
-                    is_dragging_scrollbar = True
-                    drag_start_y = mouse_y
-                    drag_start_offset = scroll_offset
-
-            elif event.type == pygame.MOUSEBUTTONUP:
-                is_dragging_scrollbar = False
-
-            elif event.type == pygame.MOUSEMOTION and is_dragging_scrollbar:
-                mouse_y = pygame.mouse.get_pos()[1]
-                delta_y = mouse_y - drag_start_y
-
-                font = pygame.font.SysFont("consolas", 16)
-                total_lines = rolling_log.total_lines()
-                visible_lines = (window.get_height() - 50) // 18
-                max_scroll = max(0, total_lines - visible_lines)
-
-                panel_height = window.get_height()
-                scrollbar_height = int((visible_lines / total_lines) * panel_height)
-                scrollbar_track_height = panel_height - scrollbar_height
-
-                if scrollbar_track_height > 0:
-                    proportion = delta_y / scrollbar_track_height
-                    scroll_offset = drag_start_offset + int(proportion * max_scroll)
-                    scroll_offset = max(0, min(scroll_offset, max_scroll))
-                    user_scrolled_up = scroll_offset < max_scroll
-
                 
         if pixelsCal_flag.value in (2,3):
             keys = pygame.key.get_pressed()
@@ -493,20 +421,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
                 if move_counter >= move_delay + 1:
                     move_counter = 0  # Reset after moving
 
-       # Auto-scroll logic
         font = pygame.font.SysFont("consolas", 16)
-        total_lines = rolling_log.total_lines()
-        visible_lines = (window.get_height() - 50) // 18  # same as draw_log_terminal
-        max_scroll = max(0, total_lines - visible_lines)
-
-        if not user_scrolled_up:
-            scroll_offset = max_scroll  # Stick to bottom when new logs come in
-        else:
-            scroll_offset = min(scroll_offset, max_scroll)  # Clamp
-        if scroll_offset >= max_scroll - 1:  # Close enough to bottom
-            user_scrolled_up = False
-        # Draw the log terminal with current scroll offset
-        draw_log_terminal(window, rolling_log, scroll_offset)
     
         # BUTTON LOGIC
         for button in buttons:
