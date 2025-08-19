@@ -354,9 +354,9 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
            lambda: recordingHelper(log_queue,recording,reset_timer,tracking, timestamp, is_jf_mode,recordingStartEnd),
            get_color=lambda: (255, 80, 80),
            get_visible=lambda: recording.value),
-       Button(330, 630, 150, 50, "Turn Tracking On", lambda: trackingHelper(tracking, trackingStartEnd, log_queue), get_color=lambda: onOffColors[tracking.value], text_dependence=tracking,text_if_true="Tracking On",text_if_false="Tracking Off" ),
-       Button(330, 690, 150, 50, "Motors on for Tracking", lambda: trackingMotors(motors,log_queue),get_color=lambda: onOffColors[motors.value], text_dependence=motors,text_if_true="Tracking Motors On",text_if_false="Tracking Motors Off"),
-       Button(330, 750, 150, 50, "Arrow Manual Control", lambda: keyBindsControl(keybinds_flag,log_queue), get_color=lambda: onOffColors[not keybinds_flag.value], text_dependence=keybinds_flag,text_if_true="Motors Arrow Control On",text_if_false="Motors Arrow Control Off"),
+       Button(330, 630, 150, 50, "Turn Tracking On", lambda: trackingHelper(tracking, trackingStartEnd, log_queue), get_color=lambda: onOffColors[tracking.value], text_dependence=tracking,text_if_true="Turn Tracking Off",text_if_false="Turn Tracking On" ),
+       Button(330, 690, 150, 50, "Motors on for Tracking", lambda: trackingMotors(motors,log_queue),get_color=lambda: onOffColors[motors.value], text_dependence=motors,text_if_true="Turn Tracking Motors Off",text_if_false="Turn Tracking Motors On"),
+       Button(330, 750, 150, 50, "Arrow Manual Control", lambda: keyBindsControl(keybinds_flag,log_queue), get_color=lambda: onOffColors[not keybinds_flag.value], text_dependence=keybinds_flag,text_if_true="Turn Motors Arrow Control Off",text_if_false="Turn Motors Arrow Control On"),
        
        #second col
        Button(490, 570, 150, 50, "Home with Error Check", lambda: homingStepsWithErrorCheck(homing_error_button, is_jf_mode, command_queue,x_pos,y_pos, xy_LHpos, x_invalid_flag, y_invalid_flag, log_queue,LH_flag),get_color = lambda: onOffColors[homing_error_button.value] if is_jf_mode.value == 1 else onOffColors[LH_flag.value]),
@@ -648,7 +648,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
             frames = 900 / (current_time - last_frame_time)
             frame_count = 0
             last_frame_time = current_time
-            log(f"[{hours:02}:{minutes:02}:{seconds:02}] FPS: {frames:.1f}",log_queue)
+            log(f"[{hours:02}:{minutes:02}:{seconds:02}] AVG GUI FPS: {frames:.1f}",log_queue)
     
     if recording.value and states.avi_recorder:
         states.avi_recorder.release()
