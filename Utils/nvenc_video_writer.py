@@ -8,13 +8,20 @@ if not ffmpeg_path:
     ffmpeg_path = r"C:\ffmpeg\bin\ffmpeg.exe"
 
 class NvencVideoWriter:
-    def __init__(self, filename, width, height, fps=30, bitrate="10M", log=None):
+    def __init__(self, filename, width, height, verbose, fps=30, bitrate="10M", log=None):
         self.filename = filename
         self.width = width
         self.height = height
         self.fps = fps
         self.bitrate = bitrate
         self.log = log
+
+        if verbose.value:
+            stdout = None   # show ffmpeg output in console
+            stderr = None
+        else:
+            stdout = subprocess.DEVNULL  # suppress all output
+            stderr = subprocess.DEVNULL
 
         # Set the environment so that GPU 1 appears as "cuda:0" to FFmpeg
         folder = os.path.dirname(self.filename)
@@ -47,8 +54,8 @@ class NvencVideoWriter:
         self.process = subprocess.Popen(
             command,
             stdin=subprocess.PIPE,
-            # stdout=subprocess.DEVNULL,
-            # stderr=subprocess.PIPE,
+            stdout=stdout,
+            stderr=stderr
         )
 
         # time.sleep(0.3)

@@ -173,7 +173,7 @@ def keyBindsControl(keybinds_flag,log_queue):
     log(f"-----Turning arrow motor control {'on' if keybinds_flag.value else 'off'}.-----",log_queue)
     # time.sleep(0.2)
     
-def recordingStart(recording,chosenAviType,fps,width,height,log_queue, timestamp, is_jf_mode,recordingStartEnd):
+def recordingStart(recording,chosenAviType,fps,width,height,log_queue, timestamp, is_jf_mode,recordingStartEnd, verbose):
     recording.value = True
     now = datetime.now().strftime("%Y%m%d_%H%M%S")
     timestamp.value = now.encode('utf-8')
@@ -201,6 +201,7 @@ def recordingStart(recording,chosenAviType,fps,width,height,log_queue, timestamp
         avi_filename,
         width,
         height,
+        verbose,
         fps=fps,
         bitrate="10M",
         log=lambda msg, _: log(msg, log_queue)
