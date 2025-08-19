@@ -1,9 +1,7 @@
 try:
     from Utils.JellyTrackingFunctions import pixels_to_mm, mm_to_steps, mm_to_pixels, steps_to_mm
-    from Utils.log import log
 except:
     from JellyTrackingFunctions import pixels_to_mm, mm_to_steps, mm_to_pixels, steps_to_mm
-    from log import log
 import logging
 import os
 # Logging setup
@@ -17,7 +15,7 @@ from tkinter import filedialog
 # saved as csv file w/ 2 columns, x,y in mm
 # load in as list of (x,y) points in mm
 
-def save_boundaries(filename, points,log_queue):
+def save_boundaries(filename, points):
     """Save boundary points to a CSV file.
     saved in mm,mm
     """
@@ -26,23 +24,23 @@ def save_boundaries(filename, points,log_queue):
         f.write("x,y\n")
         for x, y in points:
             f.write(f"{x},{y}\n")
-    log(f"Boundaries saved to {filename}",log_queue)
+    print(f"Boundaries saved to {filename}")
 
-def load_boundary(is_jf_mode, log_queue):
+def load_boundary(is_jf_mode):
     root = tk.Tk()
     root.withdraw()
     parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     initial_dir = os.path.join(parent_dir, "saved_boundaries_mm")
     file_path = filedialog.askopenfilename(title="Select a File", initialdir=initial_dir,filetypes=[("CSV files", "*.csv"), ("All Files", "*.*")])
     if file_path:  # If a file was selected
-        log(f"Selected file: {file_path}",log_queue)
+        print(f"Selected file: {file_path}")
         try:
             boundary_mm = load_boundaries(file_path)
             return boundary_to_steps(boundary_mm,is_jf_mode)
         except:
-            log('Incorrect file loaded',log_queue)
+            print('Incorrect file loaded')
     else:
-        log("No file selected.",log_queue)
+        print("No file selected.")
         return []
 
 def load_boundaries(filename):

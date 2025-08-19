@@ -14,7 +14,6 @@ import cv2 #type: ignore
 from Utils.ButtonPresses import recordingStart, recordingSave, boundaryControl, boundaryCancel,pixelsCalibration, keyBindsControl, stepsCalibration
 from Utils.Button import Button
 from Utils.savePopUp import popup_save_recording
-from Utils.log import log
 from Utils.RollingLog import RollingLog
 from Utils.LiveStreamUtilFuncs import ensure_dir, draw_log_terminal
 from Utils.Boundaries import load_boundary
@@ -41,8 +40,8 @@ image_queue = queue.Queue(maxsize=5)
 recording_queue = queue.Queue(maxsize=100)
 tracking_result_queue = queue.Queue(maxsize=5)
 
-def run_live_stream_record(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag,step_size,step_to_mm_checking,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose,testingMode,recording,tracking,motors,elapsed_time,reset_timer):
-    if main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose,testingMode,recording,tracking,motors,elapsed_time,reset_timer):
+def run_live_stream_record(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag,step_size,step_to_mm_checking,homing_error_button,x_invalid_flag, y_invalid_flag,verbose,testingMode,recording,tracking,motors,elapsed_time,reset_timer):
+    if main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking,homing_error_button,x_invalid_flag, y_invalid_flag,verbose,testingMode,recording,tracking,motors,elapsed_time,reset_timer):
         sys.exit(0)
     else:
         sys.exit(1)
@@ -69,7 +68,7 @@ def recording_writer_thread(recording):
 
 last_time = time.time()
 frames = 0
-def imageacq(cam, recording, fps, log_queue):
+def imageacq(cam, recording, fps):
     global frames, last_time
     cam.set(cv2.CAP_PROP_FPS, fps)
 
@@ -97,7 +96,7 @@ def imageacq(cam, recording, fps, log_queue):
                         except queue.Empty:
                             pass
                 else:
-                    log("Warning: Frame is not a valid NumPy array.", log_queue)
+                    print("Warning: Frame is not a valid NumPy array.")
 
                 # If recording is active, put frame into recording queue too
                 if recording.value:
@@ -110,17 +109,17 @@ def imageacq(cam, recording, fps, log_queue):
                         except queue.Empty:
                             pass
             else:
-                log("Failed to capture frame from camera", log_queue)
+                print("Failed to capture frame from camera")
 
         except Exception as ex:
-            log(f'Error in image acquisition: {ex}', log_queue)
+            print(f'Error in image acquisition: {ex}')
 
     # Clean up on exit
     if states.avi_recorder is not None:
         states.avi_recorder.release()
 
 
-def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,recording, tracking,motors, testingMode, elapsed_time,recordingTimeStamp,recordingStartEnd,trackingStartEnd):    
+def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_jf_mode,x_invalid_flag, y_invalid_flag,verbose,recording, tracking,motors, testingMode, elapsed_time,recordingTimeStamp,recordingStartEnd,trackingStartEnd):    
     last_tracking_time = time.time()
     csv_writer = None
     tracking_data_file = None
@@ -148,12 +147,12 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
 
                     # Verify that the image is a valid NumPy array
                     if not isinstance(image, np.ndarray):
-                        log("Warning: Image from queue is not a valid NumPy array.",log_queue)
+                        print("Warning: Image from queue is not a valid NumPy array.")
                         continue
                     
                     # Check the shape consistency
                     if image.ndim != 3 or image.shape[2] != 3:
-                        log(f"Warning: Unexpected image shape {image.shape}, converting to RGB.",log_queue)
+                        print(f"Warning: Unexpected image shape {image.shape}, converting to RGB.")
                         if image.ndim == 2:  # Grayscale image
                             image = np.stack((image,) * 3, axis=-1)
                         else:
@@ -164,7 +163,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                     # detect_light = True # testing mode - returns x,y of brightest spot in frame
 
                     # Use YOLO to detect jellyfish position
-                    flashlight_pos, (x1,x2,y1,y2) = detect_jellyfish(image, detect_light, is_jf_mode,log_queue,verbose,trackingStartEnd)                    
+                    flashlight_pos, (x1,x2,y1,y2) = detect_jellyfish(image, detect_light, is_jf_mode,verbose,trackingStartEnd)                    
                     total = int(elapsed_time.value)
                     hours, remainder = divmod(total, 3600)
                     minutes, seconds = divmod(remainder, 60)
@@ -183,7 +182,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                         if motors.value:
                             step_x, step_y = calculate_movement(dx,dy,is_jf_mode)
                             # Send movement command
-                            x_pos, y_pos = move(x_pos, y_pos, step_x, step_y, command_queue,is_jf_mode, log_queue, x_invalid_flag, y_invalid_flag)
+                            x_pos, y_pos = move(x_pos, y_pos, step_x, step_y, command_queue,is_jf_mode, x_invalid_flag, y_invalid_flag)
                         # Communicate tracking results for display
                         tracking_result_queue.put((flashlight_pos,(x1,x2,y1,y2)), block=False)
                     elif recording.value:    
@@ -196,10 +195,10 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
                     last_tracking_time = current_time
                 except queue.Empty:
                     # Handle case where no frame is available
-                    log("Warning: Frame queue is empty; skipping tracking update.",log_queue)
+                    print("Warning: Frame queue is empty; skipping tracking update.")
                 except Exception as e:
                     pass
-                    # log(f"Error in tracking thread: {e}",log_queue)
+                    # print(f"Error in tracking thread: {e}")
             elif testingMode.value:
                 total = int(elapsed_time.value)
                 hours, remainder = divmod(total, 3600)
@@ -212,7 +211,7 @@ def active_tracking_thread(center_x, center_y, command_queue, x_pos, y_pos, is_j
 
             time.sleep(0.001)  # Sleep briefly to prevent excessive CPU usage
 
-def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking, homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,verbose,testingMode,recording,tracking,motors,elapsed_time,reset_timer):
+def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, terminate_event, running_flag, step_size,step_to_mm_checking, homing_error_button,x_invalid_flag, y_invalid_flag,verbose,testingMode,recording,tracking,motors,elapsed_time,reset_timer):
     global boundary
     timestamp = multiprocessing.Array(ctypes.c_char, 100)
     holder = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -226,7 +225,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     # cap.set(cv2.CAP_PROP_FPS, 30)
 
     if not cap.isOpened():
-        log("Error: Could not open webcam",log_queue)
+        print("Error: Could not open webcam")
         states.running = False
         terminate_event.set()
         running_flag.value = False
@@ -248,10 +247,10 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
 
     ensure_dir('saved_runs')
     
-    acq_thread = threading.Thread(target=imageacq, args=(cap,recording, fps, log_queue))
+    acq_thread = threading.Thread(target=imageacq, args=(cap,recording, fps))
     acq_thread.start()
     
-    tracking_thread = threading.Thread(target=active_tracking_thread, args=(width // 2, height // 2, command_queue, x_pos, y_pos, is_jf_mode,log_queue,x_invalid_flag, y_invalid_flag,verbose,recording, tracking, motors, testingMode, elapsed_time, timestamp,recordingStartEnd,trackingStartEnd))
+    tracking_thread = threading.Thread(target=active_tracking_thread, args=(width // 2, height // 2, command_queue, x_pos, y_pos, is_jf_mode,x_invalid_flag, y_invalid_flag,verbose,recording, tracking, motors, testingMode, elapsed_time, timestamp,recordingStartEnd,trackingStartEnd))
     tracking_thread.start()
 
     writer_thread = threading.Thread(target=recording_writer_thread, args=(recording,), daemon=True)
@@ -269,14 +268,14 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     move_delay = 2  # How many frames to wait between moves
     move_counter = 0  # Frame counter
     
-    def recordingHelper(log_queue,recording,reset_timer,tracking, timestamp, is_jf_mode,recordingStartEnd,verbose):
+    def recordingHelper(recording,reset_timer,tracking, timestamp, is_jf_mode,recordingStartEnd,verbose):
         global avi_filename
         if not recording.value:
             old_state = tracking.value
             tracking.value = False
             # time.sleep(3)  # Optional: give GPU time to settle
 
-            states.avi_recorder,avi_filename = recordingStart(recording,states.chosenAviType,fps,width,height,log_queue,timestamp, is_jf_mode,recordingStartEnd,verbose)
+            states.avi_recorder,avi_filename = recordingStart(recording,states.chosenAviType,fps,width,height,timestamp, is_jf_mode,recordingStartEnd,verbose)
             states.start_time = datetime.now()
             reset_timer.value = True
             tracking.value = old_state
@@ -285,7 +284,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
             timeout = time.time() + 5  # 5 seconds timeout
             while recordingStartEnd.value != 0:
                 if time.time() > timeout:
-                    log("Timeout waiting for tracking process to release files.", log_queue)
+                    print("Timeout waiting for tracking process to release files.")
                     break
                 time.sleep(0.1)
             
@@ -298,35 +297,34 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
             if os.path.exists(folder_path):
                 shutil.rmtree(folder_path)
             recording.value = False
-            log("$$Recording deleted.$$", log_queue)
+            print("$$Recording deleted.$$")
             states.start_time = datetime.now()
             reset_timer.value = True
 
-    def setLarvaeHome(x_pos,y_pos, xy_LHpos,is_jf_mode,changeModeFlag,log_queue):
+    def setLarvaeHome(x_pos,y_pos, xy_LHpos,is_jf_mode,changeModeFlag):
         if is_jf_mode.value == 0:
             changeModeFlag.value = False
             xy_LHpos[:] = [x_pos.value, y_pos.value]
-            log(f"Larvae Home set to ({x_pos.value},{y_pos.value})", log_queue)
+            print(f"Larvae Home set to ({x_pos.value},{y_pos.value})")
         else:
-            log("Cannot set or change larvae home in JF mode.", log_queue)
+            print("Cannot set or change larvae home in JF mode.")
 
 
-    def borderHelper(is_jf_mode,step_size,log_queue):
+    def borderHelper(is_jf_mode,step_size):
         global boundary
-        states.boundary_making,boundary = boundaryControl(states.boundary_making,boundary,is_jf_mode,step_size,log_queue)
+        states.boundary_making,boundary = boundaryControl(states.boundary_making,boundary,is_jf_mode,step_size)
 
-    def borderCancelHelper(is_jf_mode, step_size,log_queue):
+    def borderCancelHelper(is_jf_mode, step_size):
         global boundary
-        states.boundary_making, boundary = boundaryCancel(states.boundary_making, boundary, is_jf_mode, step_size, log_queue)
+        states.boundary_making, boundary = boundaryCancel(states.boundary_making, boundary, is_jf_mode, step_size)
 
     def borderLoadHelper():
         global boundary
-        nonlocal log_queue
-        boundary = load_boundary(is_jf_mode, log_queue)
+        boundary = load_boundary(is_jf_mode)
 
-    def pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode, log_queue):
+    def pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode):
         nonlocal crosshair_x, crosshair_y
-        crosshair_x,crosshair_y = pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,width,height,is_jf_mode, log_queue)
+        crosshair_x,crosshair_y = pixelsCalibration(pixelsCal_flag,crosshair_x,crosshair_y,width,height,is_jf_mode)
 
     changeModeFlag = multiprocessing.Value('b',False)
     xy_LHpos = multiprocessing.Array('i',[-1,-1])
@@ -344,49 +342,49 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
 
     buttons = [
         #first col
-       Button(330, 570, 150, 50, "Start Recording", lambda: recordingHelper(log_queue,recording,reset_timer,tracking, timestamp, is_jf_mode, recordingStartEnd,verbose),get_color=lambda: (50, 50, 100),text_dependence=recording,text_if_true="Delete Recording",text_if_false="Start Recording", get_visible=lambda: not recording.value),
+       Button(330, 570, 150, 50, "Start Recording", lambda: recordingHelper(recording,reset_timer,tracking, timestamp, is_jf_mode, recordingStartEnd,verbose),get_color=lambda: (50, 50, 100),text_dependence=recording,text_if_true="Delete Recording",text_if_false="Start Recording", get_visible=lambda: not recording.value),
        Button(330, 570, 70, 50, "Save Video", 
-           lambda: saveHelper(log_queue, timestamp, recording,reset_timer, tracking, is_jf_mode, recordingStartEnd),
+           lambda: saveHelper(timestamp, recording,reset_timer, tracking, is_jf_mode, recordingStartEnd),
            get_color=lambda: (80, 200, 80),
            get_visible=lambda: recording.value),
        Button(410, 570, 70, 50, "Delete Video", 
-           lambda: recordingHelper(log_queue,recording,reset_timer,tracking, timestamp, is_jf_mode,recordingStartEnd,verbose),
+           lambda: recordingHelper(recording,reset_timer,tracking, timestamp, is_jf_mode,recordingStartEnd,verbose),
            get_color=lambda: (255, 80, 80),
            get_visible=lambda: recording.value),
-       Button(330, 630, 150, 50, "Turn Tracking On", lambda: trackingHelper(tracking, trackingStartEnd, log_queue), get_color=lambda: onOffColors[tracking.value], text_dependence=tracking,text_if_true="Turn Tracking Off",text_if_false="Turn Tracking On" ),
-       Button(330, 690, 150, 50, "Motors on for Tracking", lambda: trackingMotors(motors,log_queue),get_color=lambda: onOffColors[motors.value], text_dependence=motors,text_if_true="Turn Tracking Motors Off",text_if_false="Turn Tracking Motors On"),
-       Button(330, 750, 150, 50, "Arrow Manual Control", lambda: keyBindsControl(keybinds_flag,log_queue), get_color=lambda: onOffColors[not keybinds_flag.value], text_dependence=keybinds_flag,text_if_true="Turn Motors Arrow Control Off",text_if_false="Turn Motors Arrow Control On"),
+       Button(330, 630, 150, 50, "Turn Tracking On", lambda: trackingHelper(tracking, trackingStartEnd), get_color=lambda: onOffColors[tracking.value], text_dependence=tracking,text_if_true="Turn Tracking Off",text_if_false="Turn Tracking On" ),
+       Button(330, 690, 150, 50, "Motors on for Tracking", lambda: trackingMotors(motors),get_color=lambda: onOffColors[motors.value], text_dependence=motors,text_if_true="Turn Tracking Motors Off",text_if_false="Turn Tracking Motors On"),
+       Button(330, 750, 150, 50, "Arrow Manual Control", lambda: keyBindsControl(keybinds_flag), get_color=lambda: onOffColors[not keybinds_flag.value], text_dependence=keybinds_flag,text_if_true="Turn Motors Arrow Control Off",text_if_false="Turn Motors Arrow Control On"),
        
        #second col
-       Button(490, 570, 150, 50, "Home with Error Check", lambda: homingStepsWithErrorCheck(homing_error_button, is_jf_mode, command_queue,x_pos,y_pos, xy_LHpos, x_invalid_flag, y_invalid_flag, log_queue,LH_flag),get_color = lambda: onOffColors[homing_error_button.value] if is_jf_mode.value == 1 else onOffColors[LH_flag.value]),
-       Button(490, 630, 150, 50, "Change Mode", lambda: changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, homing_error_button, command_queue, x_invalid_flag, y_invalid_flag, changeModeFlag,xy_LHpos,LH_flag), get_visible=lambda: not changeModeFlag.value),
-       Button(490, 630, 150, 50, "Set Larvae Home", lambda: setLarvaeHome(x_pos,y_pos, xy_LHpos,is_jf_mode,changeModeFlag,log_queue), get_color=lambda: (255, 165, 0), get_visible=lambda: changeModeFlag.value),
-       Button(490, 690, 150, 50, "Change Larvae Home", lambda: setLarvaeHome(x_pos,y_pos, xy_LHpos,is_jf_mode,changeModeFlag,log_queue), get_color=None),
-       Button(490, 750, 150, 50, "Pixels Calibration", lambda: pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode, log_queue),get_color=lambda: calColors[pixelsCal_flag.value]),
+       Button(490, 570, 150, 50, "Home with Error Check", lambda: homingStepsWithErrorCheck(homing_error_button, is_jf_mode, command_queue,x_pos,y_pos, xy_LHpos, x_invalid_flag, y_invalid_flag,LH_flag),get_color = lambda: onOffColors[homing_error_button.value] if is_jf_mode.value == 1 else onOffColors[LH_flag.value]),
+       Button(490, 630, 150, 50, "Change Mode", lambda: changeModePopUp(is_jf_mode,x_pos,y_pos,step_size, window, font, homing_error_button, command_queue, x_invalid_flag, y_invalid_flag, changeModeFlag,xy_LHpos,LH_flag), get_visible=lambda: not changeModeFlag.value),
+       Button(490, 630, 150, 50, "Set Larvae Home", lambda: setLarvaeHome(x_pos,y_pos, xy_LHpos,is_jf_mode,changeModeFlag), get_color=lambda: (255, 165, 0), get_visible=lambda: changeModeFlag.value),
+       Button(490, 690, 150, 50, "Change Larvae Home", lambda: setLarvaeHome(x_pos,y_pos, xy_LHpos,is_jf_mode,changeModeFlag), get_color=None),
+       Button(490, 750, 150, 50, "Pixels Calibration", lambda: pixelsCalHelper(pixelsCal_flag,width,height,is_jf_mode),get_color=lambda: calColors[pixelsCal_flag.value]),
 
        #third col
-       Button(650, 570, 150, 50, "Make Border", lambda: borderHelper(is_jf_mode, step_size, log_queue),get_color=lambda: onOffColors[states.boundary_making], get_visible=lambda: not states.boundary_making),
+       Button(650, 570, 150, 50, "Make Border", lambda: borderHelper(is_jf_mode, step_size),get_color=lambda: onOffColors[states.boundary_making], get_visible=lambda: not states.boundary_making),
        Button(650, 570, 70, 50, "Save Border", 
-           lambda: borderHelper(is_jf_mode, step_size, log_queue),
+           lambda: borderHelper(is_jf_mode, step_size),
            get_color=lambda: (80, 200, 80),
            get_visible=lambda: states.boundary_making),
        Button(730, 570, 70, 50, "Delete Border", 
-           lambda: borderCancelHelper(is_jf_mode, step_size, log_queue),
+           lambda: borderCancelHelper(is_jf_mode, step_size),
            get_color=lambda: (255, 80, 80),
            get_visible=lambda: states.boundary_making),
        Button(650, 630, 150, 50, "Show Border", lambda: borderShowHelper(),get_color=lambda: onOffColors[states.show_boundary]),
        Button(650, 690, 150, 50, "Load Border", lambda: borderLoadHelper()),
-       Button(650, 750, 150, 50, "Steps Calibration", lambda: stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,is_jf_mode, log_queue),get_color=lambda: calColors[step_to_mm_checking.value]),
+       Button(650, 750, 150, 50, "Steps Calibration", lambda: stepsCalibration(step_size, step_to_mm_checking, x_pos, y_pos,is_jf_mode),get_color=lambda: calColors[step_to_mm_checking.value]),
 
         #fourth col
-       Button(810, 570, 150, 50, "Help", lambda: openHelp(log_queue)),       
-       Button(810, 630, 150, 50, "Verbose Mode", lambda: verboseHelper(log_queue,command_queue,verbose),get_color=lambda: onOffColors[verbose.value]),
-       Button(810, 690, 150, 50, "Testing Function", lambda: testingHelper(log_queue,testingMode), get_color=lambda: onOffColors[testingMode.value]),
+       Button(810, 570, 150, 50, "Help", lambda: openHelp()),       
+       Button(810, 630, 150, 50, "Verbose Mode", lambda: verboseHelper(command_queue,verbose),get_color=lambda: onOffColors[verbose.value]),
+       Button(810, 690, 150, 50, "Testing Function", lambda: testingHelper(testingMode), get_color=lambda: onOffColors[testingMode.value]),
        Button(810, 750, 150, 50, "", lambda: None),
 
         #clear term
        Button(button_x, button_y, button_width, button_height,
-                        "Clear Term", lambda: clear_log_callback(rolling_log,log_queue),
+                        "Clear Term", lambda: clear_log_callback(rolling_log),
                         get_color=lambda: (255, 50, 50))  # red button
     ]
     
@@ -412,7 +410,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 if recording.value:
-                    cont = popup_save_recording(window, font, recordingSave, states.avi_recorder, timestamp, recording, avi_filename, log_queue, is_jf_mode,recordingStartEnd)
+                    cont = popup_save_recording(window, font, recordingSave, states.avi_recorder, timestamp, recording, avi_filename, is_jf_mode,recordingStartEnd)
                     if not cont:
                         states.running = False
                         terminate_event.set()
@@ -494,10 +492,6 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
                     crosshair_y = min(height - 1, crosshair_y + 1)
                 if move_counter >= move_delay + 1:
                     move_counter = 0  # Reset after moving
-        
-        while not log_queue.empty():
-                msg = log_queue.get()
-                rolling_log.append(msg)
 
        # Auto-scroll logic
         font = pygame.font.SysFont("consolas", 16)
@@ -647,7 +641,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
             frames = 900 / (current_time - last_frame_time)
             frame_count = 0
             last_frame_time = current_time
-            log(f"[{hours:02}:{minutes:02}:{seconds:02}] AVG GUI FPS: {frames:.1f}",log_queue)
+            print(f"[{hours:02}:{minutes:02}:{seconds:02}] AVG GUI FPS: {frames:.1f}")
     
     if recording.value and states.avi_recorder:
         states.avi_recorder.release()

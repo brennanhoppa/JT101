@@ -8,13 +8,12 @@ if not ffmpeg_path:
     ffmpeg_path = r"C:\ffmpeg\bin\ffmpeg.exe"
 
 class NvencVideoWriter:
-    def __init__(self, filename, width, height, verbose, fps=30, bitrate="10M", log=None):
+    def __init__(self, filename, width, height, verbose, fps=30, bitrate="10M"):
         self.filename = filename
         self.width = width
         self.height = height
         self.fps = fps
         self.bitrate = bitrate
-        self.log = log
 
         if verbose.value:
             stdout = None   # show ffmpeg output in console
@@ -48,8 +47,6 @@ class NvencVideoWriter:
             output_pattern
         ]
 
-        if self.log:
-            self.log(f"Starting NVENC FFmpeg recording on GPU 1 (3090).", None)
 
         self.process = subprocess.Popen(
             command,
@@ -62,8 +59,6 @@ class NvencVideoWriter:
 
         # if self.process.poll() is not None:
         #     error_msg = self.process.stderr.read().decode('utf-8', errors='replace')
-        #     if self.log:
-        #         self.log(f"[FFMPEG] Failed to start: {error_msg.strip()}", None)
         #     raise RuntimeError(f"[FFMPEG ERROR] NVENC failed to start.\n{error_msg}")
 
 
@@ -80,8 +75,7 @@ class NvencVideoWriter:
 class DummyVideoWriter:
     def __init__(self, *args, **kwargs):
         # keep same constructor signature
-        if "log" in kwargs and kwargs["log"]:
-            kwargs["log"]("Dummy recorder active (no video will be saved).", None)
+        pass
 
     def write(self, frame):
         # do nothing

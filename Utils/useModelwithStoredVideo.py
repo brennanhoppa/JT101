@@ -42,7 +42,7 @@ def process_video(video_path, is_jf_mode, verbose=multiprocessing.Value('b',Fals
             elif frame.shape[2] != 3:
                 frame = frame[:, :, :3]
 
-            flashlight_pos, (x1, x2, y1, y2) = detect_jellyfish(frame, detect_light, is_jf_mode, log_queue=None, verbose=verbose, trackingStartEnd=multiprocessing.Value('i',0))
+            flashlight_pos, (x1, x2, y1, y2) = detect_jellyfish(frame, detect_light, is_jf_mode, verbose=verbose, trackingStartEnd=multiprocessing.Value('i',0))
             if frame_index % 100 == 0:
                 print(f"Processing frame {frame_index} / {total_frames}")
             # timestamp based on frame number

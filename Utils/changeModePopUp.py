@@ -1,7 +1,6 @@
 import pygame # type: ignore
 import os
 from Utils.Button import Button
-from Utils.log import log
 import time
 pygame.init()
 from Utils.CONSTANTS import CONSTANTS
@@ -10,7 +9,7 @@ from Utils.moveFunctions import autoMove
 
 vertical = os.path.exists(r"C:\Users\weiss\Desktop\JT101\Utils\vertical.txt")
 
-def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, homing_error_button, command_queue, x_invalid_flag, y_invalid_flag, changeModeFlag,xy_LHpos,LH_flag):
+def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size, window, font, homing_error_button, command_queue, x_invalid_flag, y_invalid_flag, changeModeFlag,xy_LHpos,LH_flag):
     
     popup_width, popup_height = 1000, 400
     window_width, window_height = window.get_size()
@@ -114,11 +113,11 @@ def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, ho
                 if is_jf_mode.value == 0: # switching from larvae to jf
                     pass
                 elif is_jf_mode.value == 1: # switching from jf to larvae
-                    homingStepsWithErrorCheck(homing_error_button, is_jf_mode,command_queue,x_pos,y_pos, xy_LHpos,  x_invalid_flag, y_invalid_flag, log_queue,LH_flag)
+                    homingStepsWithErrorCheck(homing_error_button, is_jf_mode,command_queue,x_pos,y_pos, xy_LHpos,  x_invalid_flag, y_invalid_flag,LH_flag)
                     while homing_error_button.value == 1:
                         time.sleep(0.1)
                     if not vertical:
-                        autoMove(x_pos,y_pos,CONSTANTS["LarvaeHome"],command_queue, is_jf_mode, log_queue, x_invalid_flag, y_invalid_flag)
+                        autoMove(x_pos,y_pos,CONSTANTS["LarvaeHome"],command_queue, is_jf_mode, x_invalid_flag, y_invalid_flag)
                 else:
                     pass
                 result["choice"] = None
@@ -127,13 +126,13 @@ def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, ho
                 if is_jf_mode.value == 0: # switching from larvae to jf
                     is_jf_mode.value = 1
                     step_size.value = CONSTANTS['JellyStepSizeManual']
-                    homingStepsWithErrorCheck(homing_error_button, is_jf_mode,command_queue,x_pos,y_pos, xy_LHpos,  x_invalid_flag, y_invalid_flag, log_queue,LH_flag)
+                    homingStepsWithErrorCheck(homing_error_button, is_jf_mode,command_queue,x_pos,y_pos, xy_LHpos,  x_invalid_flag, y_invalid_flag,LH_flag)
                 elif is_jf_mode.value == 1: # switching from jf to larvae
                     is_jf_mode.value = 0
                     step_size.value = CONSTANTS['LarvaeStepSizeManual']
                     x_pos.value, y_pos.value = 0, 0
                 else: 
-                    log("Mode is incorrect value, please close program and reset to 0 (larvae) or 1 (jellyfish)",log_queue)
+                    print("Mode is incorrect value, please close program and reset to 0 (larvae) or 1 (jellyfish)")
                 result["choice"] = None
                 phase = "final"
             elif phase == "final":
@@ -143,16 +142,16 @@ def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size,log_queue, window, font, ho
                 elif is_jf_mode.value == 1:
                     return None
                 else: 
-                    log("Mode is incorrect value, please close program and reset to 0 (larvae) or 1 (jellyfish)",log_queue)
+                    print("Mode is incorrect value, please close program and reset to 0 (larvae) or 1 (jellyfish)")
         elif result["choice"] == "no":                
             if is_jf_mode.value == 0: # switching from larvae to jf
-                log("Maintaining larvae mode as not all steps required to switch to jellyfish mode fulfilled.",log_queue)
+                print("Maintaining larvae mode as not all steps required to switch to jellyfish mode fulfilled.")
                 return None
             elif is_jf_mode.value == 1: # switching from jf to larvae
-                log("Maintaining jellyfish mode as not all steps required to switch to jellyfish mode fulfilled.",log_queue)
+                print("Maintaining jellyfish mode as not all steps required to switch to jellyfish mode fulfilled.")
                 return None
             else: 
-                log("Mode is incorrect value, please close program and reset to 0 (larvae) or 1 (jellyfish)",log_queue)
+                print("Mode is incorrect value, please close program and reset to 0 (larvae) or 1 (jellyfish)")
 
          # Dim background
         dim_overlay = pygame.Surface((window_width, window_height), pygame.SRCALPHA)

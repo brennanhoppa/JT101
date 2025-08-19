@@ -60,7 +60,7 @@ def process_video(video_path, is_jf_mode, verbose=multiprocessing.Value('b', Fal
 
             flashlight_pos, (x1, x2, y1, y2) = detect_jellyfish(
                 frame, detect_light, is_jf_mode,
-                log_queue=None, verbose=verbose,
+                sverbose=verbose,
                 trackingStartEnd=multiprocessing.Value('i', 0)
             )
 

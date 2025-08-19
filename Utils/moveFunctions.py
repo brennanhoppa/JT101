@@ -4,7 +4,7 @@ import os
 vertical = os.path.exists(r"C:\Users\weiss\Desktop\JT101\Utils\vertical.txt")
 
 
-def move(x_pos, y_pos, x_direction, y_direction, command_queue, is_jf_mode, log_queue,x_invalid_flag, y_invalid_flag):       
+def move(x_pos, y_pos, x_direction, y_direction, command_queue, is_jf_mode,x_invalid_flag, y_invalid_flag):       
     # Calculate new positions
     new_x = x_pos.value + x_direction
     new_y = y_pos.value + y_direction
@@ -38,7 +38,7 @@ def move(x_pos, y_pos, x_direction, y_direction, command_queue, is_jf_mode, log_
     
     return x_pos, y_pos
 
-def autoMove(x_pos,y_pos,goal,command_queue, is_jf_mode, log_queue, x_invalid_flag, y_invalid_flag):
+def autoMove(x_pos,y_pos,goal,command_queue, is_jf_mode, x_invalid_flag, y_invalid_flag):
     goal_x, goal_y = goal
 
     # Compute how much to move in each direction
@@ -52,7 +52,6 @@ def autoMove(x_pos,y_pos,goal,command_queue, is_jf_mode, log_queue, x_invalid_fl
         y_direction, 
         command_queue, 
         is_jf_mode, 
-        log_queue,
         x_invalid_flag, 
         y_invalid_flag
     )

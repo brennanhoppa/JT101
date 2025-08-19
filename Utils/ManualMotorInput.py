@@ -3,24 +3,23 @@ import time, random
 import Utils.JellyTrackingFunctions as JellyTrackingFunctions
 from Utils.ButtonPresses import homingStepsWithErrorCheck
 from Utils.CONSTANTS import CONSTANTS
-from Utils.log import log
 from Utils.moveFunctions import move
 
-def save_position(x_pos, y_pos, file_path,log_queue):
+def save_position(x_pos, y_pos, file_path):
     try:
         with open(file_path, "w") as file:
             file.write(f"{x_pos.value}, {y_pos.value}")
-        log(f"Updated location saved: {x_pos.value}, {y_pos.value}",log_queue)
+        print(f"Updated location saved: {x_pos.value}, {y_pos.value}")
     except Exception as e:
-        log(f"Error writing to {file_path}: {e}",log_queue)
+        print(f"Error writing to {file_path}: {e}")
 
-def save_mode(mode, file_path,log_queue):
+def save_mode(mode, file_path):
     try:
         with open(file_path, "w") as file:
             file.write(f"{mode.value} # 0 means larvae, 1 means jellyfish\n")
-        log(f"Updated mode saved: {JellyTrackingFunctions.mode_string(mode)}",log_queue)
+        print(f"Updated mode saved: {JellyTrackingFunctions.mode_string(mode)}")
     except Exception as e:
-        log(f"Error writing to {file_path}: {e}",log_queue)
+        print(f"Error writing to {file_path}: {e}")
 
 # for testing function
 move_pattern = [
@@ -31,7 +30,7 @@ move_pattern = [
 ]
 move_index = 0
 
-def run_motor_input(x_pos,y_pos,file_path_xy,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode,file_path_mode,terminate_event,running_flag, step_size,homing_error_button,log_queue,x_invalid_flag, y_invalid_flag,testingMode,verbose):
+def run_motor_input(x_pos,y_pos,file_path_xy,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode,file_path_mode,terminate_event,running_flag, step_size,homing_error_button,x_invalid_flag, y_invalid_flag,testingMode,verbose):
     # Main loop for reading input and controlling motors
     global move_index, move_pattern
     try:
@@ -50,7 +49,7 @@ def run_motor_input(x_pos,y_pos,file_path_xy,command_queue,keybinds_flag,pixelsC
                         x_dir = step_size.value
                     # Move if any direction is pressed
                     if x_dir != 0 or y_dir != 0:
-                        x_pos, y_pos = move(x_pos, y_pos, x_dir, y_dir, command_queue,is_jf_mode, log_queue, x_invalid_flag, y_invalid_flag)
+                        x_pos, y_pos = move(x_pos, y_pos, x_dir, y_dir, command_queue,is_jf_mode, x_invalid_flag, y_invalid_flag)
                         time.sleep(.013)  # Small delay to prevent rapid commands
 
             if testingMode.value:
@@ -63,23 +62,23 @@ def run_motor_input(x_pos,y_pos,file_path_xy,command_queue,keybinds_flag,pixelsC
                 # xMove, yMove = move_pattern[move_index]
                 # move_index = (move_index + 1) % len(move_pattern)  # cycle back to start
 
-                move(x_pos,y_pos,xMove,yMove,command_queue,is_jf_mode, log_queue, x_invalid_flag, y_invalid_flag)
+                move(x_pos,y_pos,xMove,yMove,command_queue,is_jf_mode, x_invalid_flag, y_invalid_flag)
                 if verbose.value:
-                    # log(f"Move (x,y) [steps]: ({xMove}, {yMove})",log_queue)
+                    # print(f"Move (x,y) [steps]: ({xMove}, {yMove})")
                     pass
                 time.sleep(1)
                 pass
 
             if running_flag.value == False:
-                log('Stopping program.',log_queue)
+                print('Stopping program.')
                 break                
             
     except KeyboardInterrupt:
-        save_position(x_pos,y_pos,file_path_xy,log_queue)
-        save_mode(is_jf_mode, file_path_mode,log_queue)
-        log("Program terminated by user",log_queue)
+        save_position(x_pos,y_pos,file_path_xy)
+        save_mode(is_jf_mode, file_path_mode)
+        print("Program terminated by user")
 
     finally:
-        save_position(x_pos,y_pos,file_path_xy,log_queue)
-        save_mode(is_jf_mode, file_path_mode,log_queue)
-        log("Serial connection closed",log_queue)
+        save_position(x_pos,y_pos,file_path_xy)
+        save_mode(is_jf_mode, file_path_mode)
+        print("Serial connection closed")

@@ -11,11 +11,9 @@ from pathlib import Path
 from ultralytics import YOLO # type: ignore
 try:
     from Utils.CONSTANTS import CONSTANTS
-    from Utils.log import log
     from Utils.TRACKINGSTEPS import TRACKINGSTEPS
 except:
     from CONSTANTS import CONSTANTS
-    from log import log
     from TRACKINGSTEPS import TRACKINGSTEPS
 import torch # type: ignore
 import gc
@@ -57,7 +55,7 @@ def run_yolo_with_output(model, frame_resized, **kwargs):
 
 counter = 0
 
-def detect_jellyfish(frame, detect_light, is_jf_mode, log_queue, verbose,trackingStartEnd):
+def detect_jellyfish(frame, detect_light, is_jf_mode, verbose,trackingStartEnd):
     """
     Uses the YOLO model to detect jellyfish in a given frame.
     
@@ -79,19 +77,19 @@ def detect_jellyfish(frame, detect_light, is_jf_mode, log_queue, verbose,trackin
 
     # Check if the frame is valid
     if frame is None:
-        log("Warning: Frame is None, skipping detection.",log_queue)
+        print("Warning: Frame is None, skipping detection.")
         return None
     
     # Ensure the frame is a NumPy array
     if not isinstance(frame, np.ndarray):
-        log("Warning: Frame is not a valid NumPy array.",log_queue)
+        print("Warning: Frame is not a valid NumPy array.")
         return None
 
     # Resize frame for faster processing
     try:
         frame_resized = cv2.resize(frame, (IMG_SIZE, IMG_SIZE))
     except cv2.error as e:
-        log(f"Error during resize: {e}",log_queue)
+        print(f"Error during resize: {e}")
         return None
 
     if detect_light:
@@ -119,8 +117,7 @@ def detect_jellyfish(frame, detect_light, is_jf_mode, log_queue, verbose,trackin
         return (cx, cy), (0,0,0,0)
     
     if is_jf_mode.value == 0: # larvae tracking
-        ### BRAD EDIT THIS ###
-        ######FOR LARVAE ONLY#######
+        ### May need editting for ideal larvae tracking ###
         # --- Apply Histogram Equalization to frame_resized before inference ---
         # 1. Convert to YCrCb colorspace
         ycbcr_frame = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2YCrCb)
