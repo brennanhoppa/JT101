@@ -59,6 +59,7 @@ video_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 video_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
 pygame.init()
+pygame.font.init()
 window = pygame.display.set_mode((video_width, video_height + 30))  # extra space for slider
 clock = pygame.time.Clock()
 
@@ -88,6 +89,8 @@ while running:
             elif event.key == pygame.K_LEFT:
                 frame_idx = max(frame_idx - 1, 0)
                 cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+            elif event.key == pygame.K_SPACE:
+                playing = not playing   # ⬅️ toggle pause/play
 
     # Slider jump only if clicked on slider
     if click_on_slider and mouse_x is not None:
@@ -139,7 +142,13 @@ while running:
     # Draw slider progress
     progress = frame_idx / frame_count
     pygame.draw.rect(window, (0, 200, 0), (0, video_height, int(video_width * progress), slider_height))
-
+    font = pygame.font.SysFont(None, 24)
+    hours   = int(current_time // 3600)
+    minutes = int((current_time % 3600) // 60)
+    seconds = current_time % 60
+    time_str = f"{hours:01d}:{minutes:02d}:{seconds:05.2f}"
+    time_text = font.render(time_str, True, (255,255,255))
+    window.blit(time_text, (10, video_height + 5))
     # Draw play icon if paused
     if not playing:
         play_size = 60
