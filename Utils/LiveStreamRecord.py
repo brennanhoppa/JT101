@@ -14,7 +14,7 @@ import cv2 #type: ignore
 from Utils.ButtonPresses import recordingStart, recordingSave, boundaryControl, boundaryCancel,pixelsCalibration, keyBindsControl, stepsCalibration
 from Utils.Button import Button
 from Utils.savePopUp import popup_save_recording
-from Utils.LiveStreamUtilFuncs import ensure_dir
+from Utils.LiveStreamUtilFuncs import ensure_dir, clear_terminal
 from Utils.Boundaries import load_boundary
 from Utils import states
 from Utils.ButtonPresses import homingStepsWithErrorCheck, saveHelper, trackingHelper, trackingMotors, borderShowHelper, testingHelper, verboseHelper, openHelp
@@ -379,7 +379,7 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
        Button(800, 570, 150, 50, "Help", lambda: openHelp()),       
        Button(800, 630, 150, 50, "Verbose Mode", lambda: verboseHelper(command_queue,verbose),get_color=lambda: onOffColors[verbose.value]),
        Button(800, 690, 150, 50, "Testing Function", lambda: testingHelper(testingMode), get_color=lambda: onOffColors[testingMode.value]),
-       Button(800, 750, 150, 50, "", lambda: None),
+       Button(800, 750, 150, 50, "Clear Terminal", lambda: clear_terminal()),
 
     ]
 

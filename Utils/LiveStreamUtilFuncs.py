@@ -16,3 +16,6 @@ def webcam_image_to_pygame(frame):
     # Create pygame surface
     return pygame.surfarray.make_surface(rgb_frame.swapaxes(0, 1))
 
+def clear_terminal():
+    os.system('cls')   
+    print('New Terminal')

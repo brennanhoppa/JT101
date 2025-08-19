@@ -12,3 +12,4 @@ Models/*
 !Models/old/
 config.json
 Utils/vertical.txt
+ready.txt
