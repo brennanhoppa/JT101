@@ -1,9 +1,10 @@
+import os
+
 CONSTANTS = {
     "LeadScrewMm": 8,
     "JellyStepSizeManual": 75,  # was 95, testing
     "LarvaeStepSizeManual": 35,
     "JFStepPerRev": 2000, # set on motor controllers
-    "LStepPerRev": 12800, # set on motor controllers
     "JFmaxes": (213300, 212550), 
     # for the jellyfish zoom on microscope, measured by calibration function. 
     # Default: 39.5 pixels/mm
@@ -17,6 +18,11 @@ CONSTANTS = {
     "XmaxLarvae": 1331155,
     "YmaxLarvae": 418670,
 }
+vertical = os.path.exists(r"C:\Users\weiss\Desktop\JT101\Utils\vertical.txt")
+if vertical:
+    CONSTANTS["LStepPerRev"] = 6400 # baseline for vertical is 6400 microsteps. Can adjust here if using different value.
+else: 
+    CONSTANTS["LStepPerRev"] = 12800 # baseline for XY is 12800 microsteps. Can adjust here if using different value. 
 
 # Compute Lmaxes from JFmaxes
 step_ratio = CONSTANTS["LStepPerRev"] / CONSTANTS["JFStepPerRev"]

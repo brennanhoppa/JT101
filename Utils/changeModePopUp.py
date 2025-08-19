@@ -78,6 +78,7 @@ def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size, window, font, homing_error
             "2. Refocus microscope on corner border or other object.\n"
             "3. Switch the motor controller switches on both motors so switches 1,2,4,6 are on (3 and 5 off). \n"
             "This gives 12800 steps/revolution.\n"
+            "For the vertical tracker, do switches 1,2,3,4,6 on (5 off). This gives 6400 steps/revolution. Can be adjusted in CONSTANTS.py if different microstep desired."
             "4. Prepare boundary inside tank for larvae.\n"
         )
         final_msg = [
