@@ -20,8 +20,11 @@ tracking_file = filedialog.askopenfilename(
 )
 track_df = pd.read_csv(tracking_file)
 
-# Use all points
-sliced_points = list(zip(track_df['x_mm'], track_df['y_mm']))
+# Filter rows where status == "SuccTrack"
+succ_df = track_df[track_df['status'] == "SuccTrack"]
+
+# Use only those points
+sliced_points = list(zip(succ_df['x_mm'], succ_df['y_mm']))
 
 fig, ax = plt.subplots()
 ax.set_xlabel('x [mm]')
