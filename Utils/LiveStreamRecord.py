@@ -57,7 +57,6 @@ def recording_writer_thread(recording):
                         states.avi_recorder.write(frame)
                     except ValueError as e:
                         if 'write to closed file' in str(e):
-                            print("Recorder closed while flushing queue.")
                             break
                         else:
                             raise
