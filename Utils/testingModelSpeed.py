@@ -1,21 +1,24 @@
-import cv2 #type: ignore
-import numpy as np # type:ignore
+import cv2 # type: ignore
+import numpy as np # type: ignore
 import csv
 import os
 import time
+import keyboard  # type: ignore
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
 import multiprocessing
 from JellyTrackingFunctions import detect_jellyfish, steps_to_mm, pixels_to_mm, calculate_delta_Pixels
 
-def process_video(video_path, is_jf_mode, verbose=multiprocessing.Value('b',False)):
+
+def process_video(video_path, is_jf_mode, verbose=multiprocessing.Value('b', False)):
     # Prepare CSV file
     video_folder = os.path.dirname(video_path)
     video_name = os.path.splitext(os.path.basename(video_path))[0]
     mode_str = "Jellyfish" if is_jf_mode.value == 1 else "Larvae"
     csv_file_path = os.path.join(video_folder, f"{video_name}_{mode_str}_tracking.csv")
 
-    csv_writer = None
+    paused = False
+
     with open(csv_file_path, "w", newline="") as tracking_data_file:
         csv_writer = csv.writer(tracking_data_file)
         csv_writer.writerow(["x_mm", "y_mm", "timestamp", "status", "flashlight_pos", "bbox"])
@@ -27,24 +30,43 @@ def process_video(video_path, is_jf_mode, verbose=multiprocessing.Value('b',Fals
         y_pos = 0
         detect_light = False  # normal setting
 
-        start_time = time.time()
         fps = cap.get(cv2.CAP_PROP_FPS)
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
         while True:
+            # Handle keyboard pause/resume
+            if keyboard.is_pressed("p"):
+                paused = not paused
+                print(">>> PAUSED <<<" if paused else ">>> RESUMED <<<")
+                time.sleep(0.5)  # debounce so it doesn’t flip instantly
+
+            if keyboard.is_pressed("q"):
+                print(">>> QUIT requested <<<")
+                break
+
+            if paused:
+                time.sleep(0.2)
+                continue
+
             ret, frame = cap.read()
             if not ret:
                 break
-            
+
             # Ensure frame is RGB
             if frame.ndim == 2:
                 frame = np.stack((frame,) * 3, axis=-1)
             elif frame.shape[2] != 3:
                 frame = frame[:, :, :3]
 
-            flashlight_pos, (x1, x2, y1, y2) = detect_jellyfish(frame, detect_light, is_jf_mode, log_queue=None, verbose=verbose, trackingStartEnd=multiprocessing.Value('i',0))
+            flashlight_pos, (x1, x2, y1, y2) = detect_jellyfish(
+                frame, detect_light, is_jf_mode,
+                log_queue=None, verbose=verbose,
+                trackingStartEnd=multiprocessing.Value('i', 0)
+            )
+
             if frame_index % 100 == 0:
                 print(f"Processing frame {frame_index} / {total_frames}")
+
             # timestamp based on frame number
             total_seconds = frame_index / fps
             hours, remainder = divmod(int(total_seconds), 3600)
@@ -68,7 +90,6 @@ def process_video(video_path, is_jf_mode, verbose=multiprocessing.Value('b',Fals
 
 
 if __name__ == "__main__":
-    # Hide the main tkinter window
     Tk().withdraw()
     video_path = askopenfilename(title="Select video file", filetypes=[("Video files", "*.mp4;*.avi;*.mov")])
     if video_path:
