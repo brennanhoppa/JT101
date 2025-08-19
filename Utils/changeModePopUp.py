@@ -78,7 +78,8 @@ def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size, window, font, homing_error
             "2. Refocus microscope on corner border or other object.\n"
             "3. Switch the motor controller switches on both motors so switches 1,2,4,6 are on (3 and 5 off). \n"
             "This gives 12800 steps/revolution.\n"
-            "For the vertical tracker, do switches 1,2,3,4,6 on (5 off). This gives 6400 steps/revolution. Can be adjusted in CONSTANTS.py if different microstep desired."
+            "For the vertical tracker, do switches 1,2,3,4,6 on (5 off). This gives 6400 steps/revolution.\n"
+            "Can be adjusted in CONSTANTS.py if different microstep desired.\n"
             "4. Prepare boundary inside tank for larvae.\n"
         )
         final_msg = [
@@ -86,7 +87,8 @@ def changeModePopUp(is_jf_mode,x_pos,y_pos,step_size, window, font, homing_error
             "site near larvae boundary, then click the button that says Set Larvae Home,",
             "to set the home location for this mode.",
             "Click yes to complete mode change to larve.",
-            "If using vertical, just click set larvae home immediately to keep larvae home at 0 with the limit switch."
+            "If using vertical, just click set larvae home immediately to keep larvae home ",
+            "at 0 with the limit switch."
         ]
     else: 
         msg = (
