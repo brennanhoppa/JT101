@@ -69,22 +69,11 @@ def detect_jellyfish(frame, detect_light, is_jf_mode, log_queue, verbose,trackin
     if trackingStartEnd.value == 0: # (tracking default)
         pass
     elif trackingStartEnd.value == 1: # (tracking just started)
-        s = time.time()
-        e = time.time()
-        delta = e-s
-        print(f"Tracking turned on, time (sec): {delta:.4f}")
+        
         trackingStartEnd.value = 0
     else: # must be 2 (tracking just ended)
-        # Explicitly delete the model objects to free up resources
-        s = time.time()
         gc.collect() 
-        # torch.cuda.empty_cache() # Clean up any remaining CUDA memory
-        # torch.cuda.ipc_collect()
-        # torch.cuda.synchronize()
-        e = time.time()
-        delta = e-s
         trackingStartEnd.value = 0
-        print(f"Tracking turned off, time (sec): {delta:.4f}")
         return None, (None, None, None, None) # Return immediately
 
 
