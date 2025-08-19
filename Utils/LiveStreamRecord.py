@@ -237,8 +237,10 @@ def main(x_pos,y_pos,command_queue,keybinds_flag,pixelsCal_flag,is_jf_mode, term
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = 30 # change if camera settings change
     
+    os.environ['SDL_VIDEO_WINDOW_POS'] = "0,30"
+
     pygame.init()
-    text_panel_height = 320
+    text_panel_height = 460
     window_width, window_height = width, height+text_panel_height
     window = pygame.display.set_mode((window_width, window_height))
     pygame.display.set_caption("Tracker")
