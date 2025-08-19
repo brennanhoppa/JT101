@@ -13,7 +13,7 @@ CONSTANTS = {
     # Default: 437 pixels/mm
     # Change value below if needed, keep default value stored above
     "LPixelsPerMm": 437, 
-    "LarvaeHome": (2700,80625), # this is in JF step sizes
+    "LarvaeHome": (4125,83925), # this is in JF step sizes
     "XmaxLarvae": 1331155,
     "YmaxLarvae": 418670,
 }

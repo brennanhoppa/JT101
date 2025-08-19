@@ -39,9 +39,6 @@ HALF_PRECISION = True  # Enable FP16 inference if supported
 modelJF = YOLO(MODEL_PATH_JF)
 modelLarvae = YOLO(MODEL_PATH_LARVAE)
 
-modelJF.to("cuda:0")
-modelLarvae.to("cuda:0")
-
 def run_yolo_with_output(model, frame_resized, **kwargs):
     log_stream = io.StringIO()
     handler = logging.StreamHandler(log_stream)
@@ -149,36 +146,24 @@ def detect_jellyfish(frame, detect_light, is_jf_mode, log_queue, verbose,trackin
 
     # Perform object detection using the YOLO model
     if verbose.value == False:
-        with torch.no_grad():  # disables gradient computation
-            if is_jf_mode.value == 1:
-                start = time.time()
-                
-                results = modelJF.predict(frame_resized,
-                                            imgsz=IMG_SIZE,
-                                            conf=CONF_THRESHOLD,
-                                            iou=IOU_THRESHOLD,
-                                            half=HALF_PRECISION,
-                                            device="cuda:0",
-                                            verbose=False
-                                            )
-                
-                end = time.time()
-                d = end-start
-                counter += 1
-                if counter == 500:
-                    counter = 0
-                    print(f"Time to .predict single frame(sec): {d:.4f}")
-                    print("allocated:", torch.cuda.memory_allocated(0)/1e9, "GB")
-                    print("reserved:", torch.cuda.memory_reserved(0)/1e9, "GB")
-            else:
-                results = modelLarvae.predict(frame_for_inference,imgsz=IMG_SIZE,conf=CONF_THRESHOLD,iou=IOU_THRESHOLD,half=HALF_PRECISION, device='cuda:0', verbose=False)
+        if is_jf_mode.value == 1:                
+            results = modelJF.predict(frame_resized,
+                                        imgsz=IMG_SIZE,
+                                        conf=CONF_THRESHOLD,
+                                        iou=IOU_THRESHOLD,
+                                        half=HALF_PRECISION,
+                                        device="cuda:0",
+                                        verbose=False
+                                        )
+            
+        
+        else:
+            results = modelLarvae.predict(frame_for_inference,imgsz=IMG_SIZE,conf=CONF_THRESHOLD,iou=IOU_THRESHOLD,half=HALF_PRECISION, device='cuda:0', verbose=False)
     else:
-        with torch.no_grad():  # disables gradient computation
-            if is_jf_mode.value == 1:
-                results, log_output = run_yolo_with_output(modelJF,frame_resized,imgsz=IMG_SIZE,conf=CONF_THRESHOLD,iou=IOU_THRESHOLD,half=HALF_PRECISION, device='cuda:0', verbose=True)
-            else:
-                results, log_output = run_yolo_with_output(modelLarvae,frame_resized,imgsz=IMG_SIZE,conf=CONF_THRESHOLD,iou=IOU_THRESHOLD,half=HALF_PRECISION, device='cuda:0', verbose=True)
-        # log(log_output,log_queue)
+        if is_jf_mode.value == 1:
+            results, log_output = run_yolo_with_output(modelJF,frame_resized,imgsz=IMG_SIZE,conf=CONF_THRESHOLD,iou=IOU_THRESHOLD,half=HALF_PRECISION, device='cuda:0', verbose=True)
+        else:
+            results, log_output = run_yolo_with_output(modelLarvae,frame_resized,imgsz=IMG_SIZE,conf=CONF_THRESHOLD,iou=IOU_THRESHOLD,half=HALF_PRECISION, device='cuda:0', verbose=True)
 
     original_height, original_width = frame.shape[:2]
     # Find the box with the highest confidence
